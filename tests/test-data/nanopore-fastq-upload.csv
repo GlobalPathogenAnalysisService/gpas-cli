@@ -1,0 +1,4 @@
+batch,run_number,sample_name,bam,control,collection_date,tags,country,region,district,specimen_organism,host,instrument_platform,primer_scheme
+run1,run1.1,sample1,sample1.bam,negative,2022-02-01,site0:repeat,USA,Texas,1124,SARS-CoV-2,human,Illumina,auto
+run1,run1.1,sample2,sample2.bam,,2022-03-01,site0,FRA,Finistère,,SARS-CoV-2,human,Illumina,auto
+run1,run1.1,sample3,sample3.bam,,2022-03-09,site0,GBR,Devon,,SARS-CoV-2,human,Illumina,auto
