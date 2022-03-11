@@ -16,7 +16,7 @@ jobs:
         with:
           update-conda: true
           python-version: ${{ matrix.python-version }}
-          conda-channels: bioconda
+          conda-channels: conda-forge, bioconda
       - name: Install
         run: |
           conda install samtools read-it-and-keep

@@ -2,8 +2,6 @@ import subprocess
 
 import pytest
 
-import gpas
-
 
 data_dir = 'tests/test-data'
 

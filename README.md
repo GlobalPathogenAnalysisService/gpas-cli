@@ -1,8 +1,4 @@
-# A GPAS CLI and Python Library
-
-A Python library and command line interface for the Global Pathogen Analysis System
-
-This is a skeleton
+A command line interface and Python library for the Global Pathogen Analysis System
 
 ## Install (development)
 
