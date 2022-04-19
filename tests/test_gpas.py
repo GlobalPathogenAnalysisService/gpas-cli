@@ -15,10 +15,9 @@ def run(cmd, cwd='./'):  # Helper for CLI testing
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
 
-
 def test_validate():
-    run_cmd = run('gpas-cli validate nanopore-fastq-upload.csv')
+    run_cmd = run('gpas validate --upload-csv nanopore-fastq-upload.csv')
     assert 'Validation passed' in run_cmd.stdout
 
 def test_version():
-    run_cmd = run('gpas-cli version')
+    run_cmd = run('gpas --version')
