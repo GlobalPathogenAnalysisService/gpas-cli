@@ -1,30 +1,29 @@
+from enum import Enum
 from pathlib import Path
-
-from typing import Literal
 
 import defopt
 
 import gpas.util
 
 
-GPAS_ENVIRONMENTS = ('dev', 'staging', 'prod')
+GPAS_ENVIRONMENTS = Enum('Environment', dict(DEV='development', STAGE='staging', PROD='production'))
+OUTPUT_TYPES = Enum('OutputType', dict(JSON='json', FASTA='fasta', BAM='bam', VCF='vcf'))
+
 OUTPUT_TYPES = ('json', 'fasta', 'bam', 'vcf')
 
-
 def upload(
-    *,
     upload_csv: Path,
     token: Path,
+    *,
     working_dir: Path = Path('/tmp'),
-    environment: Literal[GPAS_ENVIRONMENTS] = GPAS_ENVIRONMENTS[0],
+    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV,
     mapping_prefix: str = '',
-    threads: int = 0,
-    dry_run: bool = False):
+    threads: int = 0):
     '''
     Upload reads to the GPAS platform
 
     :arg upload_csv: Path of upload csv 
-    :arg token: Path of auth token. Available from GPAS Portal
+    :arg token: Path of auth token available from GPAS Portal
     :arg working_dir: Path of directory in which to generate intermediate files
     :arg environment: GPAS environment to use
     :arg mapping_prefix: Filename prefix for mapping CSV
@@ -35,10 +34,10 @@ def upload(
 
 
 def validate(
-    *,
     upload_csv: Path,
+    *,
     token: Path = None,
-    environment: Literal[GPAS_ENVIRONMENTS] = GPAS_ENVIRONMENTS[0]):
+    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV):
     '''
     Validate an upload CSV. Validates tags remotely if supplied with an auth token
 
@@ -57,7 +56,7 @@ def download(
     token: Path,
     mapping_csv: Path = None,
     guids: str = None,
-    environment: Literal[GPAS_ENVIRONMENTS] = GPAS_ENVIRONMENTS[0],
+    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV,
     outputs: str = 'json',
     output_dir: Path = None,
     rename: bool = False):
@@ -88,11 +87,28 @@ def download(
         raise RuntimeError('Unexpected outputs: ' + str(unexpected_types))
 
 
+def status(
+    *,
+    mapping_csv: Path = None,
+    guids: str = None,
+    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV):
+    guids_fmt = guids.strip(',').split(',') if guids else None
+
+    if mapping_csv:
+        print(f'Checking status of mappings {mapping_csv}')
+    elif guids:
+        print(f'Checking status of guids {guids}')
+    else:
+        raise RuntimeError('Neither a mapping csv nor guids were specified')  
+
+
+
 def main():
     defopt.run({
         'upload': upload,
         'validate': validate,
-        'download': download
+        'download': download,
+        'status': status
     },
     no_negated_flags=True,
     strict_kwonly=False,
