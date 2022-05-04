@@ -2,18 +2,25 @@
 
 
 
-A command line interface and Python library for the Global Pathogen Analysis System. Currently a CLI skeleton.
+An experimental command line interface and Python library for the Global Pathogen Analysis System.
+
+Progress:
+- [x] `gpas validate`
+- [x] `gpas upload`
+- [ ] `gpas download`
+- [x] `gpas status`
 
 
 
 ## Install (development)
 
 ```
-# From a Python >= 3.10 venv
-git clone https://github.com/GenomePathogenAnalysisService/gpas
-cd gpas
-pip install -e .
-pytest
+conda create -n gpas-cli python=3.10 read-it-and-keep samtools pytest
+conda activate gpas-cli
+git clone https://github.com/GenomePathogenAnalysisService/gpas-uploader
+pip install -e ./gpas-uploader
+git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
+pip install -e ./gpas-cli
 ```
 
 
@@ -21,70 +28,71 @@ pytest
 ## CLI 
 
 ```
-% gpas -h
-usage: gpas [-h] [--version] {upload,validate,download} ...
+% gpas -h                                                                 
+usage: gpas [-h] [--version] {upload,validate,download,status} ...
 
 positional arguments:
-  {upload,validate,download}
-    upload              Upload reads to the GPAS platform
-    validate            Validate an upload CSV. Validates tags remotely if supplied with an auth token
+  {upload,validate,download,status}
+    upload              Validate, decontaminate and upload reads to the GPAS platform
+    validate            Validate an upload CSV. Validates tags remotely if supplied with an authentication token
     download            Download analytical outputs from the GPAS platform for an uploaded batch or list of samples
+    status              Check the status of samples submitted to the GPAS platform
 
 options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
 ```
 
-### `gpas upload`
-
-```
-% gpas upload -h
-usage: gpas upload [-h] --upload-csv UPLOAD_CSV --token TOKEN [--working-dir WORKING_DIR] [--environment {dev,staging,prod}]
-                   [--mapping-prefix MAPPING_PREFIX] [--threads THREADS] [--dry-run]
-
-Upload reads to the GPAS platform
-
-options:
-  -h, --help            show this help message and exit
-  --upload-csv UPLOAD_CSV
-                        Path of upload csv
-  --token TOKEN         Path of auth token. Available from GPAS Portal
-  --working-dir WORKING_DIR
-                        Path of directory in which to generate intermediate files
-                        (default: /tmp)
-  --environment {dev,staging,prod}
-                        GPAS environment to use
-                        (default: dev)
-  --mapping-prefix MAPPING_PREFIX
-                        Filename prefix for mapping CSV
-                        (default: )
-  --threads THREADS     Number of decontamination tasks to execute in parallel. 0 = auto
-                        (default: 0)
-  --dry-run             Skip final upload step
-                        (default: False)
-```
-
-
 
 ### `gpas validate`
 
 ```
 % gpas validate -h
-usage: gpas validate [-h] --upload-csv UPLOAD_CSV [--token TOKEN] [--environment {dev,staging,prod}]
+usage: gpas validate [-h] [--token TOKEN] [--environment {development,staging,production}] [--json] upload_csv
 
-Validate an upload CSV. Validates tags remotely if supplied with an auth token
+Validate an upload CSV. Validates tags remotely if supplied with an authentication token
+
+positional arguments:
+  upload_csv            Path of upload CSV
 
 options:
   -h, --help            show this help message and exit
-  --upload-csv UPLOAD_CSV
-                        Path of upload CSV
-  --token TOKEN         Path of auth token. Available from GPAS Portal
+  --token TOKEN         Path of auth token available from GPAS Portal
                         (default: None)
-  --environment {dev,staging,prod}
+  --environment {development,staging,production}
                         GPAS environment to use
-                        (default: dev)
+                        (default: development)
+  --json                Emit JSON to stdout
+                        (default: False)
 ```
 
+
+### `gpas upload`
+```
+% gpas upload -h
+usage: gpas upload [-h] [--working-dir WORKING_DIR] [--environment {development,staging,production}] [--threads THREADS] [--dry-run] [--json] upload_csv token
+
+Validate, decontaminate and upload reads to the GPAS platform
+
+positional arguments:
+  upload_csv            Path of upload csv
+  token                 Path of auth token available from GPAS Portal
+
+options:
+  -h, --help            show this help message and exit
+  --working-dir WORKING_DIR
+                        Path of directory in which to generate intermediate files
+                        (default: /tmp)
+  --environment {development,staging,production}
+                        GPAS environment to use
+                        (default: development)
+  --threads THREADS     Number of decontamination tasks to execute in parallel. 0 = auto
+                        (default: 0)
+  --dry-run             Skip final upload step
+                        (default: False)
+  --json                Emit JSON to stdout
+                        (default: False)
+```
 
 
 ### `gpas download`
@@ -116,3 +124,26 @@ options:
                         (default: False)
 ```
 
+### `gpas status`
+```
+% gpas status -h
+usage: gpas status [-h] [--mapping-csv MAPPING_CSV] [--guids GUIDS] [--environment {development,staging,production}] [--format {csv,json}] token
+
+Check the status of samples submitted to the GPAS platform
+
+positional arguments:
+  token                 Path of auth token available from GPAS Portal
+
+options:
+  -h, --help            show this help message and exit
+  --mapping-csv MAPPING_CSV
+                        Path of mapping CSV generated at upload time
+                        (default: None)
+  --guids GUIDS         Comma-separated list of GPAS sample guids
+                        (default: None)
+  --environment {development,staging,production}
+                        GPAS environment to use
+                        (default: development)
+  --format {csv,json}   Output format
+                        (default: csv)
+```
