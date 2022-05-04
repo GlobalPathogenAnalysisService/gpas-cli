@@ -1,62 +1,112 @@
+import logging
+
 from enum import Enum
 from pathlib import Path
 
 import defopt
 
-import gpas.util
+from gpas import util
 
 
-GPAS_ENVIRONMENTS = Enum('Environment', dict(DEV='development', STAGE='staging', PROD='production'))
-OUTPUT_TYPES = Enum('OutputType', dict(JSON='json', FASTA='fasta', BAM='bam', VCF='vcf'))
+logging.basicConfig(level=logging.INFO)
 
-OUTPUT_TYPES = ('json', 'fasta', 'bam', 'vcf')
+OUTPUT_TYPES = Enum('OutputType', dict(json='json', fasta='fasta', bam='bam', vcf='vcf'))
+ENVIRONMENTS = Enum('Environment', dict(development='dev', staging='staging', production='prod'))
+DEFAULT_ENVIRONMENT = ENVIRONMENTS.development
+
 
 def upload(
     upload_csv: Path,
     token: Path,
     *,
     working_dir: Path = Path('/tmp'),
-    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV,
-    mapping_prefix: str = '',
-    threads: int = 0):
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    threads: int = 0,
+    dry_run: bool = False,
+    json: bool = False):
     '''
-    Upload reads to the GPAS platform
+    Validate, decontaminate and upload reads to the GPAS platform
 
     :arg upload_csv: Path of upload csv 
     :arg token: Path of auth token available from GPAS Portal
     :arg working_dir: Path of directory in which to generate intermediate files
     :arg environment: GPAS environment to use
-    :arg mapping_prefix: Filename prefix for mapping CSV
     :arg threads: Number of decontamination tasks to execute in parallel. 0 = auto
     :arg dry_run: Skip final upload step
+    :arg json: Emit JSON to stdout
     '''
-    pass
+    if not upload_csv.is_file():
+        raise RuntimeError(f'Upload CSV not found: {upload_csv}')
+    if not token.is_file():
+        raise RuntimeError(f'Authentication token not found: {token}')
+    
+    flags_fmt = ' '.join([
+        '--json' if json else '',
+        '--parallel' if threads == 0 or threads > 1 else ''])
+    passed_msg = '--> All samples have been successfully decontaminated'
+
+    if dry_run:
+        cmd = f'gpas-upload --environment {environment.value} --token {token} {flags_fmt} decontaminate {upload_csv} --dir {working_dir}'
+    else:
+        cmd = f'gpas-upload --environment {environment.value} --token {token} {flags_fmt} submit {upload_csv} --dir {working_dir}'
+    
+    logging.info(f'Upload command: {cmd}')
+    run_cmd = util.run(cmd)
+    if run_cmd.returncode == 0:
+        logging.info(f'Upload successful')
+        stdout = run_cmd.stdout.strip()
+        if passed_msg in stdout:
+            print(f'Validation passed: {upload_csv}')
+        else:
+            print(stdout)  # JSON
+    else:
+        logging.info(f'Upload failed with exit code {run_cmd.returncode}). Command: {cmd}')
+
 
 
 def validate(
     upload_csv: Path,
     *,
     token: Path = None,
-    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV):
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    json: bool = False):
     '''
-    Validate an upload CSV. Validates tags remotely if supplied with an auth token
+    Validate an upload CSV. Validates tags remotely if supplied with an authentication token
 
     :arg upload_csv: Path of upload CSV 
-    :arg token: Path of auth token. Available from GPAS Portal
+    :arg token: Path of auth token available from GPAS Portal
     :arg environment: GPAS environment to use
+    :arg json: Emit JSON to stdout
     '''
-    if gpas.util.validate(upload_csv):
-        print('Validation passed')
-    else:
-        print('Validation failed')
+    if not upload_csv.is_file():
+        raise RuntimeError(f'Upload CSV not found: {upload_csv}')
 
+    json_flag = '--json' if json else ''
+    passed_msg = '--> All preliminary checks pass and this upload CSV can be passed to the GPAS upload app'
+    if token:
+        cmd = f'gpas-upload --environment {environment.value} --token {token} {json_flag} validate {upload_csv}'
+    else:
+        cmd = f'gpas-upload --environment {environment.value} {json_flag} validate {upload_csv}'
+
+    logging.info(f'Validate command: {cmd}')
+
+    run_cmd = util.run(cmd)
+    if run_cmd.returncode == 0:
+        stdout = run_cmd.stdout.strip()
+        if passed_msg in stdout:
+            print(f'Validation passed: {upload_csv}')
+        else:
+            print(stdout)  # JSON
+    else:
+        raise RuntimeError(f'{run_cmd.stdout} {run_cmd.stderr}')
+ 
 
 def download(
     *,
     token: Path,
     mapping_csv: Path = None,
     guids: str = None,
-    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     outputs: str = 'json',
     output_dir: Path = None,
     rename: bool = False):
@@ -91,9 +141,8 @@ def status(
     *,
     mapping_csv: Path = None,
     guids: str = None,
-    environment: GPAS_ENVIRONMENTS = GPAS_ENVIRONMENTS.DEV):
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT):
     guids_fmt = guids.strip(',').split(',') if guids else None
-
     if mapping_csv:
         print(f'Checking status of mappings {mapping_csv}')
     elif guids:

@@ -1,3 +1,4 @@
+import subprocess
 import pandas as pd
 
 def validate(sample_sheet: str):
@@ -6,3 +7,6 @@ def validate(sample_sheet: str):
 		return True
 	except Exception as x:
 		return False
+
+def run(cmd):
+	return subprocess.run(cmd, shell=True, text=True, capture_output=True)
