@@ -70,7 +70,9 @@ options:
 ### `gpas upload`
 ```
 % gpas upload -h
-usage: gpas upload [-h] [--working-dir WORKING_DIR] [--environment {development,staging,production}] [--threads THREADS] [--dry-run] [--json] upload_csv token
+usage: gpas upload [-h] [--working-dir WORKING_DIR] [--environment {development,staging,production}] [--mapping-prefix MAPPING_PREFIX] [--threads THREADS]
+                   [--dry-run] [--json]
+                   upload_csv token
 
 Validate, decontaminate and upload reads to the GPAS platform
 
@@ -86,12 +88,16 @@ options:
   --environment {development,staging,production}
                         GPAS environment to use
                         (default: development)
+  --mapping-prefix MAPPING_PREFIX
+                        Filename prefix for mapping CSV
+                        (default: mapping)
   --threads THREADS     Number of decontamination tasks to execute in parallel. 0 = auto
                         (default: 0)
   --dry-run             Skip final upload step
                         (default: False)
   --json                Emit JSON to stdout
                         (default: False)
+
 ```
 
 

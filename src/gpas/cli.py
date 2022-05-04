@@ -23,6 +23,7 @@ def upload(
     *,
     working_dir: Path = Path('/tmp'),
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    mapping_prefix: str = 'mapping',
     threads: int = 0,
     dry_run: bool = False,
     json: bool = False):
@@ -33,6 +34,7 @@ def upload(
     :arg token: Path of auth token available from GPAS Portal
     :arg working_dir: Path of directory in which to generate intermediate files
     :arg environment: GPAS environment to use
+    :arg mapping_prefix: Filename prefix for mapping CSV
     :arg threads: Number of decontamination tasks to execute in parallel. 0 = auto
     :arg dry_run: Skip final upload step
     :arg json: Emit JSON to stdout
@@ -41,7 +43,7 @@ def upload(
         raise RuntimeError(f'Upload CSV not found: {upload_csv}')
     if not token.is_file():
         raise RuntimeError(f'Authentication token not found: {token}')
-    
+
     flags_fmt = ' '.join([
         '--json' if json else '',
         '--parallel' if threads == 0 or threads > 1 else ''])
@@ -49,7 +51,7 @@ def upload(
     if dry_run:
         cmd = f'gpas-upload --environment {environment.value} --token {token} {flags_fmt} decontaminate {upload_csv} --dir {working_dir}'
     else:
-        cmd = f'gpas-upload --environment {environment.value} --token {token} {flags_fmt} submit {upload_csv} --dir {working_dir}'
+        cmd = f'gpas-upload --environment {environment.value} --token {token} {flags_fmt} submit {upload_csv} --dir {working_dir} --output_csv {mapping_prefix}.csv'
     
     logging.info(f'Upload command: {cmd}')
     run_cmd = run(cmd)
@@ -174,8 +176,6 @@ def status(
             print(json.dumps(records))
     else:
         raise RuntimeError('Neither a mapping csv nor guids were specified')
-
-
 
 
 

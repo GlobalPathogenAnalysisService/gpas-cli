@@ -44,13 +44,13 @@ def test_validate_token_online():
 def test_upload_dry_run_online():
     run_cmd = run(f'gpas upload nanopore-fastq.csv token.json --dry-run')
     assert 'Upload successful' in run_cmd.stderr  # Logging INFO
-    run('rm sample_names*')
+    run('rm -f sample_names* mapping*')
 
 @pytest.mark.online
 def test_upload_dry_run_json_online():
     run_cmd = run(f'gpas upload nanopore-fastq.csv token.json --dry-run --json')
     assert '{"submission": {"status": "completed"' in run_cmd.stdout
-    run('rm sample_names*')
+    run('rm -f sample_names* mapping*')
 
 @pytest.mark.online
 def test_status_guids_json_online():
