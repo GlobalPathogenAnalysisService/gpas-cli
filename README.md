@@ -21,6 +21,10 @@ git clone https://github.com/GenomePathogenAnalysisService/gpas-uploader
 pip install -e ./gpas-uploader
 git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
 pip install -e ./gpas-cli
+
+# Test
+cd gpas-uploader && pytest
+cd ../gpas-cli && pytest
 ```
 
 

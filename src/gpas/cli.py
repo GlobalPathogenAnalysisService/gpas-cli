@@ -6,15 +6,14 @@ from pathlib import Path
 
 import defopt
 import requests
+import pandas as pd
 
-from gpas.misc import run, FORMATS, ENVIRONMENTS, DEFAULT_ENVIRONMENT, ENDPOINTS
+from gpas.misc import run, FILE_TYPES, DISPLAY_FORMATS, ENVIRONMENTS, DEFAULT_ENVIRONMENT, ENDPOINTS
 
 import gpas_uploader
 
 
-
 logging.basicConfig(level=logging.INFO)
-
 
 
 def upload(
@@ -53,14 +52,13 @@ def upload(
     else:
         cmd = f'gpas-upload --environment {environment.value} --token {token} {flags_fmt} submit {upload_csv} --dir {working_dir} --output_csv {mapping_prefix}.csv'
     
-    logging.info(f'Upload command: {cmd}')
     run_cmd = run(cmd)
     if run_cmd.returncode == 0:
-        logging.info(f'Upload successful')
+        logging.info(f'Upload successful. Command: {cmd}')
         stdout = run_cmd.stdout.strip()
         print(stdout)
     else:
-        logging.info(f'Upload failed with exit code {run_cmd.returncode}). Command: {cmd}')
+        logging.info(f'Upload failed with exit code {run_cmd.returncode}. Command: {cmd}')
 
 
 
@@ -98,13 +96,13 @@ def validate(
  
 
 def download(
-    *,
     token: Path,
+    *,
     mapping_csv: Path = None,
     guids: str = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    outputs: str = 'json',
-    output_dir: Path = None,
+    file_types: str = 'fasta',
+    out_dir: Path = '',
     rename: bool = False):
     '''
     Download analytical outputs from the GPAS platform for an uploaded batch or list of samples
@@ -113,24 +111,53 @@ def download(
     :arg mapping_csv: Path of mapping CSV generated at upload time
     :arg guids: Comma-separated list of GPAS sample guids
     :arg environment: GPAS environment to use
-    :arg outputs: Comma separated list of outputs to download (e.g. json,fasta,bam,vcf)
-    :arg output_dir: Path of output directory
+    :arg file_types: Comma separated list of outputs to download (json,fasta,bam,vcf)
+    :arg out_dir: Path of output directory
     :arg rename: Rename outputs using original sample names (requires --mapping-csv)
     '''
-    guids_fmt = guids.strip(',').split(',') if guids else None
-    outputs_fmt = outputs.strip(',').split(',') if outputs else None
+    file_types_fmt = file_types.strip(',').split(',')
+    print(file_types_fmt)
+    # gpas-upload --json --token token.json --environment staging download examples/sample_names.csv --file_types fasta vcf bam --rename
+    if mapping_csv:
+        logging.info(f'Using samples in {mapping_csv}')
+        batch = gpas_uploader.DownloadBatch(
+            mapping_csv=mapping_csv, token_file=token, environment=environment.value, output_json=False)
+        status = batch.get_status()
+        batch.download(filetype='fasta', outdir=out_dir, rename=rename)
+    elif guids:
+        logging.info(f'Using samples in {guids}')
+        guids_fmt = guids.strip(',').split(',') if guids else None
+        raise NotImplementedError()
+    #     token_contents = json.loads(token.read_text())
+    #     headers = {'Authorization': 'Bearer ' + token_contents['access_token'], 'Content-Type': 'application/json'}
+    #     endpoint = ENDPOINTS[environment.value]['HOST'] + ENDPOINTS[environment.value]['API_PATH'] + 'get_sample_detail/'
+    #     records = []
+    #     for guid in guids_fmt:
+    #         r = requests.get(url=endpoint+guid, headers=headers)    
+    #         if r.ok:
+    #             records.append(dict(sample=r.json()[0].get('name'), status=r.json()[0].get('status')))
+    #         else:
+    #             logging.warning(f'{guid}, status:{r.status_code}')
+    else:
+        raise RuntimeError('Neither a mapping csv nor guids were specified')
+    
+    # if format.value == 'table':
+    #     records_fmt = pd.DataFrame(records).to_string(index=False)
+    # elif format.value == 'json':
+    #     records_fmt = json.dumps(records)
+    # elif format.value == 'csv':
+    #     records_fmt = pd.DataFrame(records).to_csv(index=False)
 
+    # return print(records_fmt)
 
-    print(guids_fmt)
-    print(outputs_fmt)
+    # gpas-upload --json --token token.json --environment staging download examples/sample_names.csv --file_types fasta vcf bam --rename
 
+    # if mapping_csv and not mapping_csv.is_file():
+    #     raise RuntimeError('Mapping CSV not found: ' + str(mapping_csv.resolve()))
 
-    if mapping_csv and not mapping_csv.is_file():
-        raise RuntimeError('Mapping CSV not found: ' + str(mapping_csv.resolve()))
-
-    unexpected_types = set(outputs_fmt) - set(OUTPUT_TYPES)
-    if unexpected_types:
-        raise RuntimeError('Unexpected outputs: ' + str(unexpected_types))
+    # unexpected_types = set(outputs_fmt) - set(OUTPUT_TYPES)
+    # if unexpected_types:
+    #     raise RuntimeError('Unexpected outputs: ' + str(unexpected_types))
 
 
 def status(
@@ -139,7 +166,7 @@ def status(
     mapping_csv: Path = None,
     guids: str = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    format: FORMATS = FORMATS.csv):
+    format: DISPLAY_FORMATS = DISPLAY_FORMATS.table):
     '''
     Check the status of samples submitted to the GPAS platform
 
@@ -149,14 +176,13 @@ def status(
     :arg environment: GPAS environment to use
     :arg format: Output format
     '''
-        
     if mapping_csv:
-        logging.info(f'Checking status of samples in {mapping_csv}')
-        batch = gpas_uploader.DownloadBatch(mapping_csv='demo_sample_names.csv', token_file='token.json', environment='dev', output_json=True)
-        batch.get_status()
-
+        logging.info(f'Using samples in {mapping_csv}')
+        batch = gpas_uploader.DownloadBatch(
+            mapping_csv=mapping_csv, token_file=token, environment=environment.value, output_json=False)
+        records = batch.get_status()  # get_status() modified to return dict
     elif guids:
-        logging.info(f'Checking status of samples in {guids}')
+        logging.info(f'Using samples in {guids}')
         guids_fmt = guids.strip(',').split(',') if guids else None
         token_contents = json.loads(token.read_text())
         headers = {'Authorization': 'Bearer ' + token_contents['access_token'], 'Content-Type': 'application/json'}
@@ -167,15 +193,18 @@ def status(
             if r.ok:
                 records.append(dict(sample=r.json()[0].get('name'), status=r.json()[0].get('status')))
             else:
-                print(f'{guid}, status:{r.status_code}', file=sys.stderr)
-        if format == FORMATS.csv:
-            print('sample', 'status', 'pangolin.lineage', sep=',')
-            for r in records:
-                print(r[0]['name'], r[0]['status'], r[0]['analysis'][0]['lineageDescription'], sep=',')
-        elif format == FORMATS.json:
-            print(json.dumps(records))
+                logging.warning(f'{guid}, status:{r.status_code}')
     else:
         raise RuntimeError('Neither a mapping csv nor guids were specified')
+    
+    if format.value == 'table':
+        records_fmt = pd.DataFrame(records).to_string(index=False)
+    elif format.value == 'json':
+        records_fmt = json.dumps(records)
+    elif format.value == 'csv':
+        records_fmt = pd.DataFrame(records).to_csv(index=False)
+
+    return print(records_fmt)
 
 
 

@@ -1,6 +1,8 @@
 import json
 import subprocess
 
+from pathlib import Path
+
 import pytest
 
 
@@ -61,4 +63,31 @@ def test_status_guids_json_online():
 def test_status_mapping_csv_json_online():
     run_cmd = run(f'gpas status --mapping-csv demo_sample_names.csv --format json token.json')
     assert '{"sample": "6e024eb1-432c-4b1b-8f57-3911fe87555f", "status": "Unreleased"}' in run_cmd.stdout
-    # JSON format currently deviates between guid and mapping CSV options
+
+@pytest.mark.online
+def test_status_mapping_csv_csv_online():
+    run_cmd = run(f'gpas status --mapping-csv demo_sample_names.csv --format csv token.json')
+    assert '6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased' in run_cmd.stdout
+
+@pytest.mark.online
+def test_status_mapping_csv_table_online():
+    run_cmd = run(f'gpas status --mapping-csv demo_sample_names.csv --format table token.json')
+    assert '6e024eb1-432c-4b1b-8f57-3911fe87555f Unreleased' in run_cmd.stdout
+
+@pytest.mark.online
+def test_gpas_uploader_download_mapping_csv_online():
+    run_cmd = run(f'gpas-upload --json --token token.json --environment dev download demo_sample_names.csv --file_types fasta')
+    assert Path(f'{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz').is_file()
+    run('rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz')
+
+@pytest.mark.online
+def test_gpas_uploader_download_mapping_csv_online():
+    run_cmd = run(f'gpas download --mapping-csv demo_sample_names.csv token.json')
+    assert Path(f'{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz').is_file()
+    run('rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz')
+
+@pytest.mark.online
+def test_download_mapping_csv_online():
+    run_cmd = run(f'gpas download --mapping-csv demo_sample_names.csv token.json')
+    assert Path(f'{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz').is_file()
+    run('rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz')

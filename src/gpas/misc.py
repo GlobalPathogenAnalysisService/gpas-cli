@@ -3,8 +3,8 @@ import subprocess
 from enum import Enum
 
 
-FORMATS = Enum('Formats', dict(csv='csv', json='json'))
-OUTPUT_TYPES = Enum('OutputType', dict(json='json', fasta='fasta', bam='bam', vcf='vcf'))
+DISPLAY_FORMATS = Enum('DisplayFormat', dict(table='table', csv='csv', json='json'))
+FILE_TYPES = Enum('FileType', dict(json='json', fasta='fasta', bam='bam', vcf='vcf'))
 ENVIRONMENTS = Enum('Environment', dict(development='dev', staging='staging', production='prod'))
 DEFAULT_ENVIRONMENT = ENVIRONMENTS.development
  
