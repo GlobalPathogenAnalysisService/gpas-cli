@@ -19,12 +19,12 @@ def run(cmd, cwd='./'):  # Helper for CLI testing
 
 def test_gpas_uploader_validate():
     run_cmd = run(f'gpas-upload --environment dev --json validate nanopore-fastq.csv')
-    assert '{"sample": "unpaired6", "files": ["nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
+    assert '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
 
 
 def test_validate():
     run_cmd = run(f'gpas validate --json --token token.json nanopore-fastq.csv')
-    assert '{"sample": "unpaired6", "files": ["nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
+    assert '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
 
 def test_version():
     run_cmd = run('gpas --version')
@@ -36,11 +36,11 @@ def test_version():
 @pytest.mark.online
 def test_gpas_uploader_validate_online():
     run_cmd = run(f'gpas-upload --environment dev --token token.json --json validate nanopore-fastq.csv')
-    assert '{"sample": "unpaired6", "files": ["nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
+    assert '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
 
 def test_validate_token_online():
     run_cmd = run(f'gpas validate --json --token token.json nanopore-fastq.csv')
-    assert '{"sample": "unpaired6", "files": ["nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
+    assert '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz' in run_cmd.stdout
 
 @pytest.mark.online
 def test_upload_dry_run_online():
@@ -61,33 +61,34 @@ def test_status_guids_json_online():
 
 @pytest.mark.online
 def test_status_mapping_csv_json_online():
-    run_cmd = run(f'gpas status --mapping-csv demo_sample_names.csv --format json token.json')
+    run_cmd = run(f'gpas status --mapping-csv example.mapping.csv --format json token.json')
     assert '{"sample": "6e024eb1-432c-4b1b-8f57-3911fe87555f", "status": "Unreleased"}' in run_cmd.stdout
 
 @pytest.mark.online
 def test_status_mapping_csv_csv_online():
-    run_cmd = run(f'gpas status --mapping-csv demo_sample_names.csv --format csv token.json')
+    run_cmd = run(f'gpas status --mapping-csv example.mapping.csv --format csv token.json')
     assert '6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased' in run_cmd.stdout
 
 @pytest.mark.online
 def test_status_mapping_csv_table_online():
-    run_cmd = run(f'gpas status --mapping-csv demo_sample_names.csv --format table token.json')
+    run_cmd = run(f'gpas status --mapping-csv example.mapping.csv --format table token.json')
     assert '6e024eb1-432c-4b1b-8f57-3911fe87555f Unreleased' in run_cmd.stdout
 
 @pytest.mark.online
 def test_gpas_uploader_download_mapping_csv_online():
-    run_cmd = run(f'gpas-upload --json --token token.json --environment dev download demo_sample_names.csv --file_types fasta')
+    run_cmd = run(f'gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types fasta')
     assert Path(f'{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz').is_file()
     run('rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz')
 
 @pytest.mark.online
 def test_gpas_uploader_download_mapping_csv_online():
-    run_cmd = run(f'gpas download --mapping-csv demo_sample_names.csv token.json')
+    run_cmd = run(f'gpas download --mapping-csv example.mapping.csv token.json')
     assert Path(f'{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz').is_file()
     run('rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz')
 
 @pytest.mark.online
 def test_download_mapping_csv_online():
-    run_cmd = run(f'gpas download --mapping-csv demo_sample_names.csv token.json')
+    run_cmd = run(f'gpas download --mapping-csv example.mapping.csv token.json')
     assert Path(f'{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz').is_file()
     run('rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz')
+    

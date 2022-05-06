@@ -1,0 +1,7 @@
+batch,run_number,sample_name,bam,control,collection_date,tags,country,region,district,specimen_organism,host,primer_scheme,instrument_platform
+run1,run1.1,unpaired1,reads/nanopore-fastq/unpaired1.bam,,2022-02-01,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore
+run1,run1.1,unpaired2,reads/nanopore-fastq/unpaired2.bam,,2022-02-01,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore
+run1,run1.1,unpaired3,reads/nanopore-fastq/unpaired3.bam,,2022-02-01,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore
+run1,run1.1,unpaired4,reads/nanopore-fastq/unpaired4.bam,,2022-02-01,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore
+run1,run1.1,unpaired5,reads/nanopore-fastq/unpaired5.bam,,2022-02-01,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore
+run1,run1.1,unpaired6,reads/nanopore-fastq/unpaired6.bam,,2022-02-01,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore
