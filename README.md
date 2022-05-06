@@ -2,12 +2,12 @@
 
 
 
-An experimental command line interface and Python library for the Global Pathogen Analysis System.
+An experimental command line interface and Python library for the Global Pathogen Analysis System. Currently a thin wrapper around  [gpas-uploader](https://github.com/GenomePathogenAnalysisService/gpas-uploader).
 
 Progress:
 - [x] `gpas validate`
 - [x] `gpas upload`
-- [ ] `gpas download`
+- [x] `gpas download`
 - [x] `gpas status`
 
 

@@ -1,4 +1,4 @@
 local_batch,local_run_number,local_sample_name,gpas_batch,gpas_run_number,gpas_sample_name
 B-425e87,30e69,test1,A-c7d0c87f,1,6e024eb1-432c-4b1b-8f57-3911fe87555f
-B-425e87,30e69,test2,1,2ddbd7d4-9979-4960-8c17-e7b92f0bf413
+B-425e87,30e69,test2,A-c7d0c87f,1,2ddbd7d4-9979-4960-8c17-e7b92f0bf413
 B-425e87,30e69,test3,A-c7d0c87f,1,8daadc7d-8d58-46a6-efb4-9ddefc1e4669
