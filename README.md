@@ -2,37 +2,51 @@
 
 
 
-An experimental command line interface and Python library for the Global Pathogen Analysis System. Currently a thin wrapper around  [gpas-uploader](https://github.com/GenomePathogenAnalysisService/gpas-uploader).
+A **currently experimental** command line interface and Python library for the Global Pathogen Analysis System.
 
-Progress:
-- [x] `gpas validate`
-- [x] `gpas upload`
-- [x] `gpas download`
-- [x] `gpas status`
+
+
+**Implementation progress**
+
+| Subcommand        | Wrapped | Refactored |
+| ----------------- | ------- | ---------- |
+| `gpas upload` | ✅ | ❌ |
+| `gpas download` | ✅ | ❌ |
+| `gpas validate` | ✅ | ❌ |
+| `gpas status` | ✅ | `--guids` only |
 
 
 
 ## Install (development)
 
 ```
-conda create -n gpas-cli python=3.10 read-it-and-keep samtools pytest
-conda activate gpas-cli
+conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools
+conda activate gpas-cli-dev
 git clone https://github.com/GenomePathogenAnalysisService/gpas-uploader
-pip install -e ./gpas-uploader
+pip install -e ./gpas-uploader[dev]
 git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
-pip install -e ./gpas-cli
+pip install -e ./gpas-cli[dev]  # Brackets may need escaping e.g. '\[dev\]'
 
 # Test
 cd gpas-uploader && pytest
 cd ../gpas-cli && pytest
+
+# Online tests
+cd ../gpas-cli && pytest --online
+
+# Forthcoming
+conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools
+conda activate gpas-cli-dev
+git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
+pip install -e ./gpas-cli\[dev\]
 ```
 
 
 
-## CLI 
+## CLI
 
 ```
-% gpas -h                                                                 
+% gpas -h
 usage: gpas [-h] [--version] {upload,validate,download,status} ...
 
 positional arguments:
