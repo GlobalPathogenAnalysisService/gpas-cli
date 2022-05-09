@@ -6,30 +6,27 @@ A **currently experimental** command line interface and Python library for the G
 
 
 
-**Implementation progress**
+**Progress**
 
 | Subcommand        | Wrapped | Refactored |
 | ----------------- | ------- | ---------- |
-| `gpas upload` | ✅ | ❌ |
-| `gpas download` | ✅ | ❌ |
-| `gpas validate` | ✅ | ❌ |
-| `gpas status` | ✅ | `--guids` only |
+| `gpas upload` | ✅ (CLI) | ❌ |
+| `gpas download` | ✅ (API) | ❌ |
+| `gpas validate` | ✅ (CLI) | ❌ |
+| `gpas status` | ✅ (API) | `--guids` only |
+
+
 
 
 
 ## Install
 
-###  `conda`
+###  With `conda`
 
 
 ```
+git clone https://github.com/GenomePathogenAnalysisService/gpas-cli.git
 conda env create -f environment.yml
-```
-
-###  `pip`
-
-```
-pip install gpas  # install samtools, read-it-and-keep manually
 ```
 
 ### Development
@@ -38,7 +35,7 @@ pip install gpas  # install samtools, read-it-and-keep manually
 conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools
 conda activate gpas-cli-dev
 git clone https://github.com/GenomePathogenAnalysisService/gpas-uploader
-pip install -e ./gpas-uploader[dev]
+pip install -e ./gpas-uploader
 git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
 pip install -e ./gpas-cli[dev]  # Brackets may need escaping e.g. '\[dev\]'
 
