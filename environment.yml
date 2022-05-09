@@ -1,4 +1,4 @@
-name: gpas-cli-dev
+name: gpas-cli-2
 channels:
   - conda-forge
   - bioconda
@@ -9,10 +9,5 @@ dependencies:
   - read-it-and-keep
   - samtools
   - pip:
-    - pytest
-    - black
-    - pre-commit
-    - "--editable=git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git#egg=gpas_uploader"
-    - "--editable=git+https://github.com/GenomePathogenAnalysisService/gpas-cli.git#egg=gpas"
-
-prefix: /Users/bede/miniconda3/envs/gpas-cli-dev
+    - git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git#egg=gpas_uploader
+    - git+https://github.com/GenomePathogenAnalysisService/gpas-cli.git#egg=gpas

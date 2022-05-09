@@ -17,7 +17,22 @@ A **currently experimental** command line interface and Python library for the G
 
 
 
-## Install (development)
+## Install
+
+###  `conda`
+
+
+```
+conda env create -f environment.yml
+```
+
+###  `pip`
+
+```
+pip install gpas  # install samtools, read-it-and-keep manually
+```
+
+### Development
 
 ```
 conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools
@@ -33,17 +48,11 @@ cd ../gpas-cli && pytest
 
 # Online tests
 cd ../gpas-cli && pytest --online
-
-# Forthcoming
-conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools
-conda activate gpas-cli-dev
-git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
-pip install -e ./gpas-cli\[dev\]
 ```
 
 
 
-## CLI
+## Command line interface
 
 ```
 % gpas -h
