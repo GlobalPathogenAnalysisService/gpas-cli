@@ -11,18 +11,26 @@ import pandas as pd
 
 from tqdm import tqdm
 
-from gpas.misc import ENVIRONMENTS, ENDPOINTS
-
-
-logging.basicConfig(level=logging.INFO)
+from gpas.misc import ENVIRONMENTS, ENDPOINTS, GOOD_STATUSES, FILE_TYPES
 
 
 def parse_token(token):
     return json.loads(token.read_text())
 
 
-def parse_mapping(mapping_csv: Path = None):
-    return pd.read_csv(mapping_csv)
+def parse_mapping(mapping_csv: Path = None) -> pd.DataFrame:
+    df = pd.read_csv(mapping_csv)
+    expected_columns = {
+        "local_batch",
+        "local_run_number",
+        "local_sample_name",
+        "gpas_batch",
+        "gpas_run_number",
+        "gpas_sample_name",
+    }
+    if not expected_columns.issubset(set(df.columns)):
+        raise RuntimeError(f"One or more expected columns missing from mapping CSV")
+    return df
 
 
 def fetch_status(
@@ -63,7 +71,10 @@ async def async_fetch_status_single(client, guid, url, headers):
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
         r_json = r.json()[0]
-        result = dict(sample=r_json.get("name"), status=r_json.get("status"))
+        status = r_json.get("status")
+        result = dict(sample=guid, status=status)
+        if status not in GOOD_STATUSES:
+            logging.warning(f"Skipping {guid} (status {status})")
     else:
         result = dict(sample=guid, status="UNKNOWN")
         logging.warning(f"HTTP {r.status_code} ({guid})")
@@ -71,7 +82,7 @@ async def async_fetch_status_single(client, guid, url, headers):
 
 
 async def async_fetch_status(
-    guids: list, access_token: str, environment: ENVIRONMENTS, raw: bool
+    guids: list, access_token: str, environment: ENVIRONMENTS, raw: bool = False
 ) -> list:
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -89,7 +100,15 @@ async def async_fetch_status(
             async_fetch_status_single(client, guid, url, headers)
             for guid, url in guids_urls.items()
         ]
-        return [await f for f in tqdm(asyncio.as_completed(tasks), total=len(tasks))]
+        return [
+            await f
+            for f in tqdm(
+                asyncio.as_completed(tasks),
+                desc=f"Querying status for {len(guids)} samples",
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                total=len(tasks),
+            )
+        ]
         # results = []
         # for future in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
         #         result = await future
@@ -97,5 +116,66 @@ async def async_fetch_status(
         # return results
 
 
-def download():
-    pass
+async def async_download_single(client, guid, file_type, url, headers, name=None):
+    file_types_extensions = {
+        "json": "json",
+        "fasta": "fasta.gz",
+        "bam": "bam",
+        "vcf": "vcf",
+    }
+    # if '657a8b5a' in url:
+    #     url += '-cat'
+    prefix = name if name else guid
+    r = await client.get(url=url, headers=headers)
+    if r.status_code == httpx.codes.ok:
+        with open(f"{prefix}.{file_types_extensions[file_type]}", "wb") as fh:
+            fh.write(r.content)
+    else:
+        result = dict(sample=guid, status="UNKNOWN")
+        logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
+
+
+async def async_download(
+    guids: list,
+    file_types: set[str],
+    access_token: str,
+    environment: ENVIRONMENTS,
+    guids_names=None,
+):
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    endpoint = (
+        ENDPOINTS[environment.value]["HOST"]
+        + ENDPOINTS[environment.value]["API_PATH"]
+        + "get_output"
+    )
+    logging.info(f"Fetching file types {file_types}")
+    transport = httpx.AsyncHTTPTransport(retries=5)
+    limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+    async with httpx.AsyncClient(transport=transport, limits=limits) as client:
+        guids_types_urls = {}
+        for guid in guids:
+            for file_type in file_types:
+                guids_types_urls[(guid, file_type)] = f"{endpoint}/{guid}/{file_type}"
+        tasks = [
+            async_download_single(
+                client,
+                guid,
+                file_type,
+                url,
+                headers,
+                guids_names[guid] if guids_names else None,
+            )
+            for (guid, file_type), url in guids_types_urls.items()
+        ]
+        return [
+            await f
+            for f in tqdm(
+                asyncio.as_completed(tasks),
+                desc=f"Downloading {len(tasks)} files for {len(guids)} samples",
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                total=len(tasks),
+            )
+        ]

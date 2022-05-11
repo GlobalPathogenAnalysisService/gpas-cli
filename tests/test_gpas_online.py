@@ -139,3 +139,13 @@ def test_download_mapping_csv_rename_online():
     )
     assert Path(f"{data_dir}/test1.vcf").is_file()
     run("rm -f test*.vcf")
+
+
+@pytest.mark.online
+def test_download_guid_rename_without_mapping():
+    run_cmd = run(
+        f"gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types vcf --rename token.json"
+    )
+    assert "Samples not renamed" in run_cmd.stderr
+    assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf").is_file()
+    run("rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")

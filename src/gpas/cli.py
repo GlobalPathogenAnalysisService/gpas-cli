@@ -20,6 +20,7 @@ import gpas_uploader
 
 
 logger = logging.getLogger()
+logging.basicConfig(format="%(levelname)s: %(message)s")
 logger.setLevel(logging.WARNING)
 
 
@@ -127,28 +128,70 @@ def download(
     :arg rename: Rename outputs using local sample names (requires --mapping-csv)
     """
     # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
+
+    # if mapping_csv:
+    #     logging.info(f"Using samples in {mapping_csv}")
+    #     batch = gpas_uploader.DownloadBatch(
+    #         mapping_csv=mapping_csv,
+    #         token_file=token,
+    #         environment=environment.value,
+    #         output_json=False,
+    #     )
+    #     batch.get_status()  # Necessary for some reason
+    #     for file_type in file_types_fmt:
+    #         batch.download(file_type, out_dir, rename)
+    # elif guids:
+    #     logging.info(f"Using samples in {guids}")
+    #     guids_fmt = guids.strip(",").split(",") if guids else None
+    #     raise NotImplementedError()
+    # else:
+    #     raise RuntimeError("Neither a mapping csv nor guids were specified")
     file_types_fmt = set(file_types.strip(",").split(","))
     unrecognised_file_types = file_types_fmt - {t.name for t in FILE_TYPES}
     if unrecognised_file_types:
         raise RuntimeError(f"Invalid file type(s): {unrecognised_file_types}")
-    logging.info(f"Retrieving file types {file_types_fmt}")
+
+    auth = lib.parse_token(token)
     if mapping_csv:
         logging.info(f"Using samples in {mapping_csv}")
-        batch = gpas_uploader.DownloadBatch(
-            mapping_csv=mapping_csv,
-            token_file=token,
-            environment=environment.value,
-            output_json=False,
-        )
-        batch.get_status()  # Necessary for some reason
-        for file_type in file_types_fmt:
-            batch.download(file_type, out_dir, rename)
+        mapping_df = lib.parse_mapping(mapping_csv)
+        guids_fmt = mapping_df["gpas_sample_name"].tolist()
     elif guids:
-        logging.info(f"Using samples in {guids}")
+        logging.info(f"Using samples {guids}")
         guids_fmt = guids.strip(",").split(",") if guids else None
-        raise NotImplementedError()
     else:
         raise RuntimeError("Neither a mapping csv nor guids were specified")
+
+    if rename:
+        if mapping_csv and "local_sample_name" in mapping_df.columns:
+            guids_names = mapping_df.set_index("gpas_sample_name")[
+                "local_sample_name"
+            ].to_dict()
+        else:
+            guids_names = None
+            logging.warning(
+                "Samples not renamed since a valid mapping csv was not specified"
+            )
+    else:
+        guids_names = None
+
+    status_records = asyncio.run(
+        lib.async_fetch_status(guids_fmt, auth["access_token"], environment)
+    )
+    downloadable_guids = [
+        r.get("sample")
+        for r in status_records
+        if r.get("status") in {"Unreleased", "Released"}
+    ]
+    asyncio.run(
+        lib.async_download(
+            downloadable_guids,
+            file_types_fmt,
+            auth["access_token"],
+            environment,
+            guids_names,
+        )
+    )
 
 
 def status(

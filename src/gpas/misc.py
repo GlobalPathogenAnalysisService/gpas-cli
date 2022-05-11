@@ -5,10 +5,12 @@ from enum import Enum
 
 DISPLAY_FORMATS = Enum("DisplayFormat", dict(table="table", csv="csv", json="json"))
 FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
+
 ENVIRONMENTS = Enum(
     "Environment", dict(development="dev", staging="staging", production="prod")
 )
 DEFAULT_ENVIRONMENT = ENVIRONMENTS.development
+GOOD_STATUSES = {"Unreleased", "Released"}
 
 ENDPOINTS = {
     "dev": {
