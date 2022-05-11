@@ -57,9 +57,17 @@ def fetch_status(
     return records
 
 
-async def async_fetch_status_single(client, url, headers):
+async def async_fetch_status_single(client, guid, url, headers):
+    # if '657a8b5a' in url:
+    #     url += '-cat'
     r = await client.get(url=url, headers=headers)
-    return dict(sample=r.json()[0].get("name"), status=r.json()[0].get("status"))
+    if r.status_code == httpx.codes.ok:
+        r_json = r.json()[0]
+        result = dict(sample=r_json.get("name"), status=r_json.get("status"))
+    else:
+        result = dict(sample=guid, status="UNKNOWN")
+        logging.warning(f"HTTP {r.status_code} ({guid})")
+    return result
 
 
 async def async_fetch_status(
@@ -72,12 +80,15 @@ async def async_fetch_status(
     endpoint = (
         ENDPOINTS[environment.value]["HOST"]
         + ENDPOINTS[environment.value]["API_PATH"]
-        + "get_sample_detail/"
+        + "get_sample_detail"
     )
     transport = httpx.AsyncHTTPTransport(retries=2)
     async with httpx.AsyncClient(transport=transport) as client:
-        urls = [f"{endpoint}/{guid}" for guid in guids]
-        tasks = [async_fetch_status_single(client, url, headers) for url in urls]
+        guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
+        tasks = [
+            async_fetch_status_single(client, guid, url, headers)
+            for guid, url in guids_urls.items()
+        ]
         return [await f for f in tqdm(asyncio.as_completed(tasks), total=len(tasks))]
         # results = []
         # for future in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
