@@ -13,7 +13,7 @@ A **currently experimental** command line interface and Python library for the G
 | `gpas upload` | ✅ (CLI) |  |
 | `gpas download` | ✅ (API) |  |
 | `gpas validate` | ✅ (CLI) |  |
-| `gpas status` |  | ✅ |
+| `gpas status` |  | ✅ (async) |
 
 
 

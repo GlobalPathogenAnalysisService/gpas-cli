@@ -124,7 +124,7 @@ def download(
     :arg environment: GPAS environment to use
     :arg file_types: Comma separated list of outputs to download (json,fasta,bam,vcf)
     :arg out_dir: Path of output directory
-    :arg rename: Rename outputs using original sample names (requires --mapping-csv)
+    :arg rename: Rename outputs using local sample names (requires --mapping-csv)
     """
     # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
     file_types_fmt = set(file_types.strip(",").split(","))
@@ -158,6 +158,7 @@ def status(
     guids: str = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     format: DISPLAY_FORMATS = DISPLAY_FORMATS.table,
+    rename: bool = False,
     raw: bool = False,
 ):
     """
@@ -168,12 +169,14 @@ def status(
     :arg guids: Comma-separated list of GPAS sample guids
     :arg environment: GPAS environment to use
     :arg format: Output format
+    :arg rename: Use local sample names (requires --mapping-csv)
     :arg raw: Emit raw response
     """
     auth = lib.parse_token(token)
     if mapping_csv:
         logging.info(f"Using samples in {mapping_csv}")
-        guids_fmt = lib.parse_mapping(mapping_csv)
+        mapping_df = lib.parse_mapping(mapping_csv)
+        guids_fmt = mapping_df["gpas_sample_name"].tolist()
     elif guids:
         logging.info(f"Using samples {guids}")
         guids_fmt = guids.strip(",").split(",") if guids else None
@@ -183,6 +186,17 @@ def status(
     records = asyncio.run(
         lib.async_fetch_status(guids_fmt, auth["access_token"], environment, raw)
     )
+
+    if rename:
+        if mapping_csv and "local_sample_name" in mapping_df.columns:
+            guids_names = mapping_df.set_index("gpas_sample_name")[
+                "local_sample_name"
+            ].to_dict()
+            records = pd.DataFrame(records).replace(guids_names).to_dict("records")
+        else:
+            logging.warning(
+                "Samples were not renamed because a valid mapping csv was not specified"
+            )
 
     if raw or format.value == "json":
         records_fmt = json.dumps(records)
