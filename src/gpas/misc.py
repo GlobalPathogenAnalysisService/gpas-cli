@@ -32,5 +32,8 @@ ENDPOINTS = {
 	}
 }
 
+def make_headers():
+	headers = {'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json'}
+
 def run(cmd):
 	return subprocess.run(cmd, shell=True, text=True, capture_output=True)

@@ -12,7 +12,8 @@ from gpas.misc import run, FILE_TYPES, DISPLAY_FORMATS, ENVIRONMENTS, DEFAULT_EN
 import gpas_uploader
 
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
+logger.setLevel(logging.WARNING)
 
 
 def upload(
@@ -114,11 +115,12 @@ def download(
     :arg out_dir: Path of output directory
     :arg rename: Rename outputs using original sample names (requires --mapping-csv)
     '''
-    # gpas-upload --json --token token.json --environment staging download examples/sample_names.csv --file_types fasta vcf bam --rename
-    file_types_fmt = file_types.strip(',').split(',')
-    unrecognised_file_types = set(file_types_fmt) - set([t.name for t in FILE_TYPES])
+    # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
+    file_types_fmt = set(file_types.strip(',').split(','))
+    unrecognised_file_types = file_types_fmt - {t.name for t in FILE_TYPES}
     if unrecognised_file_types:
         raise RuntimeError(f'Invalid file type(s): {unrecognised_file_types}')
+    logging.info(f'Retrieving file types {file_types_fmt}')
     if mapping_csv:
         logging.info(f'Using samples in {mapping_csv}')
         batch = gpas_uploader.DownloadBatch(
@@ -152,17 +154,20 @@ def status(
     :arg format: Output format
     :arg raw: Emit raw response
     '''
+    auth = lib.parse_token(token)
     if mapping_csv:
         logging.info(f'Using samples in {mapping_csv}')
-        batch = gpas_uploader.DownloadBatch(mapping_csv, token, environment.value, False)
-        records = batch.get_status()  # get_status() modified to return dict
+        # batch = gpas_uploader.DownloadBatch(mapping_csv, token, environment.value, False)
+        # records = batch.get_status()  # get_status() modified to return dict
+        guids_fmt = lib.parse_mapping(mapping_csv)
+        records = lib.fetch_status(guids_fmt, auth['access_token'], environment, raw)
     elif guids:
         logging.info(f'Using samples {guids}')
         guids_fmt = guids.strip(',').split(',') if guids else None
-        access_token = json.loads(token.read_text()).get('access_token')
-        records = lib.fetch_status(guids_fmt, access_token, environment, raw)
+        records = lib.fetch_status(guids_fmt, auth['access_token'], environment, raw)
     else:
         raise RuntimeError('Neither a mapping csv nor guids were specified')
+
     if raw or format.value == 'json':
         records_fmt = json.dumps(records)
     elif format.value == 'table':

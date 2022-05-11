@@ -68,7 +68,7 @@ def test_validate_token_online():
 @pytest.mark.online
 def test_upload_dry_run_online():
     run_cmd = run(f"gpas upload nanopore-fastq.csv token.json --dry-run")
-    assert "Upload successful" in run_cmd.stderr  # Logging INFO
+    assert 'successfully decontaminated' in run_cmd.stdout
     run("rm -f sample_names* mapping*")
 
 
@@ -131,18 +131,18 @@ def test_gpas_uploader_download_mapping_csv_online():
 @pytest.mark.online
 def test_gpas_uploader_download_mapping_csv_online():
     run_cmd = run(f"gpas download --mapping-csv example.mapping.csv token.json")
-    assert Path(f"{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz").is_file()
+    assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
     run(
-        "rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz"
+        "rm -f *.fasta.gz"
     )
 
 
 @pytest.mark.online
 def test_download_mapping_csv_online():
     run_cmd = run(f"gpas download --mapping-csv example.mapping.csv token.json")
-    assert Path(f"{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz").is_file()
+    assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
     run(
-        "rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz"
+        "rm -f *.fasta.gz"
     )
 
 

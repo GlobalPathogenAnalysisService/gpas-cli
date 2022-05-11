@@ -10,10 +10,10 @@ A **currently experimental** command line interface and Python library for the G
 
 | Subcommand        | Wrapped | Refactored |
 | ----------------- | ------- | ---------- |
-| `gpas upload` | ✅ (CLI) | ❌ |
-| `gpas download` | ✅ (API) | ❌ |
-| `gpas validate` | ✅ (CLI) | ❌ |
-| `gpas status` | ✅ (API) | `--guids` only |
+| `gpas upload` | ✅ (CLI) |  |
+| `gpas download` | ✅ (API) |  |
+| `gpas validate` | ✅ (CLI) |  |
+| `gpas status` |  | ✅ |
 
 
 
@@ -32,12 +32,12 @@ conda env create -f environment.yml
 ### Development
 
 ```
-conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools
+conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools pytest black pre-commit
 conda activate gpas-cli-dev
 git clone https://github.com/GenomePathogenAnalysisService/gpas-uploader
 pip install -e ./gpas-uploader
 git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
-pip install -e ./gpas-cli[dev]  # Brackets may need escaping e.g. '\[dev\]'
+pip install -e ./gpas-cli
 
 # Test
 cd gpas-uploader && pytest

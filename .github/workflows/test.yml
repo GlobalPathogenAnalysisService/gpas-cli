@@ -19,11 +19,8 @@ jobs:
           conda-channels: conda-forge, bioconda
       - name: Install
         run: |
-          conda install samtools read-it-and-keep
-          pip install --upgrade pip setuptools wheel
-          pip install pytest
+          conda install samtools read-it-and-keep pytest
           pip install .
       - name: Test
         run: |
           pytest
-
