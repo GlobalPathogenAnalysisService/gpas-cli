@@ -24,4 +24,4 @@ jobs:
           pip install git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git
       - name: Test
         run: |
-          pytest
+          pytest tests/test_gpas.py

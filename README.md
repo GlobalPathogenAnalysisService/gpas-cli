@@ -1,4 +1,4 @@
-
+ ![Tests](https://github.com/GenomePathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg)
 
 
 
