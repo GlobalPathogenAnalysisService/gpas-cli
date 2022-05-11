@@ -1,9 +1,11 @@
 import json
+import asyncio
 import logging
 
 from pathlib import Path
 
 import tqdm
+import httpx
 import requests
 
 import pandas as pd
@@ -50,9 +52,40 @@ def fetch_status(
     return records
 
 
+async def async_fetch_status_single(client, url, headers):
+    r = await client.get(url=url, headers=headers)
+    return dict(sample=r.json()[0].get("name"), status=r.json()[0].get("status"))
+
+
+async def async_fetch_status(
+    guids: list, access_token: str, environment: ENVIRONMENTS, raw: bool
+) -> list:
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    endpoint = (
+        ENDPOINTS[environment.value]["HOST"]
+        + ENDPOINTS[environment.value]["API_PATH"]
+        + "get_sample_detail/"
+    )
+    transport = httpx.AsyncHTTPTransport(retries=2)
+    async with httpx.AsyncClient(transport=transport) as client:
+        urls = [f"{endpoint}/{guid}" for guid in guids]
+        tasks = [async_fetch_status_single(client, url, headers) for url in urls]
+        return [
+            await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))
+        ]
+        # results = []
+        # for future in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
+        #         result = await future
+        #         results.append(result)
+        # return results
+
+
 def parse_mapping(mapping_csv: Path = None):
     df = pd.read_csv(mapping_csv)
-    return df['gpas_sample_name'].tolist()
+    return df["gpas_sample_name"].tolist()
 
 
 def download():
