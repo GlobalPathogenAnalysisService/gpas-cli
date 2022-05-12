@@ -8,6 +8,8 @@ import pytest
 
 from gpas import lib
 
+from gpas.misc import ENVIRONMENTS
+
 
 data_dir = "tests/test-data"
 
@@ -160,8 +162,8 @@ def test_download_guid_rename_without_mapping():
 # API tests
 
 
-# @pytest.mark.online
-def test_download_guid_api():
+@pytest.mark.online
+def test_download_guid_api_online():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
     asyncio.run(
         lib.async_download(
@@ -173,3 +175,48 @@ def test_download_guid_api():
     )
     assert (Path(data_dir) / Path("6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")).is_file()
     run("rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")
+
+
+# Run with pytest --online tests/test_gpas_online.py::test_status_mapping_api_online
+@pytest.mark.online
+def test_status_mapping_api_online():
+    access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
+    records = asyncio.run(
+        lib.get_status(
+            access_token=access_token,
+            mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
+            environment=ENVIRONMENTS.development,
+            rename=False,
+        )
+    )
+    assert records  # Smoke test
+    passed = False
+    for r in records:
+        if (
+            r["sample"] == "8daadc7d-8d58-46a6-efb4-9ddefc1e4669"
+            and r["status"] == "Uploaded"
+        ):
+            passed = True
+    if not passed:
+        raise RuntimeError("Expected dict not found")
+
+
+# Run with pytest --online tests/test_gpas_online.py::test_status_mapping_rename_api_online
+@pytest.mark.online
+def test_status_mapping_rename_api_online():
+    access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
+    records = asyncio.run(
+        lib.get_status(
+            access_token=access_token,
+            mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
+            environment=ENVIRONMENTS.development,
+            rename=True,
+        )
+    )
+    assert records  # Smoke test
+    passed = False
+    for r in records:
+        if r["sample"] == "test4_uploaded" and r["status"] == "Uploaded":
+            passed = True
+    if not passed:
+        raise RuntimeError("Expected dict not found")

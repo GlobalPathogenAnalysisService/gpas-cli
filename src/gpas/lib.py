@@ -20,7 +20,7 @@ from gpas.misc import (
 )
 
 
-def parse_token(token):
+def parse_token(token: Path):
     return json.loads(token.read_text())
 
 
@@ -94,9 +94,20 @@ async def async_fetch_status_single(client, guid, url, headers):
     return result
 
 
-async def async_fetch_status(
-    guids: list, access_token: str, environment: ENVIRONMENTS, raw: bool = False
-) -> list:
+# async def async_fetch_status(
+#     guids: list, access_token: str, environment: ENVIRONMENTS, raw: bool = False
+# ) -> list[dict]:
+
+
+async def get_status(
+    access_token: str,
+    mapping_csv: Path = None,
+    guids: list[str] = None,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    rename: bool = False,
+    raw: bool = False,
+) -> list[dict]:
+    """Lorem"""
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
@@ -106,6 +117,16 @@ async def async_fetch_status(
         + ENDPOINTS[environment.value]["API_PATH"]
         + "get_sample_detail"
     )
+
+    if mapping_csv:
+        logging.info(f"Using samples in {mapping_csv}")
+        mapping_df = parse_mapping(mapping_csv)
+        guids = mapping_df["gpas_sample_name"].tolist()
+    elif guids:
+        logging.info(f"Using list of guids")
+    else:
+        raise RuntimeError("Neither a mapping csv nor guids were specified")
+
     transport = httpx.AsyncHTTPTransport(retries=2)
     async with httpx.AsyncClient(transport=transport) as client:
         guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
@@ -113,7 +134,7 @@ async def async_fetch_status(
             async_fetch_status_single(client, guid, url, headers)
             for guid, url in guids_urls.items()
         ]
-        return [
+        records = [
             await f
             for f in tqdm(
                 asyncio.as_completed(tasks),
@@ -122,11 +143,19 @@ async def async_fetch_status(
                 total=len(tasks),
             )
         ]
-        # results = []
-        # for future in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
-        #         result = await future
-        #         results.append(result)
-        # return results
+
+    if rename:
+        if mapping_csv and "local_sample_name" in mapping_df.columns:
+            guids_names = mapping_df.set_index("gpas_sample_name")[
+                "local_sample_name"
+            ].to_dict()
+            records = pd.DataFrame(records).replace(guids_names).to_dict("records")
+        else:
+            logging.warning(
+                "Samples were not renamed because a valid mapping csv was not specified"
+            )
+
+    return records
 
 
 async def async_download(

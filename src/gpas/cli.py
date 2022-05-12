@@ -108,7 +108,6 @@ def validate(
 
 def download(
     token: Path,
-    *,
     mapping_csv: Path = None,
     guids: str = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
@@ -137,10 +136,10 @@ def download(
     if mapping_csv:
         logging.info(f"Using samples in {mapping_csv}")
         mapping_df = lib.parse_mapping(mapping_csv)
-        guids_fmt = mapping_df["gpas_sample_name"].tolist()
+        guids = mapping_df["gpas_sample_name"].tolist()
     elif guids:
         logging.info(f"Using samples {guids}")
-        guids_fmt = guids.strip(",").split(",") if guids else None
+        guids = guids.strip(",").split(",") if guids else None
     else:
         raise RuntimeError("Neither a mapping csv nor guids were specified")
 
@@ -158,8 +157,14 @@ def download(
         guids_names = None
 
     status_records = asyncio.run(
-        lib.async_fetch_status(guids_fmt, auth["access_token"], environment)
+        lib.get_status(
+            auth["access_token"],
+            mapping_csv,
+            guids,
+            environment,
+        )
     )
+
     downloadable_guids = [
         r.get("sample")
         for r in status_records
@@ -199,30 +204,17 @@ def status(
     :arg raw: Emit raw response
     """
     auth = lib.parse_token(token)
-    if mapping_csv:
-        logging.info(f"Using samples in {mapping_csv}")
-        mapping_df = lib.parse_mapping(mapping_csv)
-        guids_fmt = mapping_df["gpas_sample_name"].tolist()
-    elif guids:
-        logging.info(f"Using samples {guids}")
-        guids_fmt = guids.strip(",").split(",") if guids else None
-    else:
-        raise RuntimeError("Neither a mapping csv nor guids were specified")
-
+    guids = guids.strip(",").split(",") if guids else None
     records = asyncio.run(
-        lib.async_fetch_status(guids_fmt, auth["access_token"], environment, raw)
+        lib.get_status(
+            auth["access_token"],
+            mapping_csv,
+            guids,
+            environment,
+            rename,
+            raw,
+        )
     )
-
-    if rename:
-        if mapping_csv and "local_sample_name" in mapping_df.columns:
-            guids_names = mapping_df.set_index("gpas_sample_name")[
-                "local_sample_name"
-            ].to_dict()
-            records = pd.DataFrame(records).replace(guids_names).to_dict("records")
-        else:
-            logging.warning(
-                "Samples were not renamed because a valid mapping csv was not specified"
-            )
 
     if raw or format.value == "json":
         records_fmt = json.dumps(records)
