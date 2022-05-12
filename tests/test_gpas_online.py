@@ -1,9 +1,12 @@
 import json
+import asyncio
 import subprocess
 
 from pathlib import Path
 
 import pytest
+
+from gpas import lib
 
 
 data_dir = "tests/test-data"
@@ -16,6 +19,9 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
 
 
 # Requires a valid 'token.json' inside test-data. Runs on dev
+
+
+# CLI tests
 
 
 @pytest.mark.online
@@ -148,4 +154,22 @@ def test_download_guid_rename_without_mapping():
     )
     assert "Samples not renamed" in run_cmd.stderr
     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf").is_file()
+    run("rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")
+
+
+# API tests
+
+
+# @pytest.mark.online
+def test_download_guid_api():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    asyncio.run(
+        lib.async_download(
+            guids=["6e024eb1-432c-4b1b-8f57-3911fe87555f"],
+            file_types=["vcf"],
+            access_token=auth["access_token"],
+            out_dir=data_dir,
+        )
+    )
+    assert (Path(data_dir) / Path("6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")).is_file()
     run("rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")

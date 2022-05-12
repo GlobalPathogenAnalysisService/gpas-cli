@@ -11,7 +11,13 @@ import pandas as pd
 
 from tqdm import tqdm
 
-from gpas.misc import ENVIRONMENTS, ENDPOINTS, GOOD_STATUSES, FILE_TYPES
+from gpas.misc import (
+    ENVIRONMENTS,
+    ENDPOINTS,
+    GOOD_STATUSES,
+    FILE_TYPES,
+    DEFAULT_ENVIRONMENT,
+)
 
 
 def parse_token(token):
@@ -34,7 +40,10 @@ def parse_mapping(mapping_csv: Path = None) -> pd.DataFrame:
 
 
 def fetch_status(
-    guids: list, access_token: str, environment: ENVIRONMENTS, raw: bool
+    guids: list,
+    access_token: str,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    raw: bool = False,
 ) -> list:
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -78,6 +87,10 @@ async def async_fetch_status_single(client, guid, url, headers):
     else:
         result = dict(sample=guid, status="UNKNOWN")
         logging.warning(f"HTTP {r.status_code} ({guid})")
+        if r.status_code == 401:
+            raise RuntimeError(
+                f"Authorisation failed (HTTP {r.status_code}). Ensure token is valid"
+            )
     return result
 
 
@@ -116,30 +129,12 @@ async def async_fetch_status(
         # return results
 
 
-async def async_download_single(client, guid, file_type, url, headers, name=None):
-    file_types_extensions = {
-        "json": "json",
-        "fasta": "fasta.gz",
-        "bam": "bam",
-        "vcf": "vcf",
-    }
-    # if '657a8b5a' in url:
-    #     url += '-cat'
-    prefix = name if name else guid
-    r = await client.get(url=url, headers=headers)
-    if r.status_code == httpx.codes.ok:
-        with open(f"{prefix}.{file_types_extensions[file_type]}", "wb") as fh:
-            fh.write(r.content)
-    else:
-        result = dict(sample=guid, status="UNKNOWN")
-        logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
-
-
 async def async_download(
     guids: list,
-    file_types: set[str],
+    file_types: list[str],
     access_token: str,
-    environment: ENVIRONMENTS,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    out_dir: Path = Path.cwd(),
     guids_names=None,
 ):
     headers = {
@@ -166,6 +161,7 @@ async def async_download(
                 file_type,
                 url,
                 headers,
+                out_dir,
                 guids_names[guid] if guids_names else None,
             )
             for (guid, file_type), url in guids_types_urls.items()
@@ -179,3 +175,27 @@ async def async_download(
                 total=len(tasks),
             )
         ]
+
+
+async def async_download_single(
+    client, guid, file_type, url, headers, out_dir, name=None
+):
+    file_types_extensions = {
+        "json": "json",
+        "fasta": "fasta.gz",
+        "bam": "bam",
+        "vcf": "vcf",
+    }
+    # if '657a8b5a' in url:
+    #     url += '-cat'
+    prefix = name if name else guid
+    r = await client.get(url=url, headers=headers)
+    if r.status_code == httpx.codes.ok:
+        Path(out_dir)
+        with open(
+            Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"), "wb"
+        ) as fh:
+            fh.write(r.content)
+    else:
+        result = dict(sample=guid, status="UNKNOWN")
+        logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")

@@ -113,7 +113,7 @@ def download(
     guids: str = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     file_types: str = "fasta",
-    out_dir: Path = "",
+    out_dir: Path = Path.cwd(),
     rename: bool = False,
 ):
     """
@@ -128,24 +128,6 @@ def download(
     :arg rename: Rename outputs using local sample names (requires --mapping-csv)
     """
     # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
-
-    # if mapping_csv:
-    #     logging.info(f"Using samples in {mapping_csv}")
-    #     batch = gpas_uploader.DownloadBatch(
-    #         mapping_csv=mapping_csv,
-    #         token_file=token,
-    #         environment=environment.value,
-    #         output_json=False,
-    #     )
-    #     batch.get_status()  # Necessary for some reason
-    #     for file_type in file_types_fmt:
-    #         batch.download(file_type, out_dir, rename)
-    # elif guids:
-    #     logging.info(f"Using samples in {guids}")
-    #     guids_fmt = guids.strip(",").split(",") if guids else None
-    #     raise NotImplementedError()
-    # else:
-    #     raise RuntimeError("Neither a mapping csv nor guids were specified")
     file_types_fmt = set(file_types.strip(",").split(","))
     unrecognised_file_types = file_types_fmt - {t.name for t in FILE_TYPES}
     if unrecognised_file_types:
@@ -189,6 +171,7 @@ def download(
             file_types_fmt,
             auth["access_token"],
             environment,
+            out_dir,
             guids_names,
         )
     )
