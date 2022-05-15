@@ -2,7 +2,7 @@
 
 
 
-A **currently experimental** unified command line interface and Python API for the Global Pathogen Analysis System
+A **currently experimental** unified command line interface and Python API for the Global Pathogen Analysis System. Uses asynchronous http requests for improved performance.
 
 
 
@@ -11,9 +11,9 @@ A **currently experimental** unified command line interface and Python API for t
 | Subcommand        | CLI | Python API |
 | ----------------- | ------- | ---------- |
 | `gpas upload` | ☑️ (wraps gpas-uploader) |  |
-| `gpas download` | ✅ (async refactor) |  |
-| `gpas validate` | ☑️ (wraps- gpas-uploader) |  |
-| `gpas status` | ✅ (async refactor) |  |
+| `gpas download` | ✅ | ✅ |
+| `gpas validate` | ☑️ (wraps gpas-uploader) |  |
+| `gpas status` | ✅ | ✅ |
 
 
 

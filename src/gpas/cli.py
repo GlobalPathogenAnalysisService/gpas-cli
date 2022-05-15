@@ -170,6 +170,7 @@ def download(
         for r in status_records
         if r.get("status") in {"Unreleased", "Released"}
     ]
+
     asyncio.run(
         lib.async_download(
             downloadable_guids,

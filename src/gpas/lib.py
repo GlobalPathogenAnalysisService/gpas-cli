@@ -1,3 +1,4 @@
+import gzip
 import json
 import asyncio
 import logging
@@ -15,7 +16,6 @@ from gpas.misc import (
     ENVIRONMENTS,
     ENDPOINTS,
     GOOD_STATUSES,
-    FILE_TYPES,
     DEFAULT_ENVIRONMENT,
 )
 
@@ -37,6 +37,17 @@ def parse_mapping(mapping_csv: Path = None) -> pd.DataFrame:
     if not expected_columns.issubset(set(df.columns)):
         raise RuntimeError(f"One or more expected columns missing from mapping CSV")
     return df
+
+
+def update_fasta_header(path: Path, guid: str, name: str):
+    """Update the header line of a gzipped fasta file in place"""
+    with gzip.open(path, "rt") as fh:
+        contents = fh.read()
+    if guid in contents:
+        with gzip.open(path, "wt") as fh:
+            fh.write(contents.replace(guid, f"{guid}|{name}"))
+    else:
+        logging.warning(f"Could not rename {guid} inside {name}.fasta.gz")
 
 
 def fetch_status(
@@ -89,7 +100,7 @@ async def async_fetch_status_single(client, guid, url, headers):
         logging.warning(f"HTTP {r.status_code} ({guid})")
         if r.status_code == 401:
             raise RuntimeError(
-                f"Authorisation failed (HTTP {r.status_code}). Ensure token is valid"
+                f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
             )
     return result
 
@@ -225,6 +236,11 @@ async def async_download_single(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"), "wb"
         ) as fh:
             fh.write(r.content)
+        if name and file_type == "fasta":
+            update_fasta_header(
+                Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
+            )
+
     else:
         result = dict(sample=guid, status="UNKNOWN")
         logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
