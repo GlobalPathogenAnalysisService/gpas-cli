@@ -4,9 +4,7 @@ from enum import Enum
 
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
-ENVIRONMENTS = Enum(
-    "Environment", dict(development="dev", staging="staging", production="prod")
-)
+ENVIRONMENTS = Enum("Environment", dict(dev="dev", staging="staging", prod="prod"))
 DEFAULT_ENVIRONMENT = ENVIRONMENTS.development
 FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
 GOOD_STATUSES = {"Unreleased", "Released"}
@@ -38,3 +36,11 @@ ENDPOINTS = {
 
 def run(cmd):
     return subprocess.run(cmd, shell=True, text=True, capture_output=True)
+
+
+def check_unicode(data):
+    """Returns a Unicode object on success or None on failure"""
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None

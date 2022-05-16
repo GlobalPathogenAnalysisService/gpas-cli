@@ -15,6 +15,7 @@ from gpas.misc import (
     DEFAULT_FORMAT,
     ENVIRONMENTS,
     DEFAULT_ENVIRONMENT,
+    GOOD_STATUSES,
 )
 
 
@@ -161,9 +162,7 @@ def download(
     )
 
     downloadable_guids = [
-        r.get("sample")
-        for r in status_records
-        if r.get("status") in {"Unreleased", "Released"}
+        r.get("sample") for r in status_records if r.get("status") in GOOD_STATUSES
     ]
 
     asyncio.run(

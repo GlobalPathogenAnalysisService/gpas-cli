@@ -7,8 +7,6 @@ from pathlib import Path
 
 import httpx
 
-# import requests
-
 import pandas as pd
 
 from tqdm import tqdm
@@ -112,8 +110,6 @@ async def get_status_async(
 
 
 async def get_status_single_async(client, guid, url, headers):
-    # if '657a8b5a' in url:
-    #     url += '-cat'
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
         r_json = r.json()[0]
@@ -191,8 +187,6 @@ async def download_single_async(
         "bam": "bam",
         "vcf": "vcf",
     }
-    # if '657a8b5a' in url:
-    #     url += '-cat'
     prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
