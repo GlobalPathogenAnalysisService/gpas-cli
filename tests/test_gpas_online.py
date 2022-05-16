@@ -166,7 +166,7 @@ def test_download_guid_rename_without_mapping():
 def test_download_guid_api_online():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
     asyncio.run(
-        lib.async_download(
+        lib.download_async(
             guids=["6e024eb1-432c-4b1b-8f57-3911fe87555f"],
             file_types=["vcf"],
             access_token=auth["access_token"],
@@ -182,7 +182,7 @@ def test_download_guid_api_online():
 def test_status_mapping_api_online():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
     records = asyncio.run(
-        lib.get_status(
+        lib.get_status_async(
             access_token=access_token,
             mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
             environment=ENVIRONMENTS.development,
@@ -206,7 +206,7 @@ def test_status_mapping_api_online():
 def test_status_mapping_rename_api_online():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
     records = asyncio.run(
-        lib.get_status(
+        lib.get_status_async(
             access_token=access_token,
             mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
             environment=ENVIRONMENTS.development,

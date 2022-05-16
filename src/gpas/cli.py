@@ -11,12 +11,11 @@ import pandas as pd
 from gpas import lib
 from gpas.misc import (
     run,
-    FILE_TYPES,
-    DISPLAY_FORMATS,
+    FORMATS,
+    DEFAULT_FORMAT,
     ENVIRONMENTS,
     DEFAULT_ENVIRONMENT,
 )
-import gpas_uploader
 
 
 logger = logging.getLogger()
@@ -127,19 +126,15 @@ def download(
     :arg rename: Rename outputs using local sample names (requires --mapping-csv)
     """
     # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
-    file_types_fmt = set(file_types.strip(",").split(","))
-    unrecognised_file_types = file_types_fmt - {t.name for t in FILE_TYPES}
-    if unrecognised_file_types:
-        raise RuntimeError(f"Invalid file type(s): {unrecognised_file_types}")
-
+    file_types_fmt = file_types.strip(",").split(",")
     auth = lib.parse_token(token)
     if mapping_csv:
         logging.info(f"Using samples in {mapping_csv}")
         mapping_df = lib.parse_mapping(mapping_csv)
-        guids = mapping_df["gpas_sample_name"].tolist()
+        guids_ = mapping_df["gpas_sample_name"].tolist()
     elif guids:
         logging.info(f"Using samples {guids}")
-        guids = guids.strip(",").split(",") if guids else None
+        guids_ = guids.strip(",").split(",") if guids else None
     else:
         raise RuntimeError("Neither a mapping csv nor guids were specified")
 
@@ -157,10 +152,10 @@ def download(
         guids_names = None
 
     status_records = asyncio.run(
-        lib.get_status(
+        lib.get_status_async(
             auth["access_token"],
             mapping_csv,
-            guids,
+            guids_,
             environment,
         )
     )
@@ -172,7 +167,7 @@ def download(
     ]
 
     asyncio.run(
-        lib.async_download(
+        lib.download_async(
             downloadable_guids,
             file_types_fmt,
             auth["access_token"],
@@ -189,7 +184,7 @@ def status(
     mapping_csv: Path = None,
     guids: str = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    format: DISPLAY_FORMATS = DISPLAY_FORMATS.table,
+    format: FORMATS = DEFAULT_FORMAT,
     rename: bool = False,
     raw: bool = False,
 ):
@@ -205,12 +200,12 @@ def status(
     :arg raw: Emit raw response
     """
     auth = lib.parse_token(token)
-    guids = guids.strip(",").split(",") if guids else None
+    guids_ = guids.strip(",").split(",") if guids else []
     records = asyncio.run(
-        lib.get_status(
+        lib.get_status_async(
             auth["access_token"],
             mapping_csv,
-            guids,
+            guids_,
             environment,
             rename,
             raw,

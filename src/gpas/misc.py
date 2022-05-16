@@ -2,14 +2,13 @@ import subprocess
 
 from enum import Enum
 
-
-DISPLAY_FORMATS = Enum("DisplayFormat", dict(table="table", csv="csv", json="json"))
-FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
-
+FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
+DEFAULT_FORMAT = FORMATS.table
 ENVIRONMENTS = Enum(
     "Environment", dict(development="dev", staging="staging", production="prod")
 )
 DEFAULT_ENVIRONMENT = ENVIRONMENTS.development
+FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
 GOOD_STATUSES = {"Unreleased", "Released"}
 
 ENDPOINTS = {

@@ -11,9 +11,9 @@ A **currently experimental** unified command line interface and Python API for t
 | Subcommand        | CLI | Python API |
 | ----------------- | ------- | ---------- |
 | `gpas upload` | ☑️ (wraps gpas-uploader) |  |
-| `gpas download` | ✅ | ✅ |
+| `gpas download` | ✅ | ✅ (async) |
 | `gpas validate` | ☑️ (wraps gpas-uploader) |  |
-| `gpas status` | ✅ | ✅ |
+| `gpas status` | ✅ | ✅ (async) |
 
 
 
@@ -30,7 +30,7 @@ conda env create -f environment.yml
 ### Development
 
 ```
-conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools pytest black pre-commit
+conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools pytest black pre-commit mypy
 conda activate gpas-cli-dev
 git clone https://github.com/GenomePathogenAnalysisService/gpas-uploader
 pip install -e ./gpas-uploader

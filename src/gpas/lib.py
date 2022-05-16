@@ -6,7 +6,8 @@ import logging
 from pathlib import Path
 
 import httpx
-import requests
+
+# import requests
 
 import pandas as pd
 
@@ -14,13 +15,14 @@ from tqdm import tqdm
 
 from gpas.misc import (
     ENVIRONMENTS,
+    DEFAULT_ENVIRONMENT,
+    FILE_TYPES,
     ENDPOINTS,
     GOOD_STATUSES,
-    DEFAULT_ENVIRONMENT,
 )
 
 
-def parse_token(token: Path):
+def parse_token(token: Path) -> dict:
     return json.loads(token.read_text())
 
 
@@ -50,75 +52,15 @@ def update_fasta_header(path: Path, guid: str, name: str):
         logging.warning(f"Could not rename {guid} inside {name}.fasta.gz")
 
 
-def fetch_status(
-    guids: list,
-    access_token: str,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    raw: bool = False,
-) -> list:
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-    endpoint = (
-        ENDPOINTS[environment.value]["HOST"]
-        + ENDPOINTS[environment.value]["API_PATH"]
-        + "get_sample_detail/"
-    )
-    """
-    Return a list of dictionaries given a list of guids
-    """
-    records = []
-    for guid in tqdm(guids):
-        r = requests.get(url=endpoint + guid, headers=headers)
-        if r.ok:
-            if raw:
-                records.append(r.json())
-            else:
-                records.append(
-                    dict(
-                        sample=r.json()[0].get("name"), status=r.json()[0].get("status")
-                    )
-                )
-        else:
-            logging.warning(f"{guid} (error {r.status_code})")
-    return records
-
-
-async def async_fetch_status_single(client, guid, url, headers):
-    # if '657a8b5a' in url:
-    #     url += '-cat'
-    r = await client.get(url=url, headers=headers)
-    if r.status_code == httpx.codes.ok:
-        r_json = r.json()[0]
-        status = r_json.get("status")
-        result = dict(sample=guid, status=status)
-        if status not in GOOD_STATUSES:
-            logging.warning(f"Skipping {guid} (status {status})")
-    else:
-        result = dict(sample=guid, status="UNKNOWN")
-        logging.warning(f"HTTP {r.status_code} ({guid})")
-        if r.status_code == 401:
-            raise RuntimeError(
-                f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
-            )
-    return result
-
-
-# async def async_fetch_status(
-#     guids: list, access_token: str, environment: ENVIRONMENTS, raw: bool = False
-# ) -> list[dict]:
-
-
-async def get_status(
+async def get_status_async(
     access_token: str,
     mapping_csv: Path = None,
-    guids: list[str] = None,
+    guids: list[str] = [],
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     rename: bool = False,
     raw: bool = False,
 ) -> list[dict]:
-    """Lorem"""
+    """Returns a list of dicts of containing status records"""
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
@@ -142,7 +84,7 @@ async def get_status(
     async with httpx.AsyncClient(transport=transport) as client:
         guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
         tasks = [
-            async_fetch_status_single(client, guid, url, headers)
+            get_status_single_async(client, guid, url, headers)
             for guid, url in guids_urls.items()
         ]
         records = [
@@ -169,7 +111,27 @@ async def get_status(
     return records
 
 
-async def async_download(
+async def get_status_single_async(client, guid, url, headers):
+    # if '657a8b5a' in url:
+    #     url += '-cat'
+    r = await client.get(url=url, headers=headers)
+    if r.status_code == httpx.codes.ok:
+        r_json = r.json()[0]
+        status = r_json.get("status")
+        result = dict(sample=guid, status=status)
+        if status not in GOOD_STATUSES:
+            logging.warning(f"Skipping {guid} (status {status})")
+    else:
+        result = dict(sample=guid, status="UNKNOWN")
+        logging.warning(f"HTTP {r.status_code} ({guid})")
+        if r.status_code == 401:
+            raise RuntimeError(
+                f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
+            )
+    return result
+
+
+async def download_async(
     guids: list,
     file_types: list[str],
     access_token: str,
@@ -186,6 +148,9 @@ async def async_download(
         + ENDPOINTS[environment.value]["API_PATH"]
         + "get_output"
     )
+    unrecognised_file_types = set(file_types) - {t.name for t in FILE_TYPES}
+    if unrecognised_file_types:
+        raise RuntimeError(f"Invalid file type(s): {unrecognised_file_types}")
     logging.info(f"Fetching file types {file_types}")
     transport = httpx.AsyncHTTPTransport(retries=5)
     limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
@@ -195,7 +160,7 @@ async def async_download(
             for file_type in file_types:
                 guids_types_urls[(guid, file_type)] = f"{endpoint}/{guid}/{file_type}"
         tasks = [
-            async_download_single(
+            download_single_async(
                 client,
                 guid,
                 file_type,
@@ -217,7 +182,7 @@ async def async_download(
         ]
 
 
-async def async_download_single(
+async def download_single_async(
     client, guid, file_type, url, headers, out_dir, name=None
 ):
     file_types_extensions = {
@@ -244,3 +209,39 @@ async def async_download_single(
     else:
         result = dict(sample=guid, status="UNKNOWN")
         logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
+
+
+# def get_status(
+#     guids: list,
+#     access_token: str,
+#     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+#     raw: bool = False,
+# ) -> list:
+#     """Returns a list of dicts of containing status records"""
+#     headers = {
+#         "Authorization": f"Bearer {access_token}",
+#         "Content-Type": "application/json",
+#     }
+#     endpoint = (
+#         ENDPOINTS[environment.value]["HOST"]
+#         + ENDPOINTS[environment.value]["API_PATH"]
+#         + "get_sample_detail/"
+#     )
+#     """
+#     Return a list of dictionaries given a list of guids
+#     """
+#     records = []
+#     for guid in tqdm(guids):
+#         r = requests.get(url=endpoint + guid, headers=headers)
+#         if r.ok:
+#             if raw:
+#                 records.append(r.json())
+#             else:
+#                 records.append(
+#                     dict(
+#                         sample=r.json()[0].get("name"), status=r.json()[0].get("status")
+#                     )
+#                 )
+#         else:
+#             logging.warning(f"{guid} (error {r.status_code})")
+#     return records
