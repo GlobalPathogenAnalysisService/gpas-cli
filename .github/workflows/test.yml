@@ -6,7 +6,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ['3.10']
     name: Python ${{ matrix.python-version }} (${{ matrix.os }})
     steps:
@@ -19,9 +19,10 @@ jobs:
           conda-channels: conda-forge, bioconda
       - name: Install
         run: |
-          conda install samtools read-it-and-keep pytest
+          conda install samtools read-it-and-keep
+          pip install pytest
           pip install .
           pip install git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git
       - name: Test
         run: |
-          pytest tests/test_gpas.py
+          python -m pytest tests/test_gpas.py
