@@ -5,7 +5,7 @@ from enum import Enum
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
 ENVIRONMENTS = Enum("Environment", dict(dev="dev", staging="staging", prod="prod"))
-DEFAULT_ENVIRONMENT = ENVIRONMENTS.development
+DEFAULT_ENVIRONMENT = ENVIRONMENTS.dev
 FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
 GOOD_STATUSES = {"Unreleased", "Released"}
 
