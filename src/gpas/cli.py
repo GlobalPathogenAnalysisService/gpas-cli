@@ -221,6 +221,26 @@ def status(
     print(records_fmt)
 
 
+def validate_new(
+    upload_csv: Path,
+    *,
+    token: Path = None,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    machine_readable: bool = False,
+):
+    """
+    Validate an upload CSV. Validates tags remotely if supplied with an authentication token
+
+    :arg upload_csv: Path of upload CSV
+    :arg token: Path of auth token available from GPAS Portal
+    :arg environment: GPAS environment to use
+    :arg json: Emit JSON to stdout
+    """
+    valid, details = lib.validate(upload_csv)
+    print(valid)
+    print(json.dumps(details))
+
+
 def main():
     defopt.run(
         {
@@ -228,6 +248,7 @@ def main():
             "validate": validate,
             "download": download,
             "status": status,
+            "validate-new": validate_new,
         },
         no_negated_flags=True,
         strict_kwonly=False,

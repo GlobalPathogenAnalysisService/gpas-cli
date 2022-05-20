@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 
 import pandas as pd
+import pandera as pa
 
 from tqdm import tqdm
 
@@ -18,6 +19,8 @@ from gpas.misc import (
     ENDPOINTS,
     GOOD_STATUSES,
 )
+
+from gpas import validation
 
 
 def parse_token(token: Path) -> dict:
@@ -203,6 +206,17 @@ async def download_single_async(
     else:
         result = dict(sample=guid, status="UNKNOWN")
         logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
+
+
+def validate(upload_csv: Path):
+    return validation.validate(upload_csv)
+    # except pa.errors.SchemaError as e:
+    #     # print("Schema errors and failure cases:")
+    #     print(e)
+    # for failure_case in e.failure_cases:
+    #     print(failure_case)
+    # print("\nDataFrame object that failed validation:")
+    # print(err.data)
 
 
 # def get_status(
