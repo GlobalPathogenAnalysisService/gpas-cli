@@ -237,7 +237,6 @@ def validate_new(
     :arg json: Emit JSON to stdout
     """
     valid, details = lib.validate(upload_csv)
-    print(valid)
     print(json.dumps(details))
 
 

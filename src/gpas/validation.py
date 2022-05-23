@@ -1,3 +1,4 @@
+import logging
 import datetime
 
 import pandas as pd
@@ -12,6 +13,46 @@ from pandera.typing import Index, Series
 from pandera import Check
 
 
+@extensions.register_check_method()
+def region_is_valid(df):
+    """
+    Validate the region field using ISO-3166-2 (pycountry).
+
+    Returns
+    -------
+    bool
+        True if all regions are ok, False otherwise
+    """
+
+    def validate_region(row):
+        result = pycountry.countries.get(alpha_3=row.country)
+
+        if result is None:
+            return False
+        elif pd.isna(row.region) or row.region is None:
+            return True
+        else:
+            region_lookup = [
+                i.name for i in pycountry.subdivisions.get(country_code=result.alpha_2)
+            ]
+            return row.region in region_lookup
+
+    df["valid_region"] = df.apply(validate_region, axis=1)
+
+    return df["valid_region"].all()
+
+
+@extensions.register_check_method()
+def instrument_is_valid(df):
+
+    if "fastq" in df.columns:
+        instrument = "Nanopore"
+    elif "fastq2" in df.columns:
+        instrument = "Illumina"
+
+    return (df["instrument_platform"] == instrument).all()
+
+
 @extensions.register_check_method(check_type="element_wise")
 def tags_are_unique(field):
     valid = True
@@ -24,11 +65,9 @@ def tags_are_unique(field):
     return valid
 
 
-class UploadSchema(pa.SchemaModel):
+class BaseSchema(pa.SchemaModel):
     """
     Validate generic GPAS upload CSVs.
-
-    Built off to validate specific cases.
     """
 
     # validate that batch is alphanumeric only
@@ -110,50 +149,33 @@ class UploadSchema(pa.SchemaModel):
         coerce = True
 
 
-##################################################
-
-
-@extensions.register_check_method()
-def region_is_valid(df):
+class SingleFastqSchema(BaseSchema):
     """
-    Validate the region field using ISO-3166-2 (pycountry).
-
-    Returns
-    -------
-    bool
-        True if all regions are ok, False otherwise
+    Validate GPAS upload CSVs specifying unpaired reads (e.g. Nanopore).
     """
 
-    def validate_region(row):
-        result = pycountry.countries.get(alpha_3=row.country)
+    # gpas_batch: Series[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
+    # gpas_run_number: Series[int] = pa.Field(nullable=True, ge=0)
+    # gpas_sample_name: Index[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
 
-        if result is None:
-            return False
-        elif pd.isna(row.region) or row.region is None:
-            return True
-        else:
-            region_lookup = [
-                i.name for i in pycountry.subdivisions.get(country_code=result.alpha_2)
-            ]
-            return row.region in region_lookup
+    # validate that the fastq file is alphanumeric and unique
+    fastq: Series[str] = pa.Field(
+        unique=True,
+        str_matches=r"^[A-Za-z0-9/._-]+$",
+        str_endswith=".fastq.gz",
+        coerce=True,
+        nullable=False,
+    )
 
-    df["valid_region"] = df.apply(validate_region, axis=1)
-
-    return df["valid_region"].all()
-
-
-@extensions.register_check_method()
-def instrument_is_valid(df):
-
-    if "fastq" in df.columns:
-        instrument = "Nanopore"
-    elif "fastq2" in df.columns:
-        instrument = "Illumina"
-
-    return (df["instrument_platform"] == instrument).all()
+    class Config:
+        region_is_valid = ()
+        instrument_is_valid = ()
+        name = "NanoporeFASTQCheckSchema"
+        strict = True
+        coerce = True
 
 
-class IlluminaFASTQCheckSchema(UploadSchema):
+class PairedFastqSchema(BaseSchema):
     """
     Validate GPAS upload CSVs specifying paired reads (e.g Illumina).
     """
@@ -188,33 +210,7 @@ class IlluminaFASTQCheckSchema(UploadSchema):
         coerce = True
 
 
-class NanoporeFASTQCheckSchema(UploadSchema):
-    """
-    Validate GPAS upload CSVs specifying unpaired reads (e.g. Nanopore).
-    """
-
-    # gpas_batch: Series[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
-    # gpas_run_number: Series[int] = pa.Field(nullable=True, ge=0)
-    # gpas_sample_name: Index[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
-
-    # validate that the fastq file is alphanumeric and unique
-    fastq: Series[str] = pa.Field(
-        unique=True,
-        str_matches=r"^[A-Za-z0-9/._-]+$",
-        str_endswith=".fastq.gz",
-        coerce=True,
-        nullable=False,
-    )
-
-    class Config:
-        region_is_valid = ()
-        instrument_is_valid = ()
-        name = "NanoporeFASTQCheckSchema"
-        strict = True
-        coerce = True
-
-
-class BAMCheckSchema(UploadSchema):
+class BamSchema(BaseSchema):
     """
     Validate GPAS upload CSVs specifying BAM files.
     """
@@ -285,7 +281,6 @@ def parse_validation_error(row):
     elif row.check == "instrument_is_valid":
         return "FASTQ file columns and instrument_platform are inconsistent"
     elif row.check == "not_nullable":
-        print(row)
         return row.column + " cannot be empty"
     elif row.check == "field_uniqueness":
         return row.column + " must be unique in the upload CSV"
@@ -333,11 +328,22 @@ def parse_validation_error(row):
     elif row.column is None:
         return "problem"
     elif row.check == "tags_are_unique":
-        print(row)
-        print(row.failure_case)
         return row.column + " cannot be repeated"
     else:
         return "problem in " + row.column + " field"
+
+
+def pick_schema(df: pd.DataFrame) -> str:
+    columns = set(df.columns)
+    if "bam" in columns:
+        schema = BamSchema
+    elif "fastq" in columns:
+        schema = SingleFastqSchema
+    elif {"fastq1", "fastq2"} < columns:
+        schema = PairedFastqSchema
+    else:
+        raise (RuntimeError("Error inferring upload CSV schema"))
+    return schema
 
 
 def validate(upload_csv: Path) -> tuple[bool, dict]:
@@ -345,13 +351,21 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
     Validate an upload CSV. Returns tuple of validity (bool) and a message (dict)
     """
     df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
+    valid = False
     try:
-        UploadSchema.validate(df, lazy=True)
+        schema = pick_schema(df)
+        schema.validate(df, lazy=True)
         valid = True
         records = get_valid_samples(df)
         message = {"validation": {"status": "completed", "samples": records}}
-    except pa.errors.SchemaErrors as errors:
-        valid = False
-        records = parse_validation_errors(errors)
+    except RuntimeError as e:  # Failure to pick_schema()
+        message = {
+            "validation": {
+                "status": "failure",
+                "message": "Could not infer upload CSV schema",
+            }
+        }
+    except pa.errors.SchemaErrors as e:  # Validation errors
+        records = parse_validation_errors(e)
         message = {"validation": {"status": "failure", "samples": records}}
     return (valid, message)
