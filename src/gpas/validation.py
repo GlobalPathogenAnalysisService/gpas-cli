@@ -1,5 +1,6 @@
 import logging
 import datetime
+from platform import platform
 
 import pandas as pd
 import pandera as pa
@@ -10,7 +11,14 @@ from pathlib import Path
 import pandera.extensions as extensions
 
 from pandera.typing import Index, Series
-from pandera import Check
+
+
+VALID_INSTRUMENTS = {"Illumina", "Nanopore"}
+VALID_CONTROLS = {"positive", "negative"}
+
+
+class ValidationError(Exception):
+    pass
 
 
 @extensions.register_check_method()
@@ -42,25 +50,23 @@ def region_is_valid(df):
     return df["valid_region"].all()
 
 
-@extensions.register_check_method()
-def instrument_is_valid(df):
-
-    if "fastq" in df.columns:
-        instrument = "Nanopore"
-    elif "fastq2" in df.columns:
-        instrument = "Illumina"
-
-    return (df["instrument_platform"] == instrument).all()
+# @extensions.register_check_method()
+# def single_instrument_platform(df):
+#     """Batch-level check that there is only one value of instrument_platform"""
+#     if not len(df["instrument_platform"].unique()) == 1:
+#         valid = False
+#     return valid
 
 
 @extensions.register_check_method(check_type="element_wise")
 def tags_are_unique(field):
+    field = field.strip(":")
     valid = True
     if (
         field
         and not pd.isna(field)
         and len(set(field.split(":"))) != len(list(field.split(":")))
-    ):
+    ) or not field:
         valid = False
     return valid
 
@@ -129,7 +135,7 @@ class BaseSchema(pa.SchemaModel):
 
     # insist that instrument_platform can only be Illumina or Nanopore
     instrument_platform: Series[str] = pa.Field(
-        isin=["Illumina", "Nanopore"], coerce=True, nullable=False
+        isin=VALID_INSTRUMENTS, coerce=True, nullable=False
     )
 
     # custom method that checks that the collection_date is only the date and does not include the time
@@ -138,13 +144,13 @@ class BaseSchema(pa.SchemaModel):
     def check_collection_date(cls, a):
         return (a.dt.floor("d") == a).all()
 
-    # custom method to check that one, and only one, instrument_platform is specified in a single upload CSV
+    # # custom method to check that one, and only one, instrument_platform is specified in a single upload CSV
     @pa.check("instrument_platform")
-    def check_unique_instrument_platform(cls, a):
-        return len(a.unique()) == 1
+    def check_unique_instrument_platform(cls, field):
+        return len(field.unique()) == 1
 
     class Config:
-        name = "UploadSchema"
+        # name = "UploadSchema"
         strict = False
         coerce = True
 
@@ -169,8 +175,8 @@ class SingleFastqSchema(BaseSchema):
 
     class Config:
         region_is_valid = ()
-        instrument_is_valid = ()
-        name = "NanoporeFASTQCheckSchema"
+        # instrument_is_valid = ()
+        # name = "NanoporeFASTQCheckSchema"
         strict = True
         coerce = True
 
@@ -204,8 +210,8 @@ class PairedFastqSchema(BaseSchema):
 
     class Config:
         region_is_valid = ()
-        instrument_is_valid = ()
-        name = "IlluminaFASTQCheckSchema"
+        # instrument_is_valid = ()
+        # name = "IlluminaFASTQCheckSchema"
         strict = True
         coerce = True
 
@@ -272,6 +278,7 @@ def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
+    print(str(row), "\n")
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case + " found in upload CSV"
     if row.check == "column_in_dataframe":
@@ -279,11 +286,11 @@ def parse_validation_error(row):
     elif row.check == "region_is_valid":
         return "specified regions are not valid ISO-3166-2 regions for the specified country"
     elif row.check == "instrument_is_valid":
-        return "FASTQ file columns and instrument_platform are inconsistent"
+        return f"instrument_platform can only contain one of {', '.join(VALID_INSTRUMENTS)}"
     elif row.check == "not_nullable":
         return row.column + " cannot be empty"
     elif row.check == "field_uniqueness":
-        return row.column + " must be unique in the upload CSV"
+        return row.column + " must be unique"
     elif "str_matches" in row.check:
         allowed_chars = row.check.split("[")[1].split("]")[0]
         if row.schema_context == "Column":
@@ -297,7 +304,7 @@ def parse_validation_error(row):
     elif row.column == "control" and row.check[:4] == "isin":
         return (
             row.failure_case
-            + " in the control field is not valid: field must be either empty or contain the one of the keywords positive or negative"
+            + f" in the control field is not valid: field must be either empty or contain the one of the keywords {', '.join(VALID_CONTROLS)}"
         )
     elif row.column == "host" and row.check[:4] == "isin":
         return row.column + " can only contain the keyword human"
@@ -311,7 +318,7 @@ def parse_validation_error(row):
         if row.check[:4] == "isin":
             return (
                 row.column
-                + " can only contain one of the keywords Illumina or Nanopore"
+                + f" can only contain one of the keywords {', '.join(VALID_INSTRUMENTS)}"
             )
     elif row.column == "collection_date":
         if row.sample_name is None:
@@ -324,25 +331,37 @@ def parse_validation_error(row):
             return row.column + " cannot be before 2019-01-01"
     elif row.column in ["fastq1", "fastq2", "fastq"]:
         if row.check == "field_uniqueness":
-            return row.column + " must be unique in the upload CSV"
+            return row.column + " must be unique"
     elif row.column is None:
         return "problem"
     elif row.check == "tags_are_unique":
         return row.column + " cannot be repeated"
     else:
         return "problem in " + row.column + " field"
+    if row.check.startswith("str_endswith"):
+        return (
+            row.column
+            + " must end with .fastq.gz, _1.fastq.gz, _2.fastq.gz or .bam as appropriate"
+        )
 
 
 def pick_schema(df: pd.DataFrame) -> str:
+    """Choose appropriate validation schema and the presence of required columns"""
     columns = set(df.columns)
-    if "bam" in columns:
+    if "bam" in columns and not {"fastq", "fastq1", "fastq2"} & columns:
         schema = BamSchema
-    elif "fastq" in columns:
+    elif "fastq" in columns and not {"fastq1", "fastq2", "bam"} & columns:
         schema = SingleFastqSchema
-    elif {"fastq1", "fastq2"} < columns:
+    elif {"fastq1", "fastq2"} < columns and not {"fastq", "bam"} & columns:
         schema = PairedFastqSchema
     else:
-        raise (RuntimeError("Error inferring upload CSV schema"))
+        raise (
+            ValidationError(
+                "Error inferring schema from available columns. For single-end FASTQ "
+                "use 'fastq', for paired-end FASTQ use 'fastq1' and 'fastq2', and "
+                "for BAM submissions use 'bam'"
+            )
+        )
     return schema
 
 
@@ -358,14 +377,14 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
         valid = True
         records = get_valid_samples(df)
         message = {"validation": {"status": "completed", "samples": records}}
-    except RuntimeError as e:  # Failure to pick_schema()
+    except ValidationError as e:  # Failure to pick_schema()
         message = {
             "validation": {
                 "status": "failure",
-                "message": "Could not infer upload CSV schema",
+                "errors": [{"error": str(e)}],
             }
         }
     except pa.errors.SchemaErrors as e:  # Validation errors
         records = parse_validation_errors(e)
-        message = {"validation": {"status": "failure", "samples": records}}
+        message = {"validation": {"status": "failure", "errors": records}}
     return (valid, message)
