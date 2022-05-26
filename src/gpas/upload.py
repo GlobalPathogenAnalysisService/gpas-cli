@@ -62,4 +62,4 @@ class Batch:
         self.environment = environment
         self.threads = threads
 
-        validation.validate()
+        validation.validate(upload_csv)
