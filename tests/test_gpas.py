@@ -33,7 +33,7 @@ def test_validate_ok():
             "status": "completed",
             "samples": [
                 {
-                    "sample": "cDNA-VOC-1-v4-1",
+                    "sample_name": "cDNA-VOC-1-v4-1",
                     "files": [
                         "reads/large-illumina-fastq_1.fastq.gz",
                         "reads/large-illumina-fastq_2.fastq.gz",
@@ -51,7 +51,7 @@ def test_validate_fail_no_tags():
     assert not valid and message == {
         "validation": {
             "status": "failure",
-            "samples": [
+            "errors": [
                 {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
             ],
         }
@@ -65,8 +65,29 @@ def test_validate_fail_dupe_tags():
     assert not valid and message == {
         "validation": {
             "status": "failure",
-            "samples": [
+            "errors": [
                 {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be repeated"}
+            ],
+        }
+    }
+
+
+def validate_fail_missing_files():
+    valid, message = lib.validate(
+        Path(data_dir) / Path("broken") / Path("broken-path.csv")
+    )
+    assert not valid and message == {
+        "validation": {
+            "status": "failure",
+            "errors": [
+                {
+                    "sample_name": "cDNA-VOC-1-v4-1",
+                    "error": "file xxx/reads/large-illumina-fastq_1.fastq.gz does not exist",
+                },
+                {
+                    "sample_name": "cDNA-VOC-1-v4-1",
+                    "error": "file xxx/reads/large-illumina-fastq_2.fastq.gz does not exist",
+                },
             ],
         }
     }

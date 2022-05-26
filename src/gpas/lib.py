@@ -246,3 +246,7 @@ def validate(upload_csv: Path):
 #         else:
 #             logging.warning(f"{guid} (error {r.status_code})")
 #     return records
+
+
+def least_common_multiple(a, b):
+    return a * b // math.gcd(a, b)

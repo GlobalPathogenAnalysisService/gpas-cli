@@ -50,25 +50,39 @@ def region_is_valid(df):
     return df["valid_region"].all()
 
 
-# @extensions.register_check_method()
-# def single_instrument_platform(df):
-#     """Batch-level check that there is only one value of instrument_platform"""
-#     if not len(df["instrument_platform"].unique()) == 1:
-#         valid = False
-#     return valid
+@extensions.register_check_method()
+def single_instrument_platform(df):
+    """Batch-level check that there is only one value of instrument_platform"""
+    if not len(df["instrument_platform"].unique()) == 1:
+        valid = False
+    return valid
+
+    # def tags_are_unique(cls, series):
+    #     valid = True
+    #     for value in series.tolist():
+    #         if value and not pd.isna(value):
+    #             value = value.strip(':')
+    #             if len(set(value.split(":"))) != len(list(value.split(":"))):
+    #                 valid = False
+    #     return valid
+
+
+# Use registered check methods for elementwise validation
 
 
 @extensions.register_check_method(check_type="element_wise")
-def tags_are_unique(field):
-    field = field.strip(":")
+def tags_are_unique(value):
     valid = True
-    if (
-        field
-        and not pd.isna(field)
-        and len(set(field.split(":"))) != len(list(field.split(":")))
-    ) or not field:
-        valid = False
+    if value and not pd.isna(value):
+        value = value.strip(":")
+        if len(set(value.split(":"))) != len(list(value.split(":"))):
+            valid = False
     return valid
+
+
+# @extensions.register_check_method(check_type="element_wise")
+# def is_file(value):
+#     return Path(value).is_file()
 
 
 class BaseSchema(pa.SchemaModel):
@@ -93,7 +107,7 @@ class BaseSchema(pa.SchemaModel):
 
     # insist that control is one of positive, negative or null
     control: Series[str] = pa.Field(
-        nullable=True, isin=["positive", "negative", None], coerce=True
+        nullable=True, isin=["positive", "negative"], coerce=True
     )
 
     # validate that the collection is in the ISO format, is no earlier than 01-Jan-2019 and no later than today
@@ -138,16 +152,32 @@ class BaseSchema(pa.SchemaModel):
         isin=VALID_INSTRUMENTS, coerce=True, nullable=False
     )
 
-    # custom method that checks that the collection_date is only the date and does not include the time
-    # e.g. "2022-03-01" will pass but "2022-03-01 10:20:32" will fail
+    # Use pa.check() for dataframe-level validation
+
     @pa.check("collection_date")
     def check_collection_date(cls, a):
+        """
+        Check that collection_date is only the date and does not include time
+        e.g. "2022-03-01" will pass but "2022-03-01 10:20:32" will fail
+        """
         return (a.dt.floor("d") == a).all()
 
-    # # custom method to check that one, and only one, instrument_platform is specified in a single upload CSV
     @pa.check("instrument_platform")
     def check_unique_instrument_platform(cls, field):
+        """
+        Check that only one instrument_platform is specified in the upload CSV
+        """
         return len(field.unique()) == 1
+
+    # @pa.check('tags')
+    # def tags_are_unique(cls, series):
+    #     valid = True
+    #     for value in series.tolist():
+    #         if value and not pd.isna(value):
+    #             value = value.strip(':')
+    #             if len(set(value.split(":"))) != len(list(value.split(":"))):
+    #                 valid = False
+    #     return valid
 
     class Config:
         # name = "UploadSchema"
@@ -171,6 +201,7 @@ class SingleFastqSchema(BaseSchema):
         str_endswith=".fastq.gz",
         coerce=True,
         nullable=False,
+        # is_file=True
     )
 
     class Config:
@@ -197,6 +228,7 @@ class PairedFastqSchema(BaseSchema):
         str_endswith="_1.fastq.gz",
         coerce=True,
         nullable=False,
+        # is_file=True
     )
 
     # validate that the fastq2 file is alphanumeric and unique
@@ -206,6 +238,7 @@ class PairedFastqSchema(BaseSchema):
         str_endswith="_2.fastq.gz",
         coerce=True,
         nullable=False,
+        # is_file=True
     )
 
     class Config:
@@ -221,17 +254,14 @@ class BamSchema(BaseSchema):
     Validate GPAS upload CSVs specifying BAM files.
     """
 
-    # gpas_batch: Series[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
-    # gpas_run_number: Series[int] = pa.Field(nullable=True, ge=0)
-    # gpas_sample_name: Index[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
-
-    # validate that the bam file is alphanumeric and unique
+    # Check filename is alphanumeric and unique
     bam: Series[str] = pa.Field(
         unique=True,
         str_matches=r"^[A-Za-z0-9/._-]+$",
         str_endswith=".bam",
         coerce=True,
         nullable=False,
+        # is_file=True
     )
 
     # insist that the path to the bam exists
@@ -251,11 +281,16 @@ def get_valid_samples(df: pd.DataFrame) -> list[dict]:
     for row in df.reset_index().itertuples():
         if row.instrument_platform == "Illumina":
             samples.append(
-                {"sample": row.sample_name, "files": [row.fastq1, row.fastq2]}
+                {"sample_name": row.sample_name, "files": [row.fastq1, row.fastq2]}
             )
         else:
-            samples.append({"sample": row.sample_name, "files": [row.fastq]})
+            samples.append({"sample_name": row.sample_name, "files": [row.fastq]})
     return samples
+
+
+def remove_nones_in_ld(ld: list[dict]) -> list[dict]:
+    """Remove None-valued keys from a list of dicts"""
+    return [{k: v for k, v in d.items() if v} for d in ld]
 
 
 def parse_validation_errors(errors):
@@ -269,24 +304,26 @@ def parse_validation_errors(errors):
     -------
     pandas.DataFrame(columns=['sample_name', 'error_message'])
     """
-    failures = errors.failure_cases.rename(columns={"index": "sample_name"})
-    failures["error"] = failures.apply(parse_validation_error, axis=1)
-    return failures[["sample_name", "error"]].to_dict("records")
+    failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
+    failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
+    # print(failure_cases)
+    failures = failure_cases[["sample_name", "error"]].to_dict("records")
+    return remove_nones_in_ld(failures)
 
 
 def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
-    print(str(row), "\n")
+    # print(str(row), "\n")
     if row.check == "column_in_schema":
-        return "unexpected column " + row.failure_case + " found in upload CSV"
+        return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":
-        return "column " + row.failure_case + " missing from upload CSV"
+        return "column " + row.failure_case
     elif row.check == "region_is_valid":
         return "specified regions are not valid ISO-3166-2 regions for the specified country"
-    elif row.check == "instrument_is_valid":
-        return f"instrument_platform can only contain one of {', '.join(VALID_INSTRUMENTS)}"
+    # elif row.check == "instrument_is_valid":
+    #     return f"instrument_platform can only contain one of {', '.join(VALID_INSTRUMENTS)}"
     elif row.check == "not_nullable":
         return row.column + " cannot be empty"
     elif row.check == "field_uniqueness":
@@ -312,14 +349,14 @@ def parse_validation_error(row):
         return row.column + " can only contain the keyword SARS-CoV-2"
     elif row.column == "primer_scheme" and row.check[:4] == "isin":
         return row.column + " can only contain the keyword auto"
+
+    elif row.column == "instrument_platform" and "isin" in row.check:
+        return (
+            f"{row.column} value '{row.failure_case}' is not in set {VALID_INSTRUMENTS}"
+        )
     elif row.column == "instrument_platform":
-        if row.sample_name is None:
-            return row.column + " must be unique"
-        if row.check[:4] == "isin":
-            return (
-                row.column
-                + f" can only contain one of the keywords {', '.join(VALID_INSTRUMENTS)}"
-            )
+        # return f"Only one value of {row.column} is permitted in the upload CSV"
+        return row.column + " must be the same in all rows of the upload CSV"
     elif row.column == "collection_date":
         if row.sample_name is None:
             return (
@@ -329,13 +366,16 @@ def parse_validation_error(row):
             return row.column + " cannot be in the future"
         if row.check[:7] == "greater":
             return row.column + " cannot be before 2019-01-01"
-    elif row.column in ["fastq1", "fastq2", "fastq"]:
+    elif row.column in ["fastq1", "fastq2", "fastq", "bam"]:
         if row.check == "field_uniqueness":
             return row.column + " must be unique"
+        elif row.check == "is_file":
+            return f"file {row.failure_case} not found"
     elif row.column is None:
         return "problem"
     elif row.check == "tags_are_unique":
         return row.column + " cannot be repeated"
+
     else:
         return "problem in " + row.column + " field"
     if row.check.startswith("str_endswith"):
@@ -365,18 +405,42 @@ def pick_schema(df: pd.DataFrame) -> str:
     return schema
 
 
+def check_files_exist(df: pd.DataFrame, upload_csv: Path) -> list[dict]:
+    working_dir = upload_csv.parent
+    column_subset = {"fastq", "fastq1", "fastq2", "bam"}
+    records_dod = df.to_dict("index")
+    samples_paths = {}
+    for k, v in records_dod.items():
+        paths = []
+        for kk, vv in v.items():
+            if kk in column_subset:
+                paths.append(vv)
+        samples_paths[k] = paths
+    records = []
+    for sample, paths in samples_paths.items():
+        for path in paths:
+            rel_path = working_dir / Path(path)
+            if not rel_path.is_file():
+                records.append(
+                    {"sample_name": sample, "error": f"file {path} does not exist"}
+                )
+    return records
+
+
 def validate(upload_csv: Path) -> tuple[bool, dict]:
     """
     Validate an upload CSV. Returns tuple of validity (bool) and a message (dict)
     """
     df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
     valid = False
+
     try:
         schema = pick_schema(df)
         schema.validate(df, lazy=True)
         valid = True
         records = get_valid_samples(df)
         message = {"validation": {"status": "completed", "samples": records}}
+
     except ValidationError as e:  # Failure to pick_schema()
         message = {
             "validation": {
@@ -384,7 +448,17 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
                 "errors": [{"error": str(e)}],
             }
         }
-    except pa.errors.SchemaErrors as e:  # Validation errors
+
+    except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         records = parse_validation_errors(e)
         message = {"validation": {"status": "failure", "errors": records}}
+
+    if valid:
+        missing_file_records = check_files_exist(df, upload_csv)
+        if missing_file_records:
+            valid = False
+            message = {
+                "validation": {"status": "failure", "errors": missing_file_records}
+            }
+
     return (valid, message)
