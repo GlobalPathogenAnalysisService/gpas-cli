@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 import httpx
+import requests
 
 import pandas as pd
 import pandera as pa
@@ -202,7 +203,6 @@ async def download_single_async(
             update_fasta_header(
                 Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
             )
-
     else:
         result = dict(sample=guid, status="UNKNOWN")
         logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
@@ -246,7 +246,3 @@ def validate(upload_csv: Path):
 #         else:
 #             logging.warning(f"{guid} (error {r.status_code})")
 #     return records
-
-
-def least_common_multiple(a, b):
-    return a * b // math.gcd(a, b)

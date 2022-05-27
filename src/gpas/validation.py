@@ -190,10 +190,6 @@ class PairedFastqSchema(BaseSchema):
     Validate GPAS upload CSVs specifying paired reads (e.g Illumina).
     """
 
-    # gpas_batch: Series[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
-    # gpas_run_number: Series[int] = pa.Field(nullable=True, ge=0)
-    # gpas_sample_name: Index[str] = pa.Field(str_matches=r'^[A-Za-z0-9]')
-
     # validate that the fastq1 file is alphanumeric and unique
     fastq1: Series[str] = pa.Field(
         # unique=True,  # Joint uniqueness specified in Config
@@ -205,7 +201,7 @@ class PairedFastqSchema(BaseSchema):
 
     # validate that the fastq2 file is alphanumeric and unique
     fastq2: Series[str] = pa.Field(
-        # unique=True,
+        # unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9/._-]+$",
         str_endswith="_2.fastq.gz",
         coerce=True,
@@ -236,18 +232,11 @@ class BamSchema(BaseSchema):
         str_endswith=".bam",
         coerce=True,
         nullable=False,
-        # is_file=True
     )
 
     @pa.check(bam, element_wise=True)
     def check_path(cls, path: str) -> bool:
         return Path(path).exists()
-
-    class Config:
-        region_is_valid = ()
-        name = "BAMCheckSchema"
-        strict = True
-        coerce = True
 
 
 def get_valid_samples(df: pd.DataFrame) -> list[dict]:
