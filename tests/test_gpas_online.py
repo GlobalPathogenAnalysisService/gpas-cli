@@ -185,7 +185,7 @@ def test_status_mapping_api_online():
         lib.get_status_async(
             access_token=access_token,
             mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
-            environment=ENVIRONMENTS.development,
+            environment=ENVIRONMENTS.dev,
             rename=False,
         )
     )
@@ -209,7 +209,7 @@ def test_status_mapping_rename_api_online():
         lib.get_status_async(
             access_token=access_token,
             mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
-            environment=ENVIRONMENTS.development,
+            environment=ENVIRONMENTS.dev,
             rename=True,
         )
     )

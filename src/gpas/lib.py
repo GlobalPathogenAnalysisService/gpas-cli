@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 
 import pandas as pd
+import pandera as pa
 
 from tqdm import tqdm
 
@@ -18,6 +19,8 @@ from gpas.misc import (
     ENDPOINTS,
     GOOD_STATUSES,
 )
+
+from gpas import validation
 
 
 def parse_token(token: Path) -> dict:
@@ -205,6 +208,10 @@ async def download_single_async(
         logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
 
 
+def validate(upload_csv: Path):
+    return validation.validate(upload_csv)
+
+
 # def get_status(
 #     guids: list,
 #     access_token: str,
@@ -239,3 +246,7 @@ async def download_single_async(
 #         else:
 #             logging.warning(f"{guid} (error {r.status_code})")
 #     return records
+
+
+def least_common_multiple(a, b):
+    return a * b // math.gcd(a, b)
