@@ -14,12 +14,12 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
     )
 
 
-def test_gpas_uploader_validate():
-    run_cmd = run(f"gpas-upload --environment dev --json validate nanopore-fastq.csv")
-    assert (
-        '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-        in run_cmd.stdout
-    )
+# def test_gpas_uploader_validate():
+#     run_cmd = run(f"gpas-upload --environment dev --json validate nanopore-fastq.csv")
+#     assert (
+#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
+#         in run_cmd.stdout
+#     )
 
 
 def test_version():
