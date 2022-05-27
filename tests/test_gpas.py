@@ -14,12 +14,12 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
     )
 
 
-# def test_gpas_uploader_validate():
-#     run_cmd = run(f"gpas-upload --environment dev --json validate nanopore-fastq.csv")
-#     assert (
-#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-#         in run_cmd.stdout
-#     )
+def test_gpas_uploader_validate():
+    run_cmd = run(f"gpas-upload --environment dev --json validate nanopore-fastq.csv")
+    assert (
+        '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
+        in run_cmd.stdout
+    )
 
 
 def test_version():
@@ -72,7 +72,7 @@ def test_validate_fail_dupe_tags():
     }
 
 
-def validate_fail_missing_files():
+def test_validate_fail_missing_files():
     valid, message = lib.validate(
         Path(data_dir) / Path("broken") / Path("broken-path.csv")
     )
@@ -82,12 +82,28 @@ def validate_fail_missing_files():
             "errors": [
                 {
                     "sample_name": "cDNA-VOC-1-v4-1",
-                    "error": "file xxx/reads/large-illumina-fastq_1.fastq.gz does not exist",
+                    "error": "fastq1 file does not exist",
                 },
                 {
                     "sample_name": "cDNA-VOC-1-v4-1",
-                    "error": "file xxx/reads/large-illumina-fastq_2.fastq.gz does not exist",
+                    "error": "fastq2 file does not exist",
                 },
+            ],
+        }
+    }
+
+
+def test_validate_fail_different_platforms():
+    valid, message = lib.validate(
+        Path(data_dir) / Path("broken") / Path("different-platforms.csv")
+    )
+    assert not valid and message == {
+        "validation": {
+            "status": "failure",
+            "errors": [
+                {
+                    "error": "instrument_platform must be the same for all samples in a submission"
+                }
             ],
         }
     }
