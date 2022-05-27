@@ -1,6 +1,6 @@
- ![Tests](https://github.com/GenomePathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
+ ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A **currently experimental** standalone command line and Python API client for the Global Pathogen Analysis System. Tested on Linux and MacOS.
+A **currently experimental** standalone command line and Python API client for the Global Pathogen Analysis Service. Tested on Linux, MacOS, and Windows\*.
 
 **Progress**
 
@@ -25,7 +25,7 @@ conda activate gpas-cli
 
 ### With `pip`
 
-Install Samtools and [read-it-and-keep](https://github.com/GenomePathogenAnalysisService/read-it-and-keep) manually
+Install Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) manually
 
 ```
 pip install gpas gpas-uploader
@@ -207,9 +207,9 @@ options:
 ```
 conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools pytest black pre-commit mypy
 conda activate gpas-cli-dev
-git clone https://github.com/GenomePathogenAnalysisService/gpas-uploader
+git clone https://github.com/GlobalPathogenAnalysisService/gpas-uploader
 pip install -e ./gpas-uploader
-git clone https://github.com/GenomePathogenAnalysisService/gpas-cli
+git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
 pip install -e ./gpas-cli
 
 # Test

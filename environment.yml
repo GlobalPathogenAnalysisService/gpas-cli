@@ -9,5 +9,5 @@ dependencies:
   - read-it-and-keep
   - samtools
   - pip:
-    - git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git#egg=gpas_uploader
-    - git+https://github.com/GenomePathogenAnalysisService/gpas-cli.git#egg=gpas
+    - git+https://github.com/GlobalPathogenAnalysisService/gpas-uploader.git#egg=gpas_uploader
+    - git+https://github.com/GlobalPathogenAnalysisService/gpas-cli.git#egg=gpas
