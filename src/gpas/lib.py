@@ -1,6 +1,7 @@
 import gzip
 import json
 import asyncio
+import hashlib
 import logging
 
 from pathlib import Path
@@ -22,7 +23,7 @@ from gpas.misc import (
     GOOD_STATUSES,
 )
 
-from gpas import validation
+from gpas import misc, validation
 
 
 def parse_token(token: Path) -> dict:
@@ -290,19 +291,21 @@ class Sample:
         self.schema = schema
         self.is_paired = True if self.instrument_platform == "Illumina" else False
         self.ref_path = self.get_reference_path()
+        self.errors = []
 
     def get_reference_path(self):
         prefix = Path(__file__).parent.parent.parent / Path("ref")
         organisms_paths = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
         return prefix / organisms_paths[self.specimen_organism]
 
-    def decontaminate(self, schema: str, working_dir: Path = Path()):
-        # return "TEST"
-        if "Bam" in schema:
-            _convert_bam(self.bam, paired=self.is_paired)
+    def decontaminate(self, schema_name: str, working_dir: Path = Path()):
+        if "Bam" in schema_name:  # Preprocess BAMs into FASTQs
+            self._convert_bam(working_dir=working_dir, paired=self.is_paired)
 
         if not self.is_paired:
-            self._read_it_and_keep(reads1=self.fastq, tech="ont")
+            self._read_it_and_keep(
+                reads1=self.fastq, tech="ont", working_dir=working_dir
+            )
         else:
             self._read_it_and_keep(
                 reads1=self.fastq1,
@@ -311,27 +314,56 @@ class Sample:
                 working_dir=working_dir,
             )
 
-    def _convert_bam(self, bam, working_dir, paired=False):
-        stem = bam.with_suffix("")
-
+    def _convert_bam(self, working_dir, paired=False):
+        stem = self.bam.strip(".bam")
+        prefix = working_dir / Path(stem)
         if not self.is_paired:
-            cmd = f"samtools fastq -0 {working_dir / Path(stem + '.fastq.gz')} {working_dir / Path(row['bam'])}"
+            cmd_run = run(
+                f"samtools fastq -0 {working_dir / Path(stem + '.fastq.gz')} {working_dir / Path(bam)}"
+            )
+            self.reads = working_dir / Path(self.sample_name + ".fastq.gz")
         else:
-            cmd = f"samtools sort {bam} | samtools fastq -N -1 {working_dir / Path(stem + '_1.fastq.gz')} -2 {working_dir / Path(stem + '_1.fastq.gz')}"
-        run_cmd = run(cmd)
-        print(run_cmd.returncode)
+            cmd_run = run(
+                f"samtools sort {self.bam} | samtools fastq -N -1 {working_dir / Path(self.sample_name + '_1.fastq.gz')} -2 {working_dir /  Path(self.sample_name + '_2.fastq.gz')}"
+            )
+            self.fastq1 = working_dir / Path(self.sample_name + "_1.fastq.gz")
+            self.fastq2 = working_dir / Path(self.sample_name + "_2.fastq.gz")
+        logging.warning(
+            [cmd_run.returncode, cmd_run.args, cmd_run.stderr, cmd_run.stdout]
+        )
 
     def _read_it_and_keep(self, reads1, tech, working_dir, reads2=None):
-        stem = reads1.removesuffix(".fastq.gz")
+        stem = (
+            str(reads1).removesuffix(".fastq.gz")
+            if reads1
+            else reads.removesuffix(".fastq.gz")
+        )
         prefix = working_dir / Path(stem)
         if not reads2:
-            cmd = f"readItAndKeep --tech ont --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --outprefix {working_dir / 'test'}"
+            cmd_run = run(
+                f"readItAndKeep --tech ont --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --outprefix {working_dir / 'test'}"
+            )
+            self.decontaminated_fastq = (
+                working_dir / self.sample_name / ".reads.fastq.gz"
+            )
         else:
-            cmd = f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --reads2 {reads2} --outprefix {working_dir / 'test'}"
-        print(working_dir / "test")
-        print(cmd)
-        run_cmd = run(cmd)
-        print(run_cmd.returncode)
+            cmd_run = run(
+                f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --reads2 {reads2} --outprefix {working_dir / self.sample_name}"
+            )
+            self.k_fastq1 = working_dir / Path(self.sample_name + ".reads_1.fastq.gz")
+            self.decontaminated_fastq2 = working_dir / Path(
+                self.sample_name + ".reads_2.fastq.gz"
+            )
+        logging.warning(
+            [cmd_run.returncode, cmd_run.args, cmd_run.stderr, cmd_run.stdout]
+        )
+
+    def _hash_reads(self):
+        if not self.is_paired:
+            self.md5_1 = misc.hash_file(self.fastq1)
+            self.md5_2 = misc.hash_file(self.fastq2)
+        else:
+            self.md5 = misc.hash_file(self.fastq)
 
 
 class Batch:

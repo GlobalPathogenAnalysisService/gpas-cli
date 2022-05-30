@@ -239,15 +239,19 @@ class PairedBamSchema(BamSchema):
     pass
 
 
-def get_valid_samples(df: pd.DataFrame) -> list[dict]:
+def get_valid_samples(df: pd.DataFrame, schema_name: str) -> list[dict]:
     samples = []
     for row in df.reset_index().itertuples():
-        if row.instrument_platform == "Illumina":
+        if schema_name == "FastqSchema":
+            samples.append({"sample_name": row.sample_name, "files": [row.fastq]})
+        elif schema_name == "PairedFastqSchema":
             samples.append(
                 {"sample_name": row.sample_name, "files": [row.fastq1, row.fastq2]}
             )
+        elif schema_name in {"BamSchema", "PairedBamSchema"}:
+            samples.append({"sample_name": row.sample_name, "files": [row.bam]})
         else:
-            samples.append({"sample_name": row.sample_name, "files": [row.fastq]})
+            raise ValidationError("Unexpected schema")
     return samples
 
 
@@ -379,7 +383,7 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
         with set_directory(upload_csv.parent):  # Enable file path validation
             schema.validate(df, lazy=True)
         valid = True
-        records = get_valid_samples(df)
+        records = get_valid_samples(df, schema.__name__)
         message = {
             "validation": {
                 "status": "success",
