@@ -1,6 +1,8 @@
+import os
 import subprocess
 
 from enum import Enum
+from pathlib import Path
 
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
@@ -44,3 +46,19 @@ def check_unicode(data):
         return data.decode("utf-8")
     except UnicodeDecodeError:
         return None
+
+
+class set_directory(object):
+    """
+    Context manager for temporarily changing the current working directory
+    """
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.origin = Path().absolute()
+
+    def __enter__(self):
+        os.chdir(self.path)
+
+    def __exit__(self, *exc):
+        os.chdir(self.origin)

@@ -14,6 +14,7 @@ import pandera as pa
 from tqdm import tqdm
 
 from gpas.misc import (
+    run,
     ENVIRONMENTS,
     DEFAULT_ENVIRONMENT,
     FILE_TYPES,
@@ -194,7 +195,6 @@ async def download_single_async(
     prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
-        Path(out_dir)
         with open(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"), "wb"
         ) as fh:
@@ -246,3 +246,123 @@ def validate(upload_csv: Path):
 #         else:
 #             logging.warning(f"{guid} (error {r.status_code})")
 #     return records
+
+
+class Sample:
+    def __init__(
+        self,
+        batch,
+        run_number,
+        sample_name,
+        control,
+        collection_date,
+        tags,
+        country,
+        region,
+        specimen_organism,
+        host,
+        instrument_platform,
+        primer_scheme,
+        schema,
+        district=None,
+        fastq=None,
+        fastq1=None,
+        fastq2=None,
+        bam=None,
+    ):
+        self.batch = batch
+        self.run_number = run_number
+        self.sample_name = sample_name
+        self.fastq = fastq
+        self.fastq1 = fastq1
+        self.fastq2 = fastq2
+        self.bam = bam
+        self.control = control
+        self.collection_date = collection_date
+        self.tags = tags
+        self.country = country
+        self.region = region
+        self.district = district
+        self.specimen_organism = specimen_organism
+        self.host = host
+        self.instrument_platform = instrument_platform
+        self.primer_scheme = primer_scheme
+        self.schema = schema
+        self.is_paired = True if self.instrument_platform == "Illumina" else False
+        self.ref_path = self.get_reference_path()
+
+    def get_reference_path(self):
+        prefix = Path(__file__).parent.parent.parent / Path("ref")
+        organisms_paths = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
+        return prefix / organisms_paths[self.specimen_organism]
+
+    def decontaminate(self, schema: str, working_dir: Path = Path()):
+        # return "TEST"
+        if "Bam" in schema:
+            _convert_bam(self.bam, paired=self.is_paired)
+
+        if not self.is_paired:
+            self._read_it_and_keep(reads1=self.fastq, tech="ont")
+        else:
+            self._read_it_and_keep(
+                reads1=self.fastq1,
+                reads2=self.fastq2,
+                tech="illumina",
+                working_dir=working_dir,
+            )
+
+    def _convert_bam(self, bam, working_dir, paired=False):
+        stem = bam.with_suffix("")
+
+        if not self.is_paired:
+            cmd = f"samtools fastq -0 {working_dir / Path(stem + '.fastq.gz')} {working_dir / Path(row['bam'])}"
+        else:
+            cmd = f"samtools sort {bam} | samtools fastq -N -1 {working_dir / Path(stem + '_1.fastq.gz')} -2 {working_dir / Path(stem + '_1.fastq.gz')}"
+        run_cmd = run(cmd)
+        print(run_cmd.returncode)
+
+    def _read_it_and_keep(self, reads1, tech, working_dir, reads2=None):
+        stem = reads1.removesuffix(".fastq.gz")
+        prefix = working_dir / Path(stem)
+        if not reads2:
+            cmd = f"readItAndKeep --tech ont --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --outprefix {working_dir / 'test'}"
+        else:
+            cmd = f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --reads2 {reads2} --outprefix {working_dir / 'test'}"
+        print(working_dir / "test")
+        print(cmd)
+        run_cmd = run(cmd)
+        print(run_cmd.returncode)
+
+
+class Batch:
+    """
+    Validation on initialisation
+    """
+
+    def __init__(
+        self,
+        upload_csv: Path,
+        token: Path = None,
+        environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+        working_dir: Path = Path("/tmp"),
+        threads: int = 0,
+    ):
+        self.upload_csv = upload_csv
+        self.token = token
+        self.environment = environment
+        self.working_dir = working_dir
+        self.threads = threads
+        (
+            self.validation_result,
+            self.schema,
+            self.validation_message,
+        ) = validation.validate(upload_csv)
+        self.df = pd.read_csv(upload_csv, encoding="utf-8").fillna("")
+        self.samples = [
+            Sample(**r, schema=self.schema) for r in self.df.to_dict("records")
+        ]
+
+    def decontaminate(self):
+        return list(
+            map(lambda s: s.decontaminate(self.schema, self.working_dir), self.samples)
+        )

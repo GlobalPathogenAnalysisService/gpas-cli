@@ -107,3 +107,24 @@ def test_validate_fail_different_platforms():
             ],
         }
     }
+
+
+def test_validate_fail_country_region():
+    valid, message = lib.validate(
+        Path(data_dir) / Path("broken") / Path("invalid-country-region.csv")
+    )
+    assert not valid and message == {
+        "validation": {
+            "status": "failure",
+            "errors": [
+                {
+                    "sample_name": "cDNA-VOC-1-v4-1",
+                    "error": "US is not a valid ISO-3166-1 country",
+                },
+                {
+                    "sample_name": "cDNA-VOC-1-v4-1",
+                    "error": "Bretagn is not a valid ISO-3166-2 region",
+                },
+            ],
+        }
+    }

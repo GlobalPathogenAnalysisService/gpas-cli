@@ -11,6 +11,7 @@ import pandas as pd
 from gpas import lib
 from gpas.misc import (
     run,
+    set_directory,
     FORMATS,
     DEFAULT_FORMAT,
     ENVIRONMENTS,
@@ -236,8 +237,22 @@ def validate_new(
     :arg environment: GPAS environment to use
     :arg json: Emit JSON to stdout
     """
-    valid, details = lib.validate(upload_csv)
-    print(json.dumps(details, indent=4))
+    valid, schema, message = lib.validate(upload_csv)
+    print(json.dumps(message, indent=4))
+
+
+def upload_new(
+    upload_csv: Path,
+    *,
+    token: Path = None,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    machine_readable: bool = False,
+):
+    batch = lib.Batch(upload_csv)
+    # print(batch.validation_result, batch.schema)
+    # print(json.dumps(batch.validation_message, indent=4))
+    with set_directory(upload_csv.parent):
+        print(batch.decontaminate())
 
 
 def main():
@@ -248,6 +263,7 @@ def main():
             "download": download,
             "status": status,
             "validate-new": validate_new,
+            "upload-new": upload_new,
         },
         no_negated_flags=True,
         strict_kwonly=False,

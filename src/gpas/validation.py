@@ -1,73 +1,71 @@
 import os
 import logging
 import datetime
-from contextlib import contextmanager
-
-import pandas as pd
-import pandera as pa
-import pycountry
 
 from pathlib import Path
 
+import pycountry
+
+import pandas as pd
+import pandera as pa
 import pandera.extensions as extensions
 
 from pandera.typing import Index, Series
 
 
-VALID_INSTRUMENTS = {"Illumina", "Nanopore"}
 VALID_CONTROLS = {"positive", "negative"}
+VALID_COUNTRIES_ALPHA_3 = set(r.alpha_3 for r in pycountry.countries)
+VALID_REGIONS = set(r.name for r in pycountry.subdivisions)
+VALID_HOSTS = {"human"}
+VALID_INSTRUMENTS = {"Illumina", "Nanopore"}
+VALID_ORGANISMS = {"SARS-CoV-2"}
+VALID_PRIMER_SCHEMES = {"auto"}
 
 
 class ValidationError(Exception):
     pass
 
 
-@contextmanager
-def set_directory(path: Path):
-    """Sets the cwd within the context
-
-    Args:
-        path (Path): The path to the cwd
-
-    Yields:
-        None
+class set_directory(object):
+    """
+    Context manager for temporarily changing the current working directory
     """
 
-    origin = Path().absolute()
-    try:
-        os.chdir(path)
-        yield
-    finally:
-        os.chdir(origin)
+    def __init__(self, path: Path):
+        self.path = path
+        self.origin = Path().absolute()
+
+    def __enter__(self):
+        os.chdir(self.path)
+
+    def __exit__(self, *exc):
+        os.chdir(self.origin)
 
 
-@extensions.register_check_method()
-def region_is_valid(df):
-    """
-    Validate the region field using ISO-3166-2 (pycountry).
+# @extensions.register_check_method()
+# def region_is_valid(df):
+#     """
+#     Validate the region field using ISO-3166-2 (pycountry).
 
-    Returns
-    -------
-    bool
-        True if all regions are ok, False otherwise
-    """
+#     Returns
+#     -------
+#     bool
+#         True if all regions are ok, False otherwise
+#     """
+#     def validate_region(row):
+#         result = pycountry.countries.get(alpha_3=row.country)
 
-    def validate_region(row):
-        result = pycountry.countries.get(alpha_3=row.country)
-
-        if result is None:
-            return False
-        elif pd.isna(row.region) or row.region is None:
-            return True
-        else:
-            region_lookup = [
-                i.name for i in pycountry.subdivisions.get(country_code=result.alpha_2)
-            ]
-            return row.region in region_lookup
-
-    df["valid_region"] = df.apply(validate_region, axis=1)
-
-    return df["valid_region"].all()
+#         if result is None:
+#             return False
+#         elif pd.isna(row.region) or row.region is None:
+#             return True
+#         else:
+#             region_lookup = [
+#                 i.name for i in pycountry.subdivisions.get(country_code=result.alpha_2)
+#             ]
+#             return row.region in region_lookup
+#     df["valid_region"] = df.apply(validate_region, axis=1)
+#     return df["valid_region"].all()
 
 
 class BaseSchema(pa.SchemaModel):
@@ -91,26 +89,11 @@ class BaseSchema(pa.SchemaModel):
     )
 
     # insist that control is one of positive, negative or null
-    control: Series[str] = pa.Field(
-        nullable=True, isin=["positive", "negative"], coerce=True
-    )
+    control: Series[str] = pa.Field(nullable=True, isin=VALID_CONTROLS, coerce=True)
 
     # validate that the collection is in the ISO format, is no earlier than 01-Jan-2019 and no later than today
     collection_date: Series[pa.DateTime] = pa.Field(
         gt="2019-01-01", le=str(datetime.date.today()), coerce=True, nullable=False
-    )
-
-    # insist that the country is one of the entries in the specified lookup table
-    country: Series[str] = pa.Field(
-        isin=[i.alpha_3 for i in pycountry.countries], coerce=True, nullable=False
-    )
-
-    region: Series[str] = pa.Field(
-        nullable=True, isin=[i.name for i in list(pycountry.subdivisions)], coerce=True
-    )
-
-    district: Series[str] = pa.Field(
-        str_matches=r"^[\sA-Za-z0-9:_-]+$", nullable=True, coerce=True
     )
 
     # insist that the tags is alphanumeric, including : as it is the delimiter
@@ -120,23 +103,36 @@ class BaseSchema(pa.SchemaModel):
         coerce=True,
     )
 
-    # at present host can only be human
-    host: Series[str] = pa.Field(isin=["human"], coerce=True, nullable=False)
+    # insist that the country is one of the entries in the specified lookup table
+    country: Series[str] = pa.Field(
+        isin=VALID_COUNTRIES_ALPHA_3, coerce=True, nullable=False
+    )
+
+    region: Series[str] = pa.Field(nullable=True, isin=VALID_REGIONS, coerce=True)
+
+    district: Series[str] = pa.Field(
+        str_matches=r"^[\sA-Za-z0-9:_-]+$", nullable=True, coerce=True
+    )
 
     # at present specimen_organism can only be SARS-CoV-2
     specimen_organism: Series[str] = pa.Field(
-        isin=["SARS-CoV-2"], coerce=True, nullable=False
+        isin=VALID_ORGANISMS, coerce=True, nullable=False
     )
 
-    # at present primer_schema can only be auto
-    primer_scheme: Series[str] = pa.Field(isin=["auto"], coerce=True, nullable=False)
+    # at present host can only be human
+    host: Series[str] = pa.Field(isin=VALID_HOSTS, coerce=True, nullable=False)
 
     # insist that instrument_platform can only be Illumina or Nanopore
     instrument_platform: Series[str] = pa.Field(
         isin=VALID_INSTRUMENTS, coerce=True, nullable=False
     )
 
-    @pa.check("collection_date")
+    # at present primer_schema can only be auto
+    primer_scheme: Series[str] = pa.Field(
+        isin=VALID_PRIMER_SCHEMES, coerce=True, nullable=False
+    )
+
+    @pa.check(collection_date)
     def check_collection_date(cls, a):
         """
         Check that collection_date is only the date and does not include time
@@ -144,7 +140,7 @@ class BaseSchema(pa.SchemaModel):
         """
         return (a.dt.floor("d") == a).all()
 
-    @pa.check("instrument_platform")
+    @pa.check(instrument_platform)
     def check_unique_instrument_platform(cls, field):
         """
         Check that only one instrument_platform is specified in the upload CSV
@@ -163,10 +159,10 @@ class BaseSchema(pa.SchemaModel):
     class Config:
         strict = False
         coerce = True
-        region_is_valid = ()
+        # region_is_valid = ()
 
 
-class SingleFastqSchema(BaseSchema):
+class FastqSchema(BaseSchema):
     """
     Validate GPAS upload CSVs specifying unpaired reads (e.g. Nanopore).
     """
@@ -239,6 +235,10 @@ class BamSchema(BaseSchema):
         return Path(path).exists()
 
 
+class PairedBamSchema(BamSchema):
+    pass
+
+
 def get_valid_samples(df: pd.DataFrame) -> list[dict]:
     samples = []
     for row in df.reset_index().itertuples():
@@ -269,7 +269,7 @@ def parse_validation_errors(errors):
     """
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
-    print(failure_cases.to_dict("records"))
+    # print(failure_cases.to_dict("records"))
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
     return remove_nones_in_ld(failures)
 
@@ -345,13 +345,16 @@ def parse_validation_error(row):
         )
 
 
-def pick_schema(df: pd.DataFrame) -> str:
+def pick_schema(df: pd.DataFrame) -> pa.SchemaModel:
     """Choose appropriate validation schema and the presence of required columns"""
     columns = set(df.columns)
     if "bam" in columns and not {"fastq", "fastq1", "fastq2"} & columns:
-        schema = BamSchema
+        if "Illumina" in df["instrument_platform"].tolist():
+            schema = PairedBamSchema
+        else:
+            schema = BamSchema
     elif "fastq" in columns and not {"fastq1", "fastq2", "bam"} & columns:
-        schema = SingleFastqSchema
+        schema = FastqSchema
     elif {"fastq1", "fastq2"} < columns and not {"fastq", "bam"} & columns:
         schema = PairedFastqSchema
     else:
@@ -371,23 +374,34 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
     """
     df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
     valid = False
-
     try:
         schema = pick_schema(df)
         with set_directory(upload_csv.parent):  # Enable file path validation
             schema.validate(df, lazy=True)
         valid = True
         records = get_valid_samples(df)
-        message = {"validation": {"status": "completed", "samples": records}}
+        message = {
+            "validation": {
+                "status": "success",
+                "schema": schema.__name__,
+                "samples": records,
+            }
+        }
     except ValidationError as e:  # Failure to pick_schema()
         message = {
             "validation": {
                 "status": "failure",
+                "schema": None,
                 "errors": [{"error": str(e)}],
             }
         }
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         records = parse_validation_errors(e)
-        message = {"validation": {"status": "failure", "errors": records}}
-
-    return (valid, message)
+        message = {
+            "validation": {
+                "status": "failure",
+                "schema": schema.__name__,
+                "errors": records,
+            }
+        }
+    return valid, schema.__name__, message
