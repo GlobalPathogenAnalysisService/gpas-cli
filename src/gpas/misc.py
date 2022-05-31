@@ -1,4 +1,5 @@
 import os
+import hashlib
 import subprocess
 
 from enum import Enum
@@ -63,9 +64,11 @@ class set_directory(object):
     def __exit__(self, *exc):
         os.chdir(self.origin)
 
-    def hash_file(file_path: Path):
-        md5 = hashlib.md5()
-        with open(self.fastq1, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                md5.update(chunk)
-        return md5.hexdigest()
+
+def hash_file(file_path: Path):
+    print(file_path)
+    md5 = hashlib.md5()
+    with open(file_path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(4096), b""):
+            md5.update(chunk)
+    return md5.hexdigest()

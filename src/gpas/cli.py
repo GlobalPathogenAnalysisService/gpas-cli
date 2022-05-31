@@ -222,7 +222,7 @@ def status(
     print(records_fmt)
 
 
-def status_new(
+def status_old(
     token: Path,
     *,
     mapping_csv: Path = None,
@@ -304,7 +304,7 @@ def main():
             "validate": validate,
             "download": download,
             "status": status,
-            "status-new": status_new,
+            "status-old": status_old,
             "validate-new": validate_new,
             "upload-new": upload_new,
         },

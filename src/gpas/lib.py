@@ -25,6 +25,7 @@ from gpas.misc import (
     FILE_TYPES,
     ENDPOINTS,
     GOOD_STATUSES,
+    set_directory,
 )
 
 from gpas import misc, validation
@@ -431,6 +432,8 @@ class Sample:
                 working_dir=working_dir,
             )
 
+        self._hash_reads()
+
     def _convert_bam(self, working_dir, paired=False):
         stem = self.bam.strip(".bam")
         prefix = working_dir / Path(stem)
@@ -478,10 +481,10 @@ class Sample:
 
     def _hash_reads(self):
         if not self.is_paired:
+            self.md5 = misc.hash_file(self.fastq)
+        else:
             self.md5_1 = misc.hash_file(self.fastq1)
             self.md5_2 = misc.hash_file(self.fastq2)
-        else:
-            self.md5 = misc.hash_file(self.fastq)
 
 
 class Batch:
@@ -508,6 +511,8 @@ class Batch:
             self.validation_message,
         ) = validation.validate(upload_csv)
         self.df = pd.read_csv(upload_csv, encoding="utf-8").fillna("")
+        with set_directory(upload_csv.parent):
+            self.df["fastq1"] = self.df["fastq1"].apply(lambda x: Path(x).resolve())
         self.samples = [
             Sample(**r, schema=self.schema) for r in self.df.to_dict("records")
         ]
