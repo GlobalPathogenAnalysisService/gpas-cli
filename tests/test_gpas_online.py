@@ -70,25 +70,19 @@ def test_upload_dry_run_json_online():
 
 
 @pytest.mark.online
-def test_status_guids_json_online():
+def test_status_guids_csv_online():
     run_cmd = run(
-        f"gpas status --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f,2ddbd7d4-9979-4960-8c17-e7b92f0bf413,8daadc7d-8d58-46a6-efb4-9ddefc1e4669 --format json token.json"
+        f"gpas status --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f,2ddbd7d4-9979-4960-8c17-e7b92f0bf413,8daadc7d-8d58-46a6-efb4-9ddefc1e4669 --format csv token.json"
     )
-    assert (
-        '{"sample": "6e024eb1-432c-4b1b-8f57-3911fe87555f", "status": "Unreleased"}'
-        in run_cmd.stdout
-    )
+    assert "6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased" in run_cmd.stdout
 
 
 @pytest.mark.online
-def test_status_mapping_csv_json_online():
+def test_status_mapping_csv_csv_online():
     run_cmd = run(
-        f"gpas status --mapping-csv example.mapping.csv --format json token.json"
+        f"gpas status --mapping-csv example.mapping.csv --format csv token.json"
     )
-    assert (
-        '{"sample": "6e024eb1-432c-4b1b-8f57-3911fe87555f", "status": "Unreleased"}'
-        in run_cmd.stdout
-    )
+    assert "6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased" in run_cmd.stdout
 
 
 @pytest.mark.online
@@ -108,11 +102,11 @@ def test_status_mapping_csv_table_online():
 
 
 @pytest.mark.online
-def test_status_mapping_csv_json_rename_online():
+def test_status_mapping_csv_rename_online():
     run_cmd = run(
-        f"gpas status --mapping-csv example.mapping.csv token.json --format json --rename"
+        f"gpas status --mapping-csv example.mapping.csv token.json --format csv --rename"
     )
-    assert '{"sample": "test4_uploaded", "status": "Uploaded"}' in run_cmd.stdout
+    assert "test4_uploaded,Uploaded" in run_cmd.stdout
 
 
 @pytest.mark.online

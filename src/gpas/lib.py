@@ -1,4 +1,5 @@
-import ssl
+from os import environ
+import sys
 import gzip
 import json
 import time
@@ -27,6 +28,29 @@ from gpas.misc import (
 )
 
 from gpas import misc, validation
+
+
+class AuthenticationError(Exception):
+    pass
+
+
+def check_auth(access_token, environment: ENVIRONMENTS):
+    """Test API access and if necessary fail with a helpful error message"""
+    endpoint = (
+        ENDPOINTS[environment.value]["HOST"]
+        + ENDPOINTS[environment.value]["ORDS_PATH"]
+        + "userOrgDtls"
+    )
+    endpoint = (
+        "https://portal.dev.gpas.ox.ac.uk/ords/gpasdevpdb1/grep/electron/userOrgDtls"
+    )
+    try:
+        r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
+        r.raise_for_status()
+        logging.info("Authenticated")
+    except Exception as e:
+        logging.error(str(e))
+        sys.exit(1)
 
 
 def parse_token(token: Path) -> dict:
@@ -68,6 +92,7 @@ async def get_status_async(
     raw: bool = False,
 ) -> list[dict]:
     """Returns a list of dicts of containing status records"""
+    check_auth(access_token, environment)
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
@@ -91,14 +116,16 @@ async def get_status_async(
         max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
     )
     transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
-    async with httpx.AsyncClient(
-        transport=transport, limits=limits, timeout=30
-    ) as client:
+    async with httpx.AsyncClient(transport=transport, timeout=30) as client:
         guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
-        tasks = [
-            get_status_single_async(client, guid, url, headers)
-            for guid, url in guids_urls.items()
-        ]
+        try:
+            tasks = [
+                get_status_single_async(client, guid, url, headers)
+                for guid, url in guids_urls.items()
+            ]
+        except AuthenticationError:
+            print("cat")
+            tasks = []
         records = [
             await f
             for f in tqdm.tqdm(
@@ -152,7 +179,7 @@ async def get_status_single_async(client, guid, url, headers, n_retries=5):
         result = dict(sample=guid, status=status)
         if status not in GOOD_STATUSES:
             with logging_redirect_tqdm():
-                logging.warning(f"Skipping {guid} (status {status})")
+                logging.info(f"Skipping {guid} (status {status})")
     else:
         result = dict(sample=guid, status="Unknown")
         with logging_redirect_tqdm():
@@ -190,9 +217,7 @@ async def download_async(
         max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
     )
     transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
-    async with httpx.AsyncClient(
-        transport=transport, limits=limits, timeout=120
-    ) as client:
+    async with httpx.AsyncClient(transport=transport, timeout=120) as client:
         guids_types_urls = {}
         for guid in guids:
             for file_type in file_types:
