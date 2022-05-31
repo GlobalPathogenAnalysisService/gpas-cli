@@ -87,11 +87,13 @@ async def get_status_async(
     else:
         raise RuntimeError("Neither a mapping csv nor guids were specified")
 
-    # transport = httpx.AsyncHTTPTransport(retries=5)
     limits = httpx.Limits(
-        max_keepalive_connections=5, max_connections=10, keepalive_expiry=10
+        max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
     )
-    async with httpx.AsyncClient(limits=limits, timeout=30) as client:
+    transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
+    async with httpx.AsyncClient(
+        transport=transport, limits=limits, timeout=30
+    ) as client:
         guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
         tasks = [
             get_status_single_async(client, guid, url, headers)
@@ -184,11 +186,13 @@ async def download_async(
         raise RuntimeError(f"Invalid file type(s): {unrecognised_file_types}")
     logging.info(f"Fetching file types {file_types}")
 
-    # transport = httpx.AsyncHTTPTransport(retries=5)
     limits = httpx.Limits(
-        max_keepalive_connections=20, max_connections=10, keepalive_expiry=10
+        max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
     )
-    async with httpx.AsyncClient(limits=limits, timeout=60) as client:
+    transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
+    async with httpx.AsyncClient(
+        transport=transport, limits=limits, timeout=120
+    ) as client:
         guids_types_urls = {}
         for guid in guids:
             for file_type in file_types:
