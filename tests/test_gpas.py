@@ -27,10 +27,13 @@ def test_version():
 
 
 def test_validate_ok():
-    valid, message = lib.validate(Path(data_dir) / Path("large-illumina-fastq.csv"))
+    valid, schema, message = lib.validate(
+        Path(data_dir) / Path("large-illumina-fastq.csv")
+    )
     assert valid and message == {
         "validation": {
-            "status": "completed",
+            "status": "success",
+            "schema": "PairedFastqSchema",
             "samples": [
                 {
                     "sample_name": "cDNA-VOC-1-v4-1",
@@ -45,12 +48,13 @@ def test_validate_ok():
 
 
 def test_validate_fail_no_tags():
-    valid, message = lib.validate(
+    valid, schema, message = lib.validate(
         Path(data_dir) / Path("broken") / Path("large-illumina-no-tags-fastq.csv")
     )
     assert not valid and message == {
         "validation": {
             "status": "failure",
+            "schema": "PairedFastqSchema",
             "errors": [
                 {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
             ],
@@ -59,12 +63,13 @@ def test_validate_fail_no_tags():
 
 
 def test_validate_fail_dupe_tags():
-    valid, message = lib.validate(
+    valid, schema, message = lib.validate(
         Path(data_dir) / Path("broken") / Path("large-illumina-dupe-tags-fastq.csv")
     )
     assert not valid and message == {
         "validation": {
             "status": "failure",
+            "schema": "PairedFastqSchema",
             "errors": [
                 {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be repeated"}
             ],
@@ -73,12 +78,13 @@ def test_validate_fail_dupe_tags():
 
 
 def test_validate_fail_missing_files():
-    valid, message = lib.validate(
+    valid, schema, message = lib.validate(
         Path(data_dir) / Path("broken") / Path("broken-path.csv")
     )
     assert not valid and message == {
         "validation": {
             "status": "failure",
+            "schema": "PairedFastqSchema",
             "errors": [
                 {
                     "sample_name": "cDNA-VOC-1-v4-1",
@@ -94,12 +100,13 @@ def test_validate_fail_missing_files():
 
 
 def test_validate_fail_different_platforms():
-    valid, message = lib.validate(
+    valid, schema, message = lib.validate(
         Path(data_dir) / Path("broken") / Path("different-platforms.csv")
     )
     assert not valid and message == {
         "validation": {
             "status": "failure",
+            "schema": "PairedFastqSchema",
             "errors": [
                 {
                     "error": "instrument_platform must be the same for all samples in a submission"
@@ -110,12 +117,13 @@ def test_validate_fail_different_platforms():
 
 
 def test_validate_fail_country_region():
-    valid, message = lib.validate(
+    valid, schema, message = lib.validate(
         Path(data_dir) / Path("broken") / Path("invalid-country-region.csv")
     )
     assert not valid and message == {
         "validation": {
             "status": "failure",
+            "schema": "PairedFastqSchema",
             "errors": [
                 {
                     "sample_name": "cDNA-VOC-1-v4-1",

@@ -1,5 +1,7 @@
+import ssl
 import gzip
 import json
+import time
 import asyncio
 import hashlib
 import logging
@@ -12,7 +14,8 @@ import requests
 import pandas as pd
 import pandera as pa
 
-from tqdm import tqdm
+import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from gpas.misc import (
     run,
@@ -84,8 +87,11 @@ async def get_status_async(
     else:
         raise RuntimeError("Neither a mapping csv nor guids were specified")
 
-    transport = httpx.AsyncHTTPTransport(retries=2)
-    async with httpx.AsyncClient(transport=transport) as client:
+    # transport = httpx.AsyncHTTPTransport(retries=5)
+    limits = httpx.Limits(
+        max_keepalive_connections=5, max_connections=10, keepalive_expiry=10
+    )
+    async with httpx.AsyncClient(limits=limits, timeout=30) as client:
         guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
         tasks = [
             get_status_single_async(client, guid, url, headers)
@@ -93,7 +99,7 @@ async def get_status_async(
         ]
         records = [
             await f
-            for f in tqdm(
+            for f in tqdm.tqdm(
                 asyncio.as_completed(tasks),
                 desc=f"Querying status for {len(guids)} samples",
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
@@ -115,17 +121,40 @@ async def get_status_async(
     return records
 
 
-async def get_status_single_async(client, guid, url, headers):
+async def get_status_single_async(client, guid, url, headers, n_retries=5):
+    # for i in range(n_retries):
+    #     try:
+    #         r = await client.get(url=url, headers=headers)
+    #         if r.status_code == httpx.codes.ok:
+    #             r_json = r.json()[0]
+    #             status = r_json.get("status")
+    #             result = dict(sample=guid, status=status)
+    #             if status not in GOOD_STATUSES:
+    #                 logging.warning(f"Skipping {guid} (status {status})")
+    #         else:
+    #             result = dict(sample=guid, status="Unknown")
+    #             logging.warning(f"Retrying (attempt {i+1})")  # Failed, retry
+    #     except httpx.TransportError as e:
+    #         logging.warning(f"Transport error, retrying (attempt {i+1})")  # Failed, retry
+    #         if i == n_retries - 1:
+    #             logging.warning("Giving up")
+    #             raise  # Persisted after all retries, so throw it, don't proceed
+    #         # Otherwise retry, connection was terminated due to httpx bug
+    #     else:
+    #         break  # exit the for loop if it succeeds
+    # return result
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
         r_json = r.json()[0]
         status = r_json.get("status")
         result = dict(sample=guid, status=status)
         if status not in GOOD_STATUSES:
-            logging.warning(f"Skipping {guid} (status {status})")
+            with logging_redirect_tqdm():
+                logging.warning(f"Skipping {guid} (status {status})")
     else:
-        result = dict(sample=guid, status="UNKNOWN")
-        logging.warning(f"HTTP {r.status_code} ({guid})")
+        result = dict(sample=guid, status="Unknown")
+        with logging_redirect_tqdm():
+            logging.warning(f"HTTP {r.status_code} ({guid})")
         if r.status_code == 401:
             raise RuntimeError(
                 f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
@@ -154,9 +183,12 @@ async def download_async(
     if unrecognised_file_types:
         raise RuntimeError(f"Invalid file type(s): {unrecognised_file_types}")
     logging.info(f"Fetching file types {file_types}")
-    transport = httpx.AsyncHTTPTransport(retries=5)
-    limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
-    async with httpx.AsyncClient(transport=transport, limits=limits) as client:
+
+    # transport = httpx.AsyncHTTPTransport(retries=5)
+    limits = httpx.Limits(
+        max_keepalive_connections=20, max_connections=10, keepalive_expiry=10
+    )
+    async with httpx.AsyncClient(limits=limits, timeout=60) as client:
         guids_types_urls = {}
         for guid in guids:
             for file_type in file_types:
@@ -175,7 +207,7 @@ async def download_async(
         ]
         return [
             await f
-            for f in tqdm(
+            for f in tqdm.tqdm(
                 asyncio.as_completed(tasks),
                 desc=f"Downloading {len(tasks)} files for {len(guids)} samples",
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
@@ -185,7 +217,7 @@ async def download_async(
 
 
 async def download_single_async(
-    client, guid, file_type, url, headers, out_dir, name=None
+    client, guid, file_type, url, headers, out_dir, name=None, retries=5
 ):
     file_types_extensions = {
         "json": "json",
@@ -194,59 +226,115 @@ async def download_single_async(
         "vcf": "vcf",
     }
     prefix = name if name else guid
+
+    # for i in range(retries):
+    #     try:
+    #         r = await client.get(url=url, headers=headers)
+    #         if r.status_code == httpx.codes.ok:
+    #             with open(
+    #                 Path(out_dir)
+    #                 / Path(f"{prefix}.{file_types_extensions[file_type]}"),
+    #                 "wb",
+    #             ) as fh:
+    #                 fh.write(r.content)
+    #             if name and file_type == "fasta":
+    #                 update_fasta_header(
+    #                     Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
+    #                 )
+    #         else:
+    #             time.sleep(1)
+    #             print('Sleeping')
+    #             logging.warning(f"Retrying (attempt {i+1})")  # Failed, retry
+    #     except ssl.SSLWantReadError as e:
+    #         logging.warning(f"Transport error, retrying (attempt {i+1})")  # Failed, retry
+    #         if i == n_retries - 1:
+    #             logging.warning("Giving up")
+    #             raise  # Persisted after all retries, so throw it, don't proceed
+    #         # Otherwise retry, connection was terminated due to httpx bug
+    #     else:
+    #         break  # exit the for loop if it succeeds
+
+    prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
         with open(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"), "wb"
         ) as fh:
             fh.write(r.content)
+
         if name and file_type == "fasta":
             update_fasta_header(
                 Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
             )
     else:
-        result = dict(sample=guid, status="UNKNOWN")
-        logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
+        result = dict(sample=guid, status="Unknown")
+        with logging_redirect_tqdm():
+            logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
 
 
 def validate(upload_csv: Path):
     return validation.validate(upload_csv)
 
 
-# def get_status(
-#     guids: list,
-#     access_token: str,
-#     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-#     raw: bool = False,
-# ) -> list:
-#     """Returns a list of dicts of containing status records"""
-#     headers = {
-#         "Authorization": f"Bearer {access_token}",
-#         "Content-Type": "application/json",
-#     }
-#     endpoint = (
-#         ENDPOINTS[environment.value]["HOST"]
-#         + ENDPOINTS[environment.value]["API_PATH"]
-#         + "get_sample_detail/"
-#     )
-#     """
-#     Return a list of dictionaries given a list of guids
-#     """
-#     records = []
-#     for guid in tqdm(guids):
-#         r = requests.get(url=endpoint + guid, headers=headers)
-#         if r.ok:
-#             if raw:
-#                 records.append(r.json())
-#             else:
-#                 records.append(
-#                     dict(
-#                         sample=r.json()[0].get("name"), status=r.json()[0].get("status")
-#                     )
-#                 )
-#         else:
-#             logging.warning(f"{guid} (error {r.status_code})")
-#     return records
+def get_status(
+    access_token: str,
+    mapping_csv: Path = None,
+    guids: list[str] = [],
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    rename: bool = False,
+    raw: bool = False,
+) -> list[dict]:
+    """Returns a list of dicts of containing status records"""
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    endpoint = (
+        ENDPOINTS[environment.value]["HOST"]
+        + ENDPOINTS[environment.value]["API_PATH"]
+        + "get_sample_detail/"
+    )
+    """
+    Return a list of dictionaries given a list of guids
+    """
+
+    if mapping_csv:
+        logging.info(f"Using samples in {mapping_csv}")
+        mapping_df = parse_mapping(mapping_csv)
+        guids = mapping_df["gpas_sample_name"].tolist()
+    elif guids:
+        logging.info(f"Using list of guids")
+    else:
+        raise RuntimeError("Neither a mapping csv nor guids were specified")
+
+    records = []
+    for guid in tqdm.tqdm(guids):
+        r = requests.get(url=endpoint + guid, headers=headers)
+        if r.ok:
+            if raw:
+                records.append(r.json())
+            else:
+                records.append(
+                    dict(
+                        sample=r.json()[0].get("name"), status=r.json()[0].get("status")
+                    )
+                )
+        else:
+            records.append(dict(sample=guid, status="Unknown"))
+            logging.warning(f"{guid} (error {r.status_code})")
+
+    if rename:
+        if mapping_csv and "local_sample_name" in mapping_df.columns:
+            guids_names = mapping_df.set_index("gpas_sample_name")[
+                "local_sample_name"
+            ].to_dict()
+            records = pd.DataFrame(records).replace(guids_names).to_dict("records")
+        else:
+            logging.warning(
+                "Samples were not renamed because a valid mapping csv was not specified"
+            )
+
+    return records
 
 
 class Sample:
@@ -333,11 +421,10 @@ class Sample:
         )
 
     def _read_it_and_keep(self, reads1, tech, working_dir, reads2=None):
-        stem = (
-            str(reads1).removesuffix(".fastq.gz")
-            if reads1
-            else reads.removesuffix(".fastq.gz")
-        )
+        if reads2:
+            stem = str(reads2).removesuffix(".fastq.gz")
+        else:
+            stem = str(reads1).removesuffix(".fastq.gz")
         prefix = working_dir / Path(stem)
         if not reads2:
             cmd_run = run(
@@ -350,7 +437,9 @@ class Sample:
             cmd_run = run(
                 f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --reads2 {reads2} --outprefix {working_dir / self.sample_name}"
             )
-            self.k_fastq1 = working_dir / Path(self.sample_name + ".reads_1.fastq.gz")
+            self.decontaminated_fastq1 = working_dir / Path(
+                self.sample_name + ".reads_1.fastq.gz"
+            )
             self.decontaminated_fastq2 = working_dir / Path(
                 self.sample_name + ".reads_2.fastq.gz"
             )

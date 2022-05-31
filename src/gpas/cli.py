@@ -222,6 +222,48 @@ def status(
     print(records_fmt)
 
 
+def status_new(
+    token: Path,
+    *,
+    mapping_csv: Path = None,
+    guids: str = None,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    format: FORMATS = DEFAULT_FORMAT,
+    rename: bool = False,
+    raw: bool = False,
+):
+    """
+    Check the status of samples submitted to the GPAS platform
+
+    :arg token: Path of auth token available from GPAS Portal
+    :arg mapping_csv: Path of mapping CSV generated at upload time
+    :arg guids: Comma-separated list of GPAS sample guids
+    :arg environment: GPAS environment to use
+    :arg format: Output format
+    :arg rename: Use local sample names (requires --mapping-csv)
+    :arg raw: Emit raw response
+    """
+    auth = lib.parse_token(token)
+    guids_ = guids.strip(",").split(",") if guids else []
+    records = lib.get_status(
+        auth["access_token"],
+        mapping_csv,
+        guids_,
+        environment,
+        rename,
+        raw,
+    )
+
+    if raw or format.value == "json":
+        records_fmt = json.dumps(records)
+    elif format.value == "table":
+        records_fmt = pd.DataFrame(records).to_string(index=False)
+    elif format.value == "csv":
+        records_fmt = pd.DataFrame(records).to_csv(index=False).strip()
+
+    print(records_fmt)
+
+
 def validate_new(
     upload_csv: Path,
     *,
@@ -262,6 +304,7 @@ def main():
             "validate": validate,
             "download": download,
             "status": status,
+            "status-new": status_new,
             "validate-new": validate_new,
             "upload-new": upload_new,
         },
