@@ -257,7 +257,7 @@ def status_old(
     )
 
     if raw or format.value == "json":
-        records_fmt = json.dumps(records)
+        records_fmt = json.dumps(records, indent=4)
     elif format.value == "table":
         records_fmt = pd.DataFrame(records).to_string(index=False)
     elif format.value == "csv":

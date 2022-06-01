@@ -4,22 +4,23 @@ import datetime
 
 from pathlib import Path
 
-import pycountry
-
 import pandas as pd
 import pandera as pa
 import pandera.extensions as extensions
 
 from pandera.typing import Index, Series
 
+from gpas import misc
 
-VALID_CONTROLS = {"positive", "negative"}
-VALID_COUNTRIES_ALPHA_3 = set(r.alpha_3 for r in pycountry.countries)
-VALID_REGIONS = set(r.name for r in pycountry.subdivisions)
-VALID_HOSTS = {"human"}
-VALID_INSTRUMENTS = {"Illumina", "Nanopore"}
-VALID_ORGANISMS = {"SARS-CoV-2"}
-VALID_PRIMER_SCHEMES = {"auto"}
+
+CONTROLS = {"positive", "negative"}
+HOSTS = {"human"}
+INSTRUMENTS = {"Illumina", "Nanopore"}
+ORGANISMS = {"SARS-CoV-2"}
+PRIMER_SCHEMES = {"auto"}
+countries_subdivisions = misc.parse_countries_subdivisions()
+COUNTRIES_ALPHA_3 = countries_subdivisions.keys()
+REGIONS = {i for l in countries_subdivisions.values() for i in l}
 
 
 class ValidationError(Exception):
@@ -42,30 +43,29 @@ class set_directory(object):
         os.chdir(self.origin)
 
 
-# @extensions.register_check_method()
-# def region_is_valid(df):
-#     """
-#     Validate the region field using ISO-3166-2 (pycountry).
+@extensions.register_check_method()
+def region_is_valid(df):
+    """
+    Validate the region field using ISO-3166.
 
-#     Returns
-#     -------
-#     bool
-#         True if all regions are ok, False otherwise
-#     """
-#     def validate_region(row):
-#         result = pycountry.countries.get(alpha_3=row.country)
+    Returns
+    -------
+    bool
+        True if all regions are ok, False otherwise
+    """
 
-#         if result is None:
-#             return False
-#         elif pd.isna(row.region) or row.region is None:
-#             return True
-#         else:
-#             region_lookup = [
-#                 i.name for i in pycountry.subdivisions.get(country_code=result.alpha_2)
-#             ]
-#             return row.region in region_lookup
-#     df["valid_region"] = df.apply(validate_region, axis=1)
-#     return df["valid_region"].all()
+    def validate_region(row):
+        if row.region:
+            valid = (
+                True
+                if row["region"] in countries_subdivisions.get(row["country"])
+                else False
+            )
+        else:
+            valid = True
+        return valid
+
+    return df.apply(validate_region, axis=1).all()
 
 
 class BaseSchema(pa.SchemaModel):
@@ -89,7 +89,7 @@ class BaseSchema(pa.SchemaModel):
     )
 
     # insist that control is one of positive, negative or null
-    control: Series[str] = pa.Field(nullable=True, isin=VALID_CONTROLS, coerce=True)
+    control: Series[str] = pa.Field(nullable=True, isin=CONTROLS, coerce=True)
 
     # validate that the collection is in the ISO format, is no earlier than 01-Jan-2019 and no later than today
     collection_date: Series[pa.DateTime] = pa.Field(
@@ -104,11 +104,9 @@ class BaseSchema(pa.SchemaModel):
     )
 
     # insist that the country is one of the entries in the specified lookup table
-    country: Series[str] = pa.Field(
-        isin=VALID_COUNTRIES_ALPHA_3, coerce=True, nullable=False
-    )
+    country: Series[str] = pa.Field(isin=COUNTRIES_ALPHA_3, coerce=True, nullable=False)
 
-    region: Series[str] = pa.Field(nullable=True, isin=VALID_REGIONS, coerce=True)
+    region: Series[str] = pa.Field(nullable=True, isin=REGIONS, coerce=True)
 
     district: Series[str] = pa.Field(
         str_matches=r"^[\sA-Za-z0-9:_-]+$", nullable=True, coerce=True
@@ -116,20 +114,20 @@ class BaseSchema(pa.SchemaModel):
 
     # at present specimen_organism can only be SARS-CoV-2
     specimen_organism: Series[str] = pa.Field(
-        isin=VALID_ORGANISMS, coerce=True, nullable=False
+        isin=ORGANISMS, coerce=True, nullable=False
     )
 
     # at present host can only be human
-    host: Series[str] = pa.Field(isin=VALID_HOSTS, coerce=True, nullable=False)
+    host: Series[str] = pa.Field(isin=HOSTS, coerce=True, nullable=False)
 
     # insist that instrument_platform can only be Illumina or Nanopore
     instrument_platform: Series[str] = pa.Field(
-        isin=VALID_INSTRUMENTS, coerce=True, nullable=False
+        isin=INSTRUMENTS, coerce=True, nullable=False
     )
 
     # at present primer_schema can only be auto
     primer_scheme: Series[str] = pa.Field(
-        isin=VALID_PRIMER_SCHEMES, coerce=True, nullable=False
+        isin=PRIMER_SCHEMES, coerce=True, nullable=False
     )
 
     @pa.check(collection_date)
@@ -290,7 +288,7 @@ def parse_validation_error(row):
     elif row.check == "region_is_valid":
         return "specified regions are not valid ISO-3166-2 regions for the specified country"
     elif row.check == "instrument_is_valid":
-        return f"instrument_platform can only contain one of {', '.join(VALID_INSTRUMENTS)}"
+        return f"instrument_platform can only contain one of {', '.join(INSTRUMENTS)}"
     elif row.check == "not_nullable":
         return row.column + " cannot be empty"
     elif row.check == "field_uniqueness":
@@ -310,7 +308,7 @@ def parse_validation_error(row):
     elif row.column == "control" and row.check[:4] == "isin":
         return (
             row.failure_case
-            + f" in the control field is not valid: field must be either empty or contain the one of the keywords {', '.join(VALID_CONTROLS)}"
+            + f" in the control field is not valid: field must be either empty or contain the one of the keywords {', '.join(CONTROLS)}"
         )
     elif row.column == "host" and row.check[:4] == "isin":
         return row.column + " can only contain the keyword human"
@@ -320,9 +318,7 @@ def parse_validation_error(row):
         return row.column + " can only contain the keyword auto"
 
     elif row.column == "instrument_platform" and "isin" in row.check:
-        return (
-            f"{row.column} value '{row.failure_case}' is not in set {VALID_INSTRUMENTS}"
-        )
+        return f"{row.column} value '{row.failure_case}' is not in set {INSTRUMENTS}"
     elif row.column == "instrument_platform":
         return row.column + " must be the same for all samples in a submission"
     elif row.column == "collection_date":

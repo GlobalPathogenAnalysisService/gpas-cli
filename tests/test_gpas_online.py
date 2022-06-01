@@ -229,4 +229,6 @@ def test_gpas_uploader_download_mapping_rename_fasta_online():
 @pytest.mark.online
 def test_check_auth_success():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    lib.check_auth(access_token=auth["access_token"], environment=ENVIRONMENTS.dev)
+    lib.fetch_user_details(
+        access_token=auth["access_token"], environment=ENVIRONMENTS.dev
+    )

@@ -406,7 +406,7 @@ class Sample:
         self.working_dir = working_dir
 
     def get_reference_path(self):
-        prefix = Path(__file__).parent.parent.parent / Path("ref")
+        prefix = Path(__file__).parent.parent.parent / Path("res/ref")
         organisms_paths = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
         return prefix / organisms_paths[self.specimen_organism]
 
@@ -551,7 +551,7 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "createSampleGuids"
         )
-        r = requests.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
+        r = requests.post(url=endpoint, data=payload, headers=self.headers)
         result = json.loads(r.content)
         self.batch_guid = result["batch"]["guid"]
         hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
