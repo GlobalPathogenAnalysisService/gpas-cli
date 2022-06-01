@@ -5,6 +5,9 @@ import subprocess
 from enum import Enum
 from pathlib import Path
 
+import pandas as pd
+
+
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
 ENVIRONMENTS = Enum("Environment", dict(dev="dev", staging="staging", prod="prod"))
@@ -25,7 +28,7 @@ ENDPOINTS = {
         "API_PATH": "ords/gpas_pub/gpasapi/",
         "ORDS_PATH": "ords/grep/electron/",
         "DASHBOARD_PATH": "ords/gpas/r/gpas-portal/lineages-voc/",
-        "NAME": "",
+        "NAME": "PROD",
     },
     "staging": {
         "HOST": "https://portal.staging.gpas.ox.ac.uk/",
@@ -65,8 +68,23 @@ class set_directory(object):
         os.chdir(self.origin)
 
 
+def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Read CSV and resolve relative paths
+    """
+    resolve = lambda x: Path(x).resolve()
+    if "fastq" in df.columns:
+        df["fastq"] = df["fastq"].apply(resolve)
+    if "fastq1" in df.columns:
+        df["fastq1"] = df["fastq1"].apply(resolve)
+    if "fastq2" in df.columns:
+        df["fastq2"] = df["fastq2"].apply(resolve)
+    if "bam" in df.columns:
+        df["bam"] = df["bam"].apply(resolve)
+    return df
+
+
 def hash_file(file_path: Path):
-    print(file_path)
     md5 = hashlib.md5()
     with open(file_path, "rb") as fh:
         for chunk in iter(lambda: fh.read(4096), b""):

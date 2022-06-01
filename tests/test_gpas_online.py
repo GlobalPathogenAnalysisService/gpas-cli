@@ -176,7 +176,7 @@ def test_download_guid_api_online():
 def test_status_mapping_api_online():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
     records = asyncio.run(
-        lib.get_status_async(
+        lib.fetch_status_async(
             access_token=access_token,
             mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
             environment=ENVIRONMENTS.dev,
@@ -200,7 +200,7 @@ def test_status_mapping_api_online():
 def test_status_mapping_rename_api_online():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
     records = asyncio.run(
-        lib.get_status_async(
+        lib.fetch_status_async(
             access_token=access_token,
             mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
             environment=ENVIRONMENTS.dev,
@@ -224,3 +224,9 @@ def test_gpas_uploader_download_mapping_rename_fasta_online():
     with gzip.open(Path(f"{data_dir}/test1.fasta.gz"), "rt") as fh:
         assert "cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839|test1" in fh.read()
     run("rm -f *.fasta.gz")
+
+
+@pytest.mark.online
+def test_check_auth_success():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    lib.check_auth(access_token=auth["access_token"], environment=ENVIRONMENTS.dev)

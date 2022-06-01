@@ -9,6 +9,7 @@ import defopt
 import pandas as pd
 
 from gpas import lib
+from gpas.validation import validate
 from gpas.misc import (
     run,
     set_directory,
@@ -154,7 +155,7 @@ def download(
         guids_names = None
 
     status_records = asyncio.run(
-        lib.get_status_async(
+        lib.fetch_status_async(
             auth["access_token"],
             mapping_csv,
             guids_,
@@ -202,7 +203,7 @@ def status(
     auth = lib.parse_token(token)
     guids_ = guids.strip(",").split(",") if guids else []
     records = asyncio.run(
-        lib.get_status_async(
+        lib.fetch_status_async(
             auth["access_token"],
             mapping_csv,
             guids_,
@@ -245,7 +246,7 @@ def status_old(
     """
     auth = lib.parse_token(token)
     guids_ = guids.strip(",").split(",") if guids else []
-    records = lib.get_status(
+    records = lib.fetch_status(
         auth["access_token"],
         mapping_csv,
         guids_,
@@ -279,7 +280,7 @@ def validate_new(
     :arg environment: GPAS environment to use
     :arg json: Emit JSON to stdout
     """
-    valid, schema, message = lib.validate(upload_csv)
+    valid, schema, message = validate(upload_csv)
     print(json.dumps(message, indent=4))
 
 
@@ -291,10 +292,7 @@ def upload_new(
     machine_readable: bool = False,
 ):
     batch = lib.Batch(upload_csv)
-    # print(batch.validation_result, batch.schema)
-    # print(json.dumps(batch.validation_message, indent=4))
-    with set_directory(upload_csv.parent):
-        print(batch.decontaminate())
+    batch.upload()
 
 
 def main():

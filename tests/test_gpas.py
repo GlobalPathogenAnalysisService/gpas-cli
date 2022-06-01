@@ -136,3 +136,25 @@ def test_validate_fail_country_region():
             ],
         }
     }
+
+
+def test_decontamination():
+    lib.Batch(Path(data_dir) / Path("large-nanopore-fastq.csv")).decontaminate()
+    lib.Batch(Path(data_dir) / Path("large-illumina-fastq.csv")).decontaminate()
+    lib.Batch(Path(data_dir) / Path("large-nanopore-bam.csv")).decontaminate()
+    lib.Batch(Path(data_dir) / Path("large-illumina-bam.csv")).decontaminate()
+
+
+def test_decontamination_stats():
+    stdout = """Input reads file 1	5034
+Input reads file 2	5034
+Kept reads 1	5006
+Kept reads 2	5006
+
+"""
+    assert lib.parse_decontamination_stats(stdout) == {
+        "in": 10068,
+        "out": 10012,
+        "delta": 56,
+        "fraction": 0.0056,
+    }
