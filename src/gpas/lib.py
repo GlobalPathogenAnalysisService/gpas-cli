@@ -37,7 +37,8 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
     )
     try:
         r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
-        r.raise_for_status()
+        if not r.ok:
+            r.raise_for_status()
         payload = r.json().get("userOrgDtl", {})[0]
         user = payload.get("userName")
         organisation = payload.get("organisation")
@@ -445,19 +446,25 @@ class Sample:
             cmd_run = run(
                 f"readItAndKeep --tech ont --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --outprefix {self.working_dir / self.sample_name}"
             )
-            self.decontaminated_fastq = (
-                self.working_dir / self.sample_name / ".reads.fastq.gz"
-            )
         else:
             cmd_run = run(
                 f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --reads2 {reads2} --outprefix {self.working_dir / self.sample_name}"
             )
-            self.decontaminated_fastq1 = self.working_dir / Path(
-                self.sample_name + ".reads_1.fastq.gz"
-            )
-            self.decontaminated_fastq2 = self.working_dir / Path(
-                self.sample_name + ".reads_2.fastq.gz"
-            )
+        self.riak_fastq = (
+            self.working_dir / Path(self.sample_name + ".reads.fastq.gz")
+            if not reads2
+            else None
+        )
+        self.riak_fastq1 = (
+            self.working_dir / Path(self.sample_name + ".reads_1.fastq.gz")
+            if reads2
+            else None
+        )
+        self.riak_fastq2 = (
+            self.working_dir / Path(self.sample_name + ".reads_2.fastq.gz")
+            if reads2
+            else None
+        )
         # logging.warning([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
         self.decontamination_stats = parse_decontamination_stats(cmd_run.stdout)
 
@@ -551,12 +558,52 @@ class Batch:
         for sample in self.samples:
             sample.guid = hashes_guids[sample.checksum]
 
+    def _rename_fastqs(self):
+        """Rename decontaminated fastqs using server-side guids"""
+        for s in self.samples:
+            s.riak_fastq = (
+                s.riak_fastq.rename(f"{s.guid}.fastq.gz") if s.riak_fastq else None
+            )
+            s.riak_fastq1 = (
+                s.riak_fastq1.rename(f"{s.guid}_1.fastq.gz") if s.riak_fastq1 else None
+            )
+            s.riak_fastq2 = (
+                s.riak_fastq2.rename(f"{s.guid}_2.fastq.gz") if s.riak_fastq2 else None
+            )
+
+    def _fetch_par(self):
+        """Private method that calls ORDS to get a Pre-Authenticated Request.
+
+        The PAR url is used to upload data to the Organisation's input bucket in OCI
+
+        Returns
+        -------
+        par: str
+        """
+        endpoint = (
+            ENDPOINTS[self.environment.value]["HOST"]
+            + ENDPOINTS[self.environment.value]["ORDS_PATH"]
+            + "pars"
+        )
+        r = requests.get(url=endpoint, headers=self.headers)
+        if not r.ok:
+            r.raise_for_status()
+        else:
+            result = json.loads(r.content)
+        self.par = result["par"]
+
     def upload(self):
         self._decontaminate()
         self._hash_fastqs()
         self._fetch_guids()
+        self._rename_fastqs()
+        self._fetch_par()
         for s in self.samples:
             print(s.sample_name, s.decontamination_stats, s.checksum, s.guid)
+            print(s.riak_fastq, s.riak_fastq1, s.riak_fastq2)
+            assert s.riak_fastq.exists() if s.riak_fastq else True
+            assert s.riak_fastq1.exists() if s.riak_fastq1 else True
+            assert s.riak_fastq2.exists() if s.riak_fastq2 else True
 
     # def _number_runs(self):
     #     run_number_lookup = {}
