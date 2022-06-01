@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 from pathlib import Path
+from re import T
 
 import defopt
 
@@ -291,7 +292,7 @@ def upload_new(
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     machine_readable: bool = False,
 ):
-    batch = lib.Batch(upload_csv)
+    batch = lib.Batch(upload_csv, token=token, environment=environment)
     batch.upload()
 
 

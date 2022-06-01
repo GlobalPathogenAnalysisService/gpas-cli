@@ -139,10 +139,10 @@ def test_validate_fail_country_region():
 
 
 def test_decontamination():
-    lib.Batch(Path(data_dir) / Path("large-nanopore-fastq.csv")).decontaminate()
-    lib.Batch(Path(data_dir) / Path("large-illumina-fastq.csv")).decontaminate()
-    lib.Batch(Path(data_dir) / Path("large-nanopore-bam.csv")).decontaminate()
-    lib.Batch(Path(data_dir) / Path("large-illumina-bam.csv")).decontaminate()
+    lib.Batch(Path(data_dir) / Path("large-nanopore-fastq.csv"))._decontaminate()
+    lib.Batch(Path(data_dir) / Path("large-illumina-fastq.csv"))._decontaminate()
+    lib.Batch(Path(data_dir) / Path("large-nanopore-bam.csv"))._decontaminate()
+    lib.Batch(Path(data_dir) / Path("large-illumina-bam.csv"))._decontaminate()
 
 
 def test_decontamination_stats():

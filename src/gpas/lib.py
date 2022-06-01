@@ -3,6 +3,7 @@ import gzip
 import json
 import asyncio
 import logging
+import datetime
 
 from pathlib import Path
 
@@ -27,8 +28,8 @@ from gpas.misc import (
 )
 
 
-def check_auth(access_token, environment: ENVIRONMENTS):
-    """Test API access and if necessary fail with a helpful error msg"""
+def fetch_user_details(access_token, environment: ENVIRONMENTS):
+    """Test API authentication and return user details, otherwise exit"""
     endpoint = (
         ENDPOINTS[environment.value]["HOST"]
         + ENDPOINTS[environment.value]["ORDS_PATH"]
@@ -37,10 +38,15 @@ def check_auth(access_token, environment: ENVIRONMENTS):
     try:
         r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
         r.raise_for_status()
+        payload = r.json().get("userOrgDtl", {})[0]
+        user = payload.get("userName")
+        organisation = payload.get("organisation")
+        permitted_tags = payload.get("tags", {})[0].keys()
         logging.info("Authenticated")
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logging.error(str(e))
         sys.exit(1)
+    return user, organisation, permitted_tags
 
 
 def parse_token(token: Path) -> dict:
@@ -82,7 +88,7 @@ async def fetch_status_async(
     raw: bool = False,
 ) -> list[dict]:
     """Returns a list of dicts of containing status records"""
-    check_auth(access_token, environment)
+    fetch_user_details(access_token, environment)
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
@@ -350,7 +356,7 @@ def fetch_status(
 
 class Sample:
     """
-    Represents a single sample
+    Represent a single sample
     """
 
     def __init__(
@@ -417,7 +423,6 @@ class Sample:
                 tech="illumina",
             )
         # logging.info(self.decontamination_stats)
-        self._hash_reads()
 
     def _convert_bam(self, paired=False):
         prefix = Path(self.working_dir) / Path(self.sample_name)
@@ -456,17 +461,15 @@ class Sample:
         # logging.warning([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
         self.decontamination_stats = parse_decontamination_stats(cmd_run.stdout)
 
-    def _hash_reads(self):
-        if not self.is_paired:
-            self.md5 = misc.hash_file(str(self.fastq))
-        else:
-            self.md5_1 = misc.hash_file(str(self.fastq1))
-            self.md5_2 = misc.hash_file(str(self.fastq2))
+    def _hash_fastqs(self):
+        self.md5 = misc.hash_file(str(self.fastq)) if not self.is_paired else None
+        self.md5_1 = misc.hash_file(str(self.fastq1)) if self.is_paired else None
+        self.md5_2 = misc.hash_file(str(self.fastq2)) if self.is_paired else None
 
 
 class Batch:
     """
-    Represents a batch of samples
+    Represent a batch of samples
     """
 
     def __init__(
@@ -478,12 +481,11 @@ class Batch:
         threads: int = 0,
     ):
         self.upload_csv = upload_csv
-        self.token = token
+        self.token = parse_token(token) if token else None
         self.environment = environment
         self.working_dir = working_dir
         self.threads = threads
         self.json = {"validation": "", "decontamination": "", "submission": ""}
-
         self.is_valid, self.schema_name, self.validation_msg = validate(upload_csv)
 
         df = pd.read_csv(upload_csv, encoding="utf-8").fillna("")
@@ -496,12 +498,82 @@ class Batch:
         }
         self.samples = [Sample(**r, **batch_attrs) for r in self.df.to_dict("records")]
 
-    def decontaminate(self):
-        return list(map(lambda s: s.decontaminate(), self.samples))
+        if self.token:
+            (
+                self.user,
+                self.organisation,
+                self.permitted_tags,
+            ) = self._fetch_user_details()
+            self.headers = {
+                "Authorization": f"Bearer {self.token['access_token']}",
+                "Content-Type": "application/json",
+            }
+
+        currentTime = (
+            datetime.datetime.now(datetime.timezone.utc)
+            .astimezone()
+            .isoformat(timespec="milliseconds")
+        )
+        tzStartIndex = len(currentTime) - 6
+        self.uploaded_on = currentTime[:tzStartIndex] + "Z" + currentTime[tzStartIndex:]
+
+    def _fetch_user_details(self):
+        return fetch_user_details(self.token["access_token"], self.environment)
+
+    def _decontaminate(self):
+        list(map(lambda s: s.decontaminate(), self.samples))
+
+    def _make_hashes(self):
+        list(map(lambda s: s._hash_fastqs(), self.samples))
+
+    def _get_sample_attrs(self, attr):
+        return list(map(lambda s: getattr(s, attr), self.samples))
+
+    def _fetch_guids(self):
+        if "Paired" not in self.schema_name:
+            checksums = self._get_sample_attrs("md5")
+        else:
+            checksums = self._get_sample_attrs("md5_1")
+        payload = {
+            "batch": {
+                "organisation": self.organisation,
+                "uploadedOn": self.uploaded_on,
+                "uploadedBy": self.user,
+                "samples": checksums,
+            }
+        }
+        endpoint = (
+            ENDPOINTS[self.environment.value]["HOST"]
+            + ENDPOINTS[self.environment.value]["ORDS_PATH"]
+            + "createSampleGuids"
+        )
+        r = requests.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
+        result = json.loads(r.content)
+        self.batch_guid = result["batch"]["guid"]
+        hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
+        print(hashes_guids)
+        return hashes_guids
 
     def upload(self):
-        self.decontaminate()
-        print({s.sample_name: s.decontamination_stats for s in self.samples})
+        self._decontaminate()
+        self._make_hashes()
+        self._fetch_guids()
+        for s in self.samples:
+            print(s.sample_name, s.decontamination_stats, s.md5, s.md5_1, s.md5_2)
+
+    # def _number_runs(self):
+    #     run_number_lookup = {}
+    #     # deal with case when they are all NaN
+    #     if self.df.run_number.isna().all():
+    #         run_number_lookup[''] = ''
+    #     else:
+    #         self.run_numbers = list(self.df.run_number.unique())
+    #         gpas_run = 1
+    #         for i in self.run_numbers:
+    #             if pandas.notna(i):
+    #                 run_number_lookup[i] = gpas_run
+    #                 gpas_run += 1
+    #    return run_number_lookup
 
 
 def parse_decontamination_stats(stdout: str) -> dict:
