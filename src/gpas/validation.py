@@ -55,12 +55,9 @@ def region_is_valid(df):
     """
 
     def validate_region(row):
-        if row.region:
-            valid = (
-                True
-                if row["region"] in countries_subdivisions.get(row["country"])
-                else False
-            )
+        if row["region"]:
+            if row["region"] not in countries_subdivisions.get(row["country"]):
+                valid = False
         else:
             valid = True
         return valid
@@ -157,7 +154,7 @@ class BaseSchema(pa.SchemaModel):
     class Config:
         strict = False
         coerce = True
-        # region_is_valid = ()
+        region_is_valid = ()
 
 
 class FastqSchema(BaseSchema):
@@ -286,7 +283,7 @@ def parse_validation_error(row):
     if row.check == "column_in_dataframe":
         return "column " + row.failure_case
     elif row.check == "region_is_valid":
-        return "specified regions are not valid ISO-3166-2 regions for the specified country"
+        return "One or more regions are not valid ISO-3166-2 subdivisions for the specified country"
     elif row.check == "instrument_is_valid":
         return f"instrument_platform can only contain one of {', '.join(INSTRUMENTS)}"
     elif row.check == "not_nullable":

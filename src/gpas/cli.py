@@ -10,7 +10,7 @@ import defopt
 import pandas as pd
 
 from gpas import lib
-from gpas.validation import validate
+from gpas import validation
 from gpas.misc import (
     run,
     set_directory,
@@ -281,7 +281,7 @@ def validate_new(
     :arg environment: GPAS environment to use
     :arg json: Emit JSON to stdout
     """
-    valid, schema, message = validate(upload_csv)
+    valid, schema, message = validation.validate(upload_csv)
     print(json.dumps(message, indent=4))
 
 
