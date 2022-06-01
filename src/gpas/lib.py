@@ -461,10 +461,10 @@ class Sample:
         # logging.warning([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
         self.decontamination_stats = parse_decontamination_stats(cmd_run.stdout)
 
-    def _hash_fastqs(self):
-        self.md5 = misc.hash_file(str(self.fastq)) if not self.is_paired else None
-        self.md5_1 = misc.hash_file(str(self.fastq1)) if self.is_paired else None
-        self.md5_2 = misc.hash_file(str(self.fastq2)) if self.is_paired else None
+    def _hash_fastq(self):
+        self.checksum = misc.hash_file(
+            str(self.fastq1 if self.is_paired else self.fastq)
+        )
 
 
 class Batch:
@@ -523,17 +523,14 @@ class Batch:
     def _decontaminate(self):
         list(map(lambda s: s.decontaminate(), self.samples))
 
-    def _make_hashes(self):
-        list(map(lambda s: s._hash_fastqs(), self.samples))
+    def _hash_fastqs(self):
+        list(map(lambda s: s._hash_fastq(), self.samples))
 
     def _get_sample_attrs(self, attr):
         return list(map(lambda s: getattr(s, attr), self.samples))
 
     def _fetch_guids(self):
-        if "Paired" not in self.schema_name:
-            checksums = self._get_sample_attrs("md5")
-        else:
-            checksums = self._get_sample_attrs("md5_1")
+        checksums = self._get_sample_attrs("checksum")
         payload = {
             "batch": {
                 "organisation": self.organisation,
@@ -551,15 +548,15 @@ class Batch:
         result = json.loads(r.content)
         self.batch_guid = result["batch"]["guid"]
         hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
-        print(hashes_guids)
-        return hashes_guids
+        for sample in self.samples:
+            sample.guid = hashes_guids[sample.checksum]
 
     def upload(self):
         self._decontaminate()
-        self._make_hashes()
+        self._hash_fastqs()
         self._fetch_guids()
         for s in self.samples:
-            print(s.sample_name, s.decontamination_stats, s.md5, s.md5_1, s.md5_2)
+            print(s.sample_name, s.decontamination_stats, s.checksum, s.guid)
 
     # def _number_runs(self):
     #     run_number_lookup = {}
