@@ -46,18 +46,14 @@ class set_directory(object):
 @extensions.register_check_method()
 def region_is_valid(df):
     """
-    Validate the region field using ISO-3166.
-
-    Returns
-    -------
-    bool
-        True if all regions are ok, False otherwise
+    Validate the region field using ISO-3166
     """
 
     def validate_region(row):
-        if row["region"]:
-            if row["region"] not in countries_subdivisions.get(row["country"]):
-                valid = False
+        if row["region"] and row["region"] not in countries_subdivisions.get(
+            row["country"]
+        ):
+            valid = False
         else:
             valid = True
         return valid
@@ -67,7 +63,7 @@ def region_is_valid(df):
 
 class BaseSchema(pa.SchemaModel):
     """
-    Validate generic GPAS upload CSVs.
+    Validate generic GPAS upload CSVs
     """
 
     # validate that batch is alphanumeric only
@@ -268,7 +264,7 @@ def parse_validation_errors(errors):
     """
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
-    # print(failure_cases.to_dict("records"))
+    print(failure_cases.to_dict("records"))
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
     return remove_nones_in_ld(failures)
 
