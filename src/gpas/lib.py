@@ -1,11 +1,16 @@
+from importlib.metadata import SelectableGroups
 import sys
+import copy
 import gzip
 import json
 import asyncio
 import logging
 import datetime
+from tkinter import S
 
+from typing import Any
 from pathlib import Path
+from functools import partial
 
 import tqdm
 import httpx
@@ -391,7 +396,7 @@ class Sample:
         self.bam = bam
         self.control = control
         self.collection_date = collection_date
-        self.tags = tags
+        self.tags = tags.split(":")
         self.country = country
         self.region = region
         self.district = district
@@ -400,10 +405,10 @@ class Sample:
         self.instrument_platform = instrument_platform
         self.primer_scheme = primer_scheme
         self.schema_name = schema_name
-        self.is_paired = True if schema_name.startswith("Paired") else False
+        self.paired = True if schema_name.startswith("Paired") else False
         self.ref_path = self.get_reference_path()
-        # self.errors = []
         self.working_dir = working_dir
+        self.uploaded = False
 
     def get_reference_path(self):
         prefix = Path(__file__).parent.parent.parent / Path("res/ref")
@@ -411,11 +416,9 @@ class Sample:
         return prefix / organisms_paths[self.specimen_organism]
 
     def decontaminate(self):
-        # print(str(self.fastq), str(self.fastq1), str(self.fastq2), str(self.bam))
         if "Bam" in self.schema_name:  # Preprocess BAMs into FASTQs
-            self._convert_bam(paired=self.is_paired)
-
-        if not self.is_paired:
+            self._convert_bam(paired=self.paired)
+        if not self.paired:
             self._read_it_and_keep(reads1=self.fastq, tech="ont")
         else:
             self._read_it_and_keep(
@@ -423,11 +426,11 @@ class Sample:
                 reads2=self.fastq2,
                 tech="illumina",
             )
-        # logging.info(self.decontamination_stats)
+        logging.info(self.decontamination_stats)
 
     def _convert_bam(self, paired=False):
         prefix = Path(self.working_dir) / Path(self.sample_name)
-        if not self.is_paired:
+        if not self.paired:
             cmd_run = run(
                 f"samtools fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
             )
@@ -469,9 +472,48 @@ class Sample:
         self.decontamination_stats = parse_decontamination_stats(cmd_run.stdout)
 
     def _hash_fastq(self):
-        self.checksum = misc.hash_file(
-            str(self.fastq1 if self.is_paired else self.fastq)
-        )
+        self.md5 = misc.hash_file(str(self.fastq))
+
+    def _hash_paired_fastqs(self):
+        self.md5_1 = misc.hash_file(str(self.fastq1))
+        self.md5_2 = misc.hash_file(str(self.fastq2))
+
+    # def _upload_fastq_paired(self):
+    #     """Upload a pair of FASTQ files to the Organisation's input bucket in OCI.
+
+    #     Designed to be used with pandas.DataFrame.apply
+
+    #     Returns
+    #     -------
+    #     True if upload successful (or previously done), False otherwise
+    #     """
+
+    #     if not row.uploaded:
+    #         r1 = requests.put(url + row.name + '.reads_1.fastq.gz', open(row['r1_uri'], 'rb'), headers=headers)
+    #         r2 = requests.put(url+ row.name + '.reads_2.fastq.gz', open(row['r2_uri'], 'rb'), headers=headers)
+    #         return (r1.ok and r2.ok)
+    #     else:
+    #         return True
+
+    def _upload_reads(self, batch_url, headers):
+        """Upload an unpaired FASTQ file to the Organisation's input bucket in OCI"""
+        url_prefix = batch_url + self.guid
+        if not self.uploaded:
+            if not self.paired:
+                with open(self.riak_fastq, "rb") as fh:
+                    r = requests.put(
+                        url=f"{url_prefix}.reads.fastq.gz", data=fh, headers=headers
+                    )
+            else:
+                with open(self.riak_fastq1, "rb") as fh:
+                    r = requests.put(
+                        f"{url_prefix}.reads_1.fastq.gz", data=fh, headers=headers
+                    )
+                with open(self.riak_fastq2, "rb") as fh:
+                    r = requests.put(
+                        f"{url_prefix}.reads_2.fastq.gz", data=fh, headers=headers
+                    )
+            self.uploaded = True
 
 
 class Batch:
@@ -494,6 +536,7 @@ class Batch:
         self.threads = threads
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.is_valid, self.schema_name, self.validation_msg = validate(upload_csv)
+        self.errors = {"decontamination": [], "validation": [], "submission": []}
 
         df = pd.read_csv(upload_csv, encoding="utf-8").fillna("")
         with set_directory(upload_csv.parent):
@@ -515,6 +558,8 @@ class Batch:
                 "Authorization": f"Bearer {self.token['access_token']}",
                 "Content-Type": "application/json",
             }
+            self.upload_headers = {k: v for k, v in self.headers.items()}
+            self.upload_headers["Content-Type"] = "application/octet-stream"
 
         currentTime = (
             datetime.datetime.now(datetime.timezone.utc)
@@ -533,11 +578,14 @@ class Batch:
     def _hash_fastqs(self):
         list(map(lambda s: s._hash_fastq(), self.samples))
 
-    def _get_sample_attrs(self, attr):
-        return list(map(lambda s: getattr(s, attr), self.samples))
+    def _get_sample_attrs(self, attr) -> dict[str, Any]:
+        return {s.sample_name: getattr(s, attr) for s in self.samples}
+
+    def _set_samples(self, name, value):
+        map(partial(setattr, name, value), self.samples)
 
     def _fetch_guids(self):
-        checksums = self._get_sample_attrs("checksum")
+        checksums = list(self._get_sample_attrs("md5").values())
         payload = {
             "batch": {
                 "organisation": self.organisation,
@@ -551,25 +599,35 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "createSampleGuids"
         )
-        r = requests.post(url=endpoint, data=payload, headers=self.headers)
-        result = json.loads(r.content)
+        r = requests.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
+        result = r.json()
+        print(result)
         self.batch_guid = result["batch"]["guid"]
         hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
         for sample in self.samples:
-            sample.guid = hashes_guids[sample.checksum]
+            sample.guid = hashes_guids[sample.md5]
 
     def _rename_fastqs(self):
         """Rename decontaminated fastqs using server-side guids"""
         for s in self.samples:
             s.riak_fastq = (
-                s.riak_fastq.rename(f"{s.guid}.fastq.gz") if s.riak_fastq else None
+                s.riak_fastq.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
+                if s.riak_fastq
+                else None
             )
             s.riak_fastq1 = (
-                s.riak_fastq1.rename(f"{s.guid}_1.fastq.gz") if s.riak_fastq1 else None
+                s.riak_fastq1.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
+                if s.riak_fastq1
+                else None
             )
             s.riak_fastq2 = (
-                s.riak_fastq2.rename(f"{s.guid}_2.fastq.gz") if s.riak_fastq2 else None
+                s.riak_fastq2.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
+                if s.riak_fastq2
+                else None
             )
+            print(type(s.fastq))
+            print(s.fastq)
+            print(s.riak_fastq)
 
     def _fetch_par(self):
         """Private method that calls ORDS to get a Pre-Authenticated Request.
@@ -591,15 +649,112 @@ class Batch:
         else:
             result = json.loads(r.content)
         self.par = result["par"]
+        self.bucket = self.par.split("/")[-3]
+        self.batch_url = self.par + self.batch_guid + "/"
+
+    def _upload_samples(self):
+        map(lambda s: s._upload_reads(), self.samples)
+        # for sample in self.samples:
+        #     sample._upload()
+
+    def _submit(self):
+        self._set_samples("uploaded", False)
+        self._fetch_par()
+        if not self.errors["decontamination"]:
+            self._build_submission()
+            self._upload_samples()
+            # print("UPLOADED", s.sample_name, s.uploaded)
+        # self.uploaded = True
+
+        self.submit_json = copy.deepcopy(self.decontamination_json["submission"])
+        self.submit_json["batch"]["bucket_name"] = bucket
+        self.submit_json["batch"]["uploaded_by"] = self.user_name
+        self.submit_json["batch"]["organisation"] = self.user_organisation
+        # build the API URL
+        url = (
+            self.environment_urls[self.environment]["WORLD_URL"]
+            + self.environment_urls[self.environment]["ORDS_PATH"]
+            + "/batches"
+        )
+        # make the API call
+        a = requests.post(url=url, json=self.submit_json, headers=self.headers)
+        # if it fails raise an Exception, otherwise parse the returned content
+        if not a.ok:
+            self.errors["submission"].append(
+                pandas.DataFrame(
+                    [[None, "sending metadata JSON to ORDS failed"]],
+                    columns=["sample_name", "error_message"],
+                )
+            )
+        else:
+            # make the finalisation mark
+            url = par + self.gpas_batch + "/upload_done.txt"
+            r = requests.put(url, headers=headers)
+            if not r.ok:
+                self.submit_errors.append(
+                    pandas.DataFrame(
+                        [[None, "uploading finalisation mark failed"]],
+                        columns=["sample_name", "error_message"],
+                    )
+                )
+
+    def _build_submission(self):
+        """Prepare the JSON payload for the GPAS Upload app
+
+        Returns
+        -------
+            dict : JSON payload to pass to GPAS Electron upload app via STDOUT
+        """
+        # self.sample_sheet = copy.deepcopy(self.df[['batch', 'run_number', 'sample_name', 'gpas_batch', 'gpas_run_number', 'gpas_sample_name']])
+        # self.sample_sheet.rename(columns={'batch': 'local_batch', 'run_number': 'local_run_number', 'sample_name': 'local_sample_name'}, inplace=True)
+        # self.df.set_index('gpas_sample_name', inplace=True)
+
+        for s in self.samples:
+            sample_payload = {
+                "name": s.guid,
+                # "run_number": row.gpas_run_number,
+                "tags": s.tags,
+                "control": s.control,
+                "collection_date": s.collection_date,
+                "country": s.country,
+                "region": s.region,
+                "district": s.district,
+                "specimen": s.specimen_organism,
+                "host": s.host,
+                "instrument": {"platform": s.instrument_platform},
+                "primer_scheme": s.primer_scheme,
+            }
+            if self.paired:
+                sample["pe_reads"] = {
+                    "r1_uri": row.riak_fastq1,
+                    "r1_md5": row.r1_md5,
+                    "r2_uri": row.r2_uri,
+                    "r2_md5": row.r2_md5,
+                }
+            else:
+                sample["se_reads"] = {"uri": row.r_uri, "md5": row.r_md5}
+            samples.append(sample)
+
+        return {
+            "submission": {
+                "status": "completed",
+                "batch": {
+                    "file_name": self.gpas_batch,
+                    "uploaded_on": self.uploaded_on,
+                    # "run_numbers": [i for i in self.run_number_lookup.values()],
+                    "samples": [i for i in samples],
+                },
+            }
+        }
 
     def upload(self):
         self._decontaminate()
         self._hash_fastqs()
         self._fetch_guids()
         self._rename_fastqs()
-        self._fetch_par()
+        self._submit()
         for s in self.samples:
-            print(s.sample_name, s.decontamination_stats, s.checksum, s.guid)
+            print(s.sample_name, s.decontamination_stats, s.md5, s.guid)
             print(s.riak_fastq, s.riak_fastq1, s.riak_fastq2)
             assert s.riak_fastq.exists() if s.riak_fastq else True
             assert s.riak_fastq1.exists() if s.riak_fastq1 else True
