@@ -13,7 +13,6 @@ from gpas import lib
 from gpas import validation
 from gpas.misc import (
     run,
-    set_directory,
     FORMATS,
     DEFAULT_FORMAT,
     ENVIRONMENTS,
@@ -281,8 +280,14 @@ def validate_new(
     :arg environment: GPAS environment to use
     :arg json: Emit JSON to stdout
     """
-    valid, schema, message = validation.validate(upload_csv)
-    print(json.dumps(message, indent=4))
+
+    try:
+        _, message = validation.validate(upload_csv)
+    except validation.ValidationError as e:
+        if machine_readable:
+            print(json.dumps(e.records, indent=4))
+        else:
+            raise e
 
 
 def upload_new(

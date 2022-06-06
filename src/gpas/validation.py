@@ -1,4 +1,7 @@
 import os
+import sys
+import json
+import pprint
 import logging
 import datetime
 
@@ -24,7 +27,23 @@ REGIONS = {i for l in countries_subdivisions.values() for i in l}
 
 
 class ValidationError(Exception):
-    pass
+    def __init__(self, errors):
+        self.errors = errors
+        self.errors_df = pd.DataFrame(errors, columns=["sample_name", "error"]).fillna(
+            value=""
+        )
+        self.records = {
+            "validation": {
+                "status": "failure",
+                "errors": errors,
+            }
+        }
+        super().__init__(self._message())
+
+    def _message(self):
+        message = f"Failed to validate upload CSV ({len(self.errors)} errors):\n\n"
+        message += self.errors_df.to_string(index=False, justify="left")
+        return message
 
 
 class set_directory(object):
@@ -50,8 +69,9 @@ def region_is_valid(df):
     """
 
     def validate_region(row):
+        print(row["region"])
         if row["region"] and row["region"] not in countries_subdivisions.get(
-            row["country"]
+            row["country"], {}
         ):
             valid = False
         else:
@@ -67,61 +87,57 @@ class BaseSchema(pa.SchemaModel):
     """
 
     # validate that batch is alphanumeric only
-    batch: Series[str] = pa.Field(
-        str_matches=r"^[A-Za-z0-9._-]+$", coerce=True, nullable=False
-    )
+    batch: Series[str] = pa.Field(str_matches=r"^[A-Za-z0-9._-]+$", nullable=False)
 
     # validate run_number is alphanumeric but can also be null
     run_number: Series[str] = pa.Field(
-        str_matches=r"^[A-Za-z0-9._-]+$", nullable=True, coerce=True
+        str_matches=r"^[A-Za-z0-9._-]+$",
+        nullable=True,
     )
 
     # validate sample name is alphanumeric and insist it is unique
     sample_name: Index[str] = pa.Field(
-        str_matches=r"^[A-Za-z0-9._-]+$", unique=True, coerce=True, nullable=False
+        str_matches=r"^[A-Za-z0-9._-]+$", unique=True, nullable=False
     )
 
     # insist that control is one of positive, negative or null
-    control: Series[str] = pa.Field(nullable=True, isin=CONTROLS, coerce=True)
+    control: Series[str] = pa.Field(
+        nullable=True,
+        isin=CONTROLS,
+    )
 
     # validate that the collection is in the ISO format, is no earlier than 01-Jan-2019 and no later than today
     collection_date: Series[pa.DateTime] = pa.Field(
-        gt="2019-01-01", le=str(datetime.date.today()), coerce=True, nullable=False
+        gt="2019-01-01", le=str(datetime.date.today()), nullable=False
     )
 
     # insist that the tags is alphanumeric, including : as it is the delimiter
     tags: Series[str] = pa.Field(
         nullable=False,
         str_matches=r"^[A-Za-z0-9:_-]+$",
-        coerce=True,
     )
 
     # insist that the country is one of the entries in the specified lookup table
-    country: Series[str] = pa.Field(isin=COUNTRIES_ALPHA_3, coerce=True, nullable=False)
+    country: Series[str] = pa.Field(isin=COUNTRIES_ALPHA_3, nullable=False)
 
-    region: Series[str] = pa.Field(nullable=True, isin=REGIONS, coerce=True)
+    region: Series[str] = pa.Field(nullable=True, isin=REGIONS)
 
     district: Series[str] = pa.Field(
-        str_matches=r"^[\sA-Za-z0-9:_-]+$", nullable=True, coerce=True
+        str_matches=r"^[\sA-Za-z0-9:_-]+$",
+        nullable=True,
     )
 
     # at present specimen_organism can only be SARS-CoV-2
-    specimen_organism: Series[str] = pa.Field(
-        isin=ORGANISMS, coerce=True, nullable=False
-    )
+    specimen_organism: Series[str] = pa.Field(isin=ORGANISMS, nullable=False)
 
     # at present host can only be human
-    host: Series[str] = pa.Field(isin=HOSTS, coerce=True, nullable=False)
+    host: Series[str] = pa.Field(isin=HOSTS, nullable=False)
 
     # insist that instrument_platform can only be Illumina or Nanopore
-    instrument_platform: Series[str] = pa.Field(
-        isin=INSTRUMENTS, coerce=True, nullable=False
-    )
+    instrument_platform: Series[str] = pa.Field(isin=INSTRUMENTS, nullable=False)
 
     # at present primer_schema can only be auto
-    primer_scheme: Series[str] = pa.Field(
-        isin=PRIMER_SCHEMES, coerce=True, nullable=False
-    )
+    primer_scheme: Series[str] = pa.Field(isin=PRIMER_SCHEMES, nullable=False)
 
     @pa.check(collection_date)
     def check_collection_date(cls, a):
@@ -163,8 +179,8 @@ class FastqSchema(BaseSchema):
         unique=True,
         str_matches=r"^[A-Za-z0-9/._-]+$",
         str_endswith=".fastq.gz",
-        coerce=True,
         nullable=False,
+        coerce=False,
     )
 
     @pa.check(fastq, element_wise=True)
@@ -182,8 +198,8 @@ class PairedFastqSchema(BaseSchema):
         # unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9/._-]+$",
         str_endswith="_1.fastq.gz",
-        coerce=True,
         nullable=False,
+        coerce=False,
     )
 
     # validate that the fastq2 file is alphanumeric and unique
@@ -191,8 +207,8 @@ class PairedFastqSchema(BaseSchema):
         # unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9/._-]+$",
         str_endswith="_2.fastq.gz",
-        coerce=True,
         nullable=False,
+        coerce=False,
     )
 
     @pa.check(fastq1, element_wise=True)
@@ -217,8 +233,8 @@ class BamSchema(BaseSchema):
         unique=True,
         str_matches=r"^[A-Za-z0-9/._-]+$",
         str_endswith=".bam",
-        coerce=True,
         nullable=False,
+        coerce=False,
     )
 
     @pa.check(bam, element_wise=True)
@@ -262,9 +278,9 @@ def parse_validation_errors(errors):
     -------
     pandas.DataFrame(columns=['sample_name', 'error_message'])
     """
+    # print(errors.failure_cases.to_dict("records"))
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
-    print(failure_cases.to_dict("records"))
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
     return remove_nones_in_ld(failures)
 
@@ -295,9 +311,9 @@ def parse_validation_error(row):
         elif row.schema_context == "Index":
             return "sample_name can only contain characters (" + allowed_chars + ")"
     elif row.column == "country" and row.check[:4] == "isin":
-        return row.failure_case + " is not a valid ISO-3166-1 country"
+        return row.failure_case + " is not a valid ISO-3166-1 alpha-3 country code"
     elif row.column == "region" and row.check[:4] == "isin":
-        return row.failure_case + " is not a valid ISO-3166-2 region"
+        return row.failure_case + " is not a valid ISO-3166-2 subdivision name"
     elif row.column == "control" and row.check[:4] == "isin":
         return (
             row.failure_case
@@ -338,7 +354,7 @@ def parse_validation_error(row):
         )
 
 
-def pick_schema(df: pd.DataFrame) -> pa.SchemaModel:
+def select_schema(df: pd.DataFrame) -> pa.SchemaModel:
     """Choose appropriate validation schema and the presence of required columns"""
     columns = set(df.columns)
     if "bam" in columns and not {"fastq", "fastq1", "fastq2"} & columns:
@@ -361,16 +377,32 @@ def pick_schema(df: pd.DataFrame) -> pa.SchemaModel:
     return schema
 
 
+def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Resolve relative paths to files inside dataframe
+    """
+    resolve = lambda x: str(Path(x).resolve())
+    if "fastq" in df.columns:
+        df["fastq"] = df["fastq"].apply(resolve)
+    if "fastq1" in df.columns:
+        df["fastq1"] = df["fastq1"].apply(resolve)
+    if "fastq2" in df.columns:
+        df["fastq2"] = df["fastq2"].apply(resolve)
+    if "bam" in df.columns:
+        df["bam"] = df["bam"].apply(resolve)
+    return df
+
+
 def validate(upload_csv: Path) -> tuple[bool, dict]:
     """
-    Validate an upload CSV. Returns tuple of validity (bool) and a message (dict)
+    Validate an upload CSV. Returns tuple of validity, the dataframe itself, and a message
     """
-    df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
-    valid = False
+    raw_df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
+    valid, df, message = False, None, None
     try:
-        schema = pick_schema(df)
+        schema = select_schema(raw_df)
         with set_directory(upload_csv.parent):  # Enable file path validation
-            schema.validate(df, lazy=True)
+            df = resolve_paths(schema.validate(raw_df, lazy=True))
         valid = True
         records = get_valid_samples(df, schema.__name__)
         message = {
@@ -380,14 +412,14 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
                 "samples": records,
             }
         }
-    except ValidationError as e:  # Failure to pick_schema()
-        message = {
-            "validation": {
-                "status": "failure",
-                "schema": None,
-                "errors": [{"error": str(e)}],
-            }
-        }
+    # except ValidationError as e:  # Failure to select_schema()
+    #     message = {
+    #         "validation": {
+    #             "status": "failure",
+    #             "schema": None,
+    #             "errors": [{"error": str(e)}],
+    #         }
+    #     }
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         records = parse_validation_errors(e)
         message = {
@@ -397,4 +429,16 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
                 "errors": records,
             }
         }
-    return valid, schema.__name__, message
+        raise ValidationError(records) from None
+
+        # print("ooo")
+        # print(e.failure_cases)
+        # print("ppp")
+    # print(df)
+    # print(dir(df.pandera.schema))
+    # print(df.pandera.schema.name)
+    # print(valid, df, message)
+    # print("woo")
+    # print(df)
+    # print("yay")
+    return df, message

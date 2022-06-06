@@ -1,4 +1,3 @@
-from importlib.metadata import SelectableGroups
 import sys
 import copy
 import gzip
@@ -6,7 +5,6 @@ import json
 import asyncio
 import logging
 import datetime
-from tkinter import S
 
 from typing import Any
 from pathlib import Path
@@ -29,7 +27,6 @@ from gpas.misc import (
     FILE_TYPES,
     ENDPOINTS,
     GOOD_STATUSES,
-    set_directory,
 )
 
 
@@ -535,18 +532,16 @@ class Batch:
         self.working_dir = working_dir
         self.threads = threads
         self.json = {"validation": "", "decontamination": "", "submission": ""}
-        self.is_valid, self.schema_name, self.validation_msg = validate(upload_csv)
+        self.df, self.validation_data = validate(upload_csv)
+        self.schema_name = self.df.pandera.schema.name
         self.errors = {"decontamination": [], "validation": [], "submission": []}
-
-        df = pd.read_csv(upload_csv, encoding="utf-8").fillna("")
-        with set_directory(upload_csv.parent):
-            self.df = misc.resolve_paths(df)
-
         batch_attrs = {
             "schema_name": self.schema_name,
             "working_dir": self.working_dir,
         }
-        self.samples = [Sample(**r, **batch_attrs) for r in self.df.to_dict("records")]
+        self.samples = [
+            Sample(**r, **batch_attrs) for r in self.df.reset_index().to_dict("records")
+        ]
 
         if self.token:
             (
