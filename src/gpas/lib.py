@@ -18,7 +18,7 @@ import pandas as pd
 
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import misc
+from gpas import misc, data_dir
 from gpas.validation import validate
 from gpas.misc import (
     run,
@@ -281,8 +281,8 @@ async def download_single_async(
 
     prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
-    print(r.text)
     if r.status_code == httpx.codes.ok:
+        print(Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"))
         with open(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"), "wb"
         ) as fh:
@@ -409,7 +409,7 @@ class Sample:
         self.uploaded = False
 
     def get_reference_path(self):
-        prefix = Path(__file__).parent.parent.parent / Path("res/ref")
+        prefix = data_dir / Path("refs")
         organisms_paths = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
         return prefix / organisms_paths[self.specimen_organism]
 
@@ -439,7 +439,7 @@ class Sample:
             )
             self.fastq1 = self.working_dir / Path(self.sample_name + "_1.fastq.gz")
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
-        # logging.warning([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
+        logging.info([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
 
     def _read_it_and_keep(self, reads1, tech, reads2=None):
         prefix = Path(self.working_dir) / Path(str(reads1).removesuffix(".fastq.gz"))
@@ -773,6 +773,5 @@ def parse_decontamination_stats(stdout: str) -> dict:
     return {
         "in": count_in,
         "out": count_out,
-        "delta": delta,
         "fraction": round(delta / count_in, 4),
     }

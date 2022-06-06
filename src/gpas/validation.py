@@ -13,6 +13,8 @@ import pandera.extensions as extensions
 
 from pandera.typing import Index, Series
 
+from gpas.misc import COUNTRIES_SUBDIVISIONS
+
 from gpas import misc
 
 
@@ -21,9 +23,9 @@ HOSTS = {"human"}
 INSTRUMENTS = {"Illumina", "Nanopore"}
 ORGANISMS = {"SARS-CoV-2"}
 PRIMER_SCHEMES = {"auto"}
-countries_subdivisions = misc.parse_countries_subdivisions()
-COUNTRIES_ALPHA_3 = countries_subdivisions.keys()
-REGIONS = {i for l in countries_subdivisions.values() for i in l}
+# COUNTRIES_SUBDIVISIONS = misc.parse_countries_subdivisions()
+COUNTRIES_ALPHA_3 = COUNTRIES_SUBDIVISIONS.keys()
+REGIONS = {i for l in COUNTRIES_SUBDIVISIONS.values() for i in l}
 
 
 class ValidationError(Exception):
@@ -69,7 +71,7 @@ def region_is_valid(df):
     """
 
     def validate_region(row):
-        if row["region"] and row["region"] not in countries_subdivisions.get(
+        if row["region"] and row["region"] not in COUNTRIES_SUBDIVISIONS.get(
             row["country"], {}
         ):
             valid = False

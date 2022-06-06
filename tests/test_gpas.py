@@ -224,6 +224,5 @@ Kept reads 2	5006
     assert lib.parse_decontamination_stats(stdout) == {
         "in": 10068,
         "out": 10012,
-        "delta": 56,
         "fraction": 0.0056,
     }

@@ -114,9 +114,9 @@ def test_gpas_uploader_download_mapping_csv_online_fasta():
     run_cmd = run(
         f"gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types fasta"
     )
-    assert Path(f"{data_dir}/2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz").is_file()
+    assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
     run(
-        "rm -f 2ddbd7d4-9979-4960-8c17-e7b92f0bf413.fasta.gz 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz"
+        "rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz 657a8b5a-652f-f07c-bd39-287279306a75.fasta.gz cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839.fasta.gz"
     )
 
 
