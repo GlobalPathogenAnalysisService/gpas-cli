@@ -29,6 +29,7 @@ REGIONS = {i for l in countries_subdivisions.values() for i in l}
 class ValidationError(Exception):
     def __init__(self, errors):
         self.errors = errors
+        # print(errors)
         self.errors_df = pd.DataFrame(errors, columns=["sample_name", "error"]).fillna(
             value=""
         )
@@ -367,12 +368,14 @@ def select_schema(df: pd.DataFrame) -> pa.SchemaModel:
     elif {"fastq1", "fastq2"} < columns and not {"fastq", "bam"} & columns:
         schema = PairedFastqSchema
     else:
-        raise (
-            ValidationError(
-                "Error inferring schema from available columns. For single-end FASTQ "
-                "use 'fastq', for paired-end FASTQ use 'fastq1' and 'fastq2', and "
-                "for BAM submissions use 'bam'"
-            )
+        raise ValidationError(
+            [
+                {
+                    "error": "Failed inferring schema from available columns. For "
+                    "single FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' "
+                    "and 'fastq2', and for BAM submissions use 'bam'"
+                }
+            ]
         )
     return schema
 
@@ -412,14 +415,6 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
                 "samples": records,
             }
         }
-    # except ValidationError as e:  # Failure to select_schema()
-    #     message = {
-    #         "validation": {
-    #             "status": "failure",
-    #             "schema": None,
-    #             "errors": [{"error": str(e)}],
-    #         }
-    #     }
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         records = parse_validation_errors(e)
         message = {
@@ -430,15 +425,4 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
             }
         }
         raise ValidationError(records) from None
-
-        # print("ooo")
-        # print(e.failure_cases)
-        # print("ppp")
-    # print(df)
-    # print(dir(df.pandera.schema))
-    # print(df.pandera.schema.name)
-    # print(valid, df, message)
-    # print("woo")
-    # print(df)
-    # print("yay")
     return df, message

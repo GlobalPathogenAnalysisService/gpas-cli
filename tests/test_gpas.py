@@ -196,6 +196,18 @@ def test_validate_fail_country_region():
     ]
 
 
+def test_validate_fail_select_schema():
+    with pytest.raises(ValidationError) as e:
+        _, message = lib.validate(
+            Path(data_dir) / Path("broken") / Path("no-schema.csv")
+        )
+    assert e.value.errors == [
+        {
+            "error": "Failed inferring schema from available columns. For single FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' and 'fastq2', and for BAM submissions use 'bam'"
+        }
+    ]
+
+
 def test_decontamination():
     lib.Batch(Path(data_dir) / Path("large-nanopore-fastq.csv"))._decontaminate()
     lib.Batch(Path(data_dir) / Path("large-illumina-fastq.csv"))._decontaminate()

@@ -596,7 +596,7 @@ class Batch:
         )
         r = requests.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
         result = r.json()
-        print(result)
+        # print(result)
         self.batch_guid = result["batch"]["guid"]
         hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
         for sample in self.samples:
@@ -620,9 +620,9 @@ class Batch:
                 if s.riak_fastq2
                 else None
             )
-            print(type(s.fastq))
-            print(s.fastq)
-            print(s.riak_fastq)
+            # print(type(s.fastq))
+            # print(s.fastq)
+            # print(s.riak_fastq)
 
     def _fetch_par(self):
         """Private method that calls ORDS to get a Pre-Authenticated Request.
