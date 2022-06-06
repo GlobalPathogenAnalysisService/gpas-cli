@@ -29,11 +29,10 @@ REGIONS = {i for l in countries_subdivisions.values() for i in l}
 class ValidationError(Exception):
     def __init__(self, errors):
         self.errors = errors
-        # print(errors)
         self.errors_df = pd.DataFrame(errors, columns=["sample_name", "error"]).fillna(
             value=""
         )
-        self.records = {
+        self.report = {
             "validation": {
                 "status": "failure",
                 "errors": errors,
@@ -70,7 +69,6 @@ def region_is_valid(df):
     """
 
     def validate_region(row):
-        print(row["region"])
         if row["region"] and row["region"] not in countries_subdivisions.get(
             row["country"], {}
         ):
@@ -165,7 +163,7 @@ class BaseSchema(pa.SchemaModel):
         return valid
 
     class Config:
-        strict = False
+        strict = True
         coerce = True
         region_is_valid = ()
 
@@ -401,28 +399,17 @@ def validate(upload_csv: Path) -> tuple[bool, dict]:
     Validate an upload CSV. Returns tuple of validity, the dataframe itself, and a message
     """
     raw_df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
-    valid, df, message = False, None, None
     try:
         schema = select_schema(raw_df)
         with set_directory(upload_csv.parent):  # Enable file path validation
             df = resolve_paths(schema.validate(raw_df, lazy=True))
-        valid = True
         records = get_valid_samples(df, schema.__name__)
-        message = {
+        report = {
             "validation": {
                 "status": "success",
-                "schema": schema.__name__,
                 "samples": records,
             }
         }
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
-        records = parse_validation_errors(e)
-        message = {
-            "validation": {
-                "status": "failure",
-                "schema": schema.__name__,
-                "errors": records,
-            }
-        }
-        raise ValidationError(records) from None
-    return df, message
+        raise ValidationError(parse_validation_errors(e)) from None
+    return df, report

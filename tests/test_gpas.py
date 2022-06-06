@@ -4,8 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from gpas import lib
-from gpas.validation import ValidationError
+from gpas import lib, validation
 
 
 data_dir = "tests/test-data"
@@ -34,7 +33,7 @@ def test_validate_ok():
     assert message == {
         "validation": {
             "status": "success",
-            "schema": "PairedFastqSchema",
+            # "schema": "PairedFastqSchema",
             "samples": [
                 {
                     "sample_name": "cDNA-VOC-1-v4-1",
@@ -68,14 +67,14 @@ def test_validate_new_cli():
 
 
 def test_validate_fail_no_tags():
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(validation.ValidationError) as e:
         _, message = lib.validate(
             Path(data_dir) / Path("broken") / Path("large-illumina-no-tags-fastq.csv")
         )
     assert e.value.errors == [
         {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
     ]
-    assert e.value.records == {
+    assert e.value.report == {
         "validation": {
             "status": "failure",
             "errors": [
@@ -86,7 +85,7 @@ def test_validate_fail_no_tags():
 
 
 def test_validate_fail_dupe_tags():
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(validation.ValidationError) as e:
         _, message = lib.validate(
             Path(data_dir) / Path("broken") / Path("large-illumina-dupe-tags-fastq.csv")
         )
@@ -115,7 +114,7 @@ def test_validate_fail_missing_files():
     #         ],
     #     }
     # }
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(validation.ValidationError) as e:
         _, message = lib.validate(
             Path(data_dir) / Path("broken") / Path("broken-path.csv")
         )
@@ -146,7 +145,7 @@ def test_validate_fail_different_platforms():
     #         ],
     #     }
     # }
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(validation.ValidationError) as e:
         _, message = lib.validate(
             Path(data_dir) / Path("broken") / Path("different-platforms.csv")
         )
@@ -177,7 +176,7 @@ def test_validate_fail_country_region():
     #         ],
     #     }
     # }
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(validation.ValidationError) as e:
         _, message = lib.validate(
             Path(data_dir) / Path("broken") / Path("invalid-country-region.csv")
         )
@@ -197,7 +196,7 @@ def test_validate_fail_country_region():
 
 
 def test_validate_fail_select_schema():
-    with pytest.raises(ValidationError) as e:
+    with pytest.raises(validation.ValidationError) as e:
         _, message = lib.validate(
             Path(data_dir) / Path("broken") / Path("no-schema.csv")
         )

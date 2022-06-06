@@ -23,7 +23,7 @@ from gpas.misc import (
 
 logger = logging.getLogger()
 logging.basicConfig(format="%(levelname)s: %(message)s")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 
 def upload_old(
@@ -283,9 +283,10 @@ def validate(
 
     try:
         _, message = validation.validate(upload_csv)
+        print(json.dumps(message, indent=4))
     except validation.ValidationError as e:
         if machine_readable:
-            print(json.dumps(e.records, indent=4))
+            print(json.dumps(e.report, indent=4))
         else:
             raise e
 

@@ -110,7 +110,7 @@ def test_status_mapping_csv_rename_online():
 
 
 @pytest.mark.online
-def test_gpas_uploader_download_mapping_csv_online():
+def test_gpas_uploader_download_mapping_csv_online_fasta():
     run_cmd = run(
         f"gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types fasta"
     )

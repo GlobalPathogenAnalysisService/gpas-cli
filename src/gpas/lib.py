@@ -38,14 +38,15 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         + "userOrgDtls"
     )
     try:
+        logging.info(f"Fetching user details {endpoint=}")
         r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
         if not r.ok:
             r.raise_for_status()
-        payload = r.json().get("userOrgDtl", {})[0]
-        user = payload.get("userName")
-        organisation = payload.get("organisation")
-        permitted_tags = payload.get("tags", {})[0].keys()
-        logging.info("Authenticated")
+        result = r.json().get("userOrgDtl", {})[0]
+        logging.info(f"{result=}")
+        user = result.get("userName")
+        organisation = result.get("organisation")
+        permitted_tags = result.get("tags", {})[0].keys()
     except requests.exceptions.RequestException as e:
         logging.error(str(e))
         sys.exit(1)
@@ -280,12 +281,12 @@ async def download_single_async(
 
     prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
+    print(r.text)
     if r.status_code == httpx.codes.ok:
         with open(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"), "wb"
         ) as fh:
             fh.write(r.content)
-
         if name and file_type == "fasta":
             update_fasta_header(
                 Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
@@ -402,7 +403,7 @@ class Sample:
         self.instrument_platform = instrument_platform
         self.primer_scheme = primer_scheme
         self.schema_name = schema_name
-        self.paired = True if schema_name.startswith("Paired") else False
+        self.paired = True if self.schema_name.startswith("Paired") else False
         self.ref_path = self.get_reference_path()
         self.working_dir = working_dir
         self.uploaded = False
@@ -423,7 +424,7 @@ class Sample:
                 reads2=self.fastq2,
                 tech="illumina",
             )
-        logging.info(self.decontamination_stats)
+        logging.info(f"{self.decontamination_stats=}")
 
     def _convert_bam(self, paired=False):
         prefix = Path(self.working_dir) / Path(self.sample_name)
@@ -471,26 +472,9 @@ class Sample:
     def _hash_fastq(self):
         self.md5 = misc.hash_file(str(self.fastq))
 
-    def _hash_paired_fastqs(self):
+    def _hash_fastqs(self):
         self.md5_1 = misc.hash_file(str(self.fastq1))
         self.md5_2 = misc.hash_file(str(self.fastq2))
-
-    # def _upload_fastq_paired(self):
-    #     """Upload a pair of FASTQ files to the Organisation's input bucket in OCI.
-
-    #     Designed to be used with pandas.DataFrame.apply
-
-    #     Returns
-    #     -------
-    #     True if upload successful (or previously done), False otherwise
-    #     """
-
-    #     if not row.uploaded:
-    #         r1 = requests.put(url + row.name + '.reads_1.fastq.gz', open(row['r1_uri'], 'rb'), headers=headers)
-    #         r2 = requests.put(url+ row.name + '.reads_2.fastq.gz', open(row['r2_uri'], 'rb'), headers=headers)
-    #         return (r1.ok and r2.ok)
-    #     else:
-    #         return True
 
     def _upload_reads(self, batch_url, headers):
         """Upload an unpaired FASTQ file to the Organisation's input bucket in OCI"""
@@ -510,7 +494,7 @@ class Sample:
                     r = requests.put(
                         f"{url_prefix}.reads_2.fastq.gz", data=fh, headers=headers
                     )
-            self.uploaded = True
+        self.uploaded = True
 
 
 class Batch:
@@ -532,17 +516,18 @@ class Batch:
         self.working_dir = working_dir
         self.threads = threads
         self.json = {"validation": "", "decontamination": "", "submission": ""}
-        self.df, self.validation_data = validate(upload_csv)
+        self.df, self.validation_report = validate(upload_csv)
         self.schema_name = self.df.pandera.schema.name
-        self.errors = {"decontamination": [], "validation": [], "submission": []}
+        self.errors = {"decontamination": [], "submission": []}
         batch_attrs = {
             "schema_name": self.schema_name,
             "working_dir": self.working_dir,
         }
         self.samples = [
-            Sample(**r, **batch_attrs) for r in self.df.reset_index().to_dict("records")
+            Sample(**r, **batch_attrs)
+            for r in self.df.fillna("").reset_index().to_dict("records")
         ]
-
+        self.paired = self.samples[0].paired
         if self.token:
             (
                 self.user,
@@ -571,7 +556,10 @@ class Batch:
         list(map(lambda s: s.decontaminate(), self.samples))
 
     def _hash_fastqs(self):
-        list(map(lambda s: s._hash_fastq(), self.samples))
+        if not self.paired:
+            list(map(lambda s: s._hash_fastq(), self.samples))
+        else:
+            list(map(lambda s: s._hash_fastqs(), self.samples))
 
     def _get_sample_attrs(self, attr) -> dict[str, Any]:
         return {s.sample_name: getattr(s, attr) for s in self.samples}
@@ -580,7 +568,8 @@ class Batch:
         map(partial(setattr, name, value), self.samples)
 
     def _fetch_guids(self):
-        checksums = list(self._get_sample_attrs("md5").values())
+        md5_attr = "md5" if not self.paired else "md5_1"
+        checksums = list(self._get_sample_attrs(md5_attr).values())
         payload = {
             "batch": {
                 "organisation": self.organisation,
@@ -594,13 +583,16 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "createSampleGuids"
         )
+        logging.info(f"Fetching guids {endpoint=}")
         r = requests.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
+        if not r.ok:
+            r.raise_for_status()
         result = r.json()
-        # print(result)
+        logging.info(f"{result=}")
         self.batch_guid = result["batch"]["guid"]
         hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
         for sample in self.samples:
-            sample.guid = hashes_guids[sample.md5]
+            sample.guid = hashes_guids[getattr(sample, md5_attr)]
 
     def _rename_fastqs(self):
         """Rename decontaminated fastqs using server-side guids"""
@@ -638,60 +630,56 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "pars"
         )
+        logging.info(f"Fetching PAR; {endpoint=} {self.headers=}")
         r = requests.get(url=endpoint, headers=self.headers)
         if not r.ok:
             r.raise_for_status()
-        else:
-            result = json.loads(r.content)
+        result = json.loads(r.content)
+        logging.info(f"{result=}")
+
+        if result.get("status") == "error":
+            raise RuntimeError("Problem fetching PAR")
+        print(result, r.status_code)
         self.par = result["par"]
         self.bucket = self.par.split("/")[-3]
         self.batch_url = self.par + self.batch_guid + "/"
 
     def _upload_samples(self):
-        map(lambda s: s._upload_reads(), self.samples)
-        # for sample in self.samples:
-        #     sample._upload()
+        # list(map(lambda s: s._upload_reads(), self.samples))
+        for s in self.samples:
+            s._upload_reads(self.batch_url, self.upload_headers)
 
     def _submit(self):
         self._set_samples("uploaded", False)
         self._fetch_par()
         if not self.errors["decontamination"]:
             self._build_submission()
+            print(json.dumps(self.submission, indent=4))
             self._upload_samples()
-            # print("UPLOADED", s.sample_name, s.uploaded)
-        # self.uploaded = True
+            for s in self.samples:
+                print("UPLOADED", s.sample_name, s.uploaded)
 
-        self.submit_json = copy.deepcopy(self.decontamination_json["submission"])
-        self.submit_json["batch"]["bucket_name"] = bucket
-        self.submit_json["batch"]["uploaded_by"] = self.user_name
-        self.submit_json["batch"]["organisation"] = self.user_organisation
-        # build the API URL
-        url = (
-            self.environment_urls[self.environment]["WORLD_URL"]
-            + self.environment_urls[self.environment]["ORDS_PATH"]
-            + "/batches"
+        endpoint = (
+            ENDPOINTS[self.environment.value]["HOST"]
+            + ENDPOINTS[self.environment.value]["ORDS_PATH"]
+            + "batches"
         )
-        # make the API call
-        a = requests.post(url=url, json=self.submit_json, headers=self.headers)
-        # if it fails raise an Exception, otherwise parse the returned content
-        if not a.ok:
+        r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
+        print("Posted JSON")
+        print(r.text)
+        if not r.ok:
             self.errors["submission"].append(
-                pandas.DataFrame(
-                    [[None, "sending metadata JSON to ORDS failed"]],
-                    columns=["sample_name", "error_message"],
-                )
+                {"error": "Sending metadata JSON to ORDS failed"}
             )
-        else:
-            # make the finalisation mark
-            url = par + self.gpas_batch + "/upload_done.txt"
-            r = requests.put(url, headers=headers)
+        else:  # Make the finalisation mark
+            url = self.par + self.batch_guid + "/upload_done.txt"
+            r = requests.put(url=url, headers=self.upload_headers)
+            print("Put finalisation mark")
             if not r.ok:
-                self.submit_errors.append(
-                    pandas.DataFrame(
-                        [[None, "uploading finalisation mark failed"]],
-                        columns=["sample_name", "error_message"],
-                    )
+                self.errors["submission"].append(
+                    {"error": "Sending metadata JSON to ORDS failed"}
                 )
+            print(r.text)
 
     def _build_submission(self):
         """Prepare the JSON payload for the GPAS Upload app
@@ -704,13 +692,14 @@ class Batch:
         # self.sample_sheet.rename(columns={'batch': 'local_batch', 'run_number': 'local_run_number', 'sample_name': 'local_sample_name'}, inplace=True)
         # self.df.set_index('gpas_sample_name', inplace=True)
 
+        samples = []
         for s in self.samples:
-            sample_payload = {
+            sample = {
                 "name": s.guid,
                 # "run_number": row.gpas_run_number,
                 "tags": s.tags,
                 "control": s.control,
-                "collection_date": s.collection_date,
+                "collection_date": str(s.collection_date.date()),
                 "country": s.country,
                 "region": s.region,
                 "district": s.district,
@@ -721,25 +710,26 @@ class Batch:
             }
             if self.paired:
                 sample["pe_reads"] = {
-                    "r1_uri": row.riak_fastq1,
-                    "r1_md5": row.r1_md5,
-                    "r2_uri": row.r2_uri,
-                    "r2_md5": row.r2_md5,
+                    "r1_uri": str(s.riak_fastq1),
+                    "r1_md5": s.md5_1,
+                    "r2_uri": str(s.riak_fastq2),
+                    "r2_md5": s.md5_2,
                 }
             else:
-                sample["se_reads"] = {"uri": row.r_uri, "md5": row.r_md5}
+                sample["se_reads"] = {"uri": str(s.riak_fastq), "md5": s.md5}
             samples.append(sample)
 
-        return {
-            "submission": {
-                "status": "completed",
-                "batch": {
-                    "file_name": self.gpas_batch,
-                    "uploaded_on": self.uploaded_on,
-                    # "run_numbers": [i for i in self.run_number_lookup.values()],
-                    "samples": [i for i in samples],
-                },
-            }
+        self.submission = {
+            "status": "completed",
+            "batch": {
+                "file_name": self.batch_guid,
+                "bucket_name": self.bucket,
+                "uploaded_on": str(self.uploaded_on),
+                "uploaded_by": self.user,
+                "organisation": self.organisation,
+                # "run_numbers": [i for i in self.run_number_lookup.values()],
+                "samples": samples,
+            },
         }
 
     def upload(self):
@@ -748,12 +738,12 @@ class Batch:
         self._fetch_guids()
         self._rename_fastqs()
         self._submit()
-        for s in self.samples:
-            print(s.sample_name, s.decontamination_stats, s.md5, s.guid)
-            print(s.riak_fastq, s.riak_fastq1, s.riak_fastq2)
-            assert s.riak_fastq.exists() if s.riak_fastq else True
-            assert s.riak_fastq1.exists() if s.riak_fastq1 else True
-            assert s.riak_fastq2.exists() if s.riak_fastq2 else True
+        # for s in self.samples:
+        # print(s.sample_name, s.decontamination_stats, s.md5, s.guid)
+        # print(s.riak_fastq, s.riak_fastq1, s.riak_fastq2)
+        # assert s.riak_fastq.exists() if s.riak_fastq else True
+        # assert s.riak_fastq1.exists() if s.riak_fastq1 else True
+        # assert s.riak_fastq2.exists() if s.riak_fastq2 else True
 
     # def _number_runs(self):
     #     run_number_lookup = {}
@@ -779,6 +769,7 @@ def parse_decontamination_stats(stdout: str) -> dict:
     count_in = counts[0] + counts[1]
     count_out = counts[2] + counts[3]
     delta = count_in - count_out
+    assert delta >= 0
     return {
         "in": count_in,
         "out": count_out,
