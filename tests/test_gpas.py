@@ -50,7 +50,7 @@ def test_validate_ok():
 
 def test_validate_new_cli():
     run_cmd = run(
-        "gpas validate-new broken/impossible-country-region.csv --machine-readable"
+        "gpas validate broken/impossible-country-region.csv --machine-readable"
     )
     assert (
         """{

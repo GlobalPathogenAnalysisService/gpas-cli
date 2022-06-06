@@ -28,7 +28,7 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
 
 @pytest.mark.online
 def test_validate_online():
-    run_cmd = run(f"gpas validate --json --token token.json nanopore-fastq.csv")
+    run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
     assert (
         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
         in run_cmd.stdout
@@ -48,7 +48,7 @@ def test_gpas_uploader_validate_online():
 
 @pytest.mark.online
 def test_validate_token_online():
-    run_cmd = run(f"gpas validate --json --token token.json nanopore-fastq.csv")
+    run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
     assert (
         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
         in run_cmd.stdout
@@ -57,14 +57,14 @@ def test_validate_token_online():
 
 @pytest.mark.online
 def test_upload_dry_run_online():
-    run_cmd = run(f"gpas upload nanopore-fastq.csv token.json --dry-run")
+    run_cmd = run(f"gpas upload-old nanopore-fastq.csv token.json --dry-run")
     assert "successfully decontaminated" in run_cmd.stdout
     run("rm -f sample_names* mapping*")
 
 
 @pytest.mark.online
 def test_upload_dry_run_json_online():
-    run_cmd = run(f"gpas upload --dry-run --json nanopore-fastq.csv token.json")
+    run_cmd = run(f"gpas upload-old --dry-run --json nanopore-fastq.csv token.json")
     assert '"file": "reads/nanopore-fastq/unpaired5.fastq.gz"' in run_cmd.stdout
     run("rm -f sample_names* mapping*")
 

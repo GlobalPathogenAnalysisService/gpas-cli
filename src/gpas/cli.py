@@ -26,7 +26,7 @@ logging.basicConfig(format="%(levelname)s: %(message)s")
 logger.setLevel(logging.WARNING)
 
 
-def upload(
+def upload_old(
     upload_csv: Path,
     token: Path,
     *,
@@ -74,7 +74,7 @@ def upload(
         )
 
 
-def validate(
+def validate_old(
     upload_csv: Path,
     *,
     token: Path = None,
@@ -265,7 +265,7 @@ def status_old(
     print(records_fmt)
 
 
-def validate_new(
+def validate(
     upload_csv: Path,
     *,
     token: Path = None,
@@ -290,7 +290,7 @@ def validate_new(
             raise e
 
 
-def upload_new(
+def upload(
     upload_csv: Path,
     *,
     token: Path = None,
@@ -304,13 +304,13 @@ def upload_new(
 def main():
     defopt.run(
         {
-            "upload": upload,
             "validate": validate,
-            "download": download,
+            "upload": upload,
             "status": status,
+            "download": download,
+            "validate-old": validate_old,
+            "upload-old": upload_old,
             "status-old": status_old,
-            "validate-new": validate_new,
-            "upload-new": upload_new,
         },
         no_negated_flags=True,
         strict_kwonly=False,
