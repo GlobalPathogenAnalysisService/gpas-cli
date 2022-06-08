@@ -13,8 +13,6 @@ import pandera.extensions as extensions
 
 from pandera.typing import Index, Series
 
-from gpas.misc import COUNTRIES_SUBDIVISIONS
-
 from gpas import misc
 
 
@@ -23,7 +21,7 @@ HOSTS = {"human"}
 INSTRUMENTS = {"Illumina", "Nanopore"}
 ORGANISMS = {"SARS-CoV-2"}
 PRIMER_SCHEMES = {"auto"}
-# COUNTRIES_SUBDIVISIONS = misc.parse_countries_subdivisions()
+COUNTRIES_SUBDIVISIONS = misc.parse_countries_subdivisions()
 COUNTRIES_ALPHA_3 = COUNTRIES_SUBDIVISIONS.keys()
 REGIONS = {i for l in COUNTRIES_SUBDIVISIONS.values() for i in l}
 

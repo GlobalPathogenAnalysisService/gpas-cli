@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from gpas import lib, validation
+from gpas import lib, validation, misc, data_dir
 
 
 data_dir = "tests/test-data"
@@ -26,6 +26,11 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
 
 def test_version():
     run_cmd = run("gpas --version")
+
+
+def test_static_assets_exist():
+    misc.parse_countries_subdivisions()
+    assert misc.get_reference_path("SARS-CoV-2").exists()
 
 
 def test_validate_ok():

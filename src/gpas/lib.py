@@ -657,16 +657,15 @@ class Batch:
             print(json.dumps(self.submission, indent=4))
             self._upload_samples()
             for s in self.samples:
-                print("UPLOADED", s.sample_name, s.uploaded)
-
+                print("Uploaded", s.sample_name)
         endpoint = (
             ENDPOINTS[self.environment.value]["HOST"]
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
         r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
-        print("Posted JSON")
-        print(r.text)
+        logging.INFO("POSTing JSON")
+        logging.INFO(r.text)
         if not r.ok:
             self.errors["submission"].append(
                 {"error": "Sending metadata JSON to ORDS failed"}
@@ -674,12 +673,11 @@ class Batch:
         else:  # Make the finalisation mark
             url = self.par + self.batch_guid + "/upload_done.txt"
             r = requests.put(url=url, headers=self.upload_headers)
-            print("Put finalisation mark")
+            logging.INFO("PUTting upload_done.txt")
             if not r.ok:
                 self.errors["submission"].append(
                     {"error": "Sending metadata JSON to ORDS failed"}
                 )
-            print(r.text)
 
     def _build_submission(self):
         """Prepare the JSON payload for the GPAS Upload app
@@ -715,6 +713,7 @@ class Batch:
                     "r2_uri": str(s.riak_fastq2),
                     "r2_md5": s.md5_2,
                 }
+                logging.info(f"{s.riak_fastq1=}, {s.riak_fastq2=}")
             else:
                 sample["se_reads"] = {"uri": str(s.riak_fastq), "md5": s.md5}
             samples.append(sample)
