@@ -1,8 +1,4 @@
 import os
-import sys
-import json
-import pprint
-import logging
 import datetime
 
 from pathlib import Path
@@ -394,7 +390,7 @@ def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def validate(upload_csv: Path) -> tuple[bool, dict]:
+def validate(upload_csv: Path) -> tuple[pd.DataFrame, dict]:
     """
     Validate an upload CSV. Returns tuple of validity, the dataframe itself, and a message
     """

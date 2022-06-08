@@ -1,5 +1,5 @@
+from subprocess import CalledProcessError
 import sys
-import copy
 import gzip
 import json
 import asyncio
@@ -28,6 +28,10 @@ from gpas.misc import (
     ENDPOINTS,
     GOOD_STATUSES,
 )
+
+
+class DecontaminationError(Exception):
+    pass
 
 
 def fetch_user_details(access_token, environment: ENVIRONMENTS):
@@ -416,14 +420,7 @@ class Sample:
     def decontaminate(self):
         if "Bam" in self.schema_name:  # Preprocess BAMs into FASTQs
             self._convert_bam(paired=self.paired)
-        if not self.paired:
-            self._read_it_and_keep(reads1=self.fastq, tech="ont")
-        else:
-            self._read_it_and_keep(
-                reads1=self.fastq1,
-                reads2=self.fastq2,
-                tech="illumina",
-            )
+        self._read_it_and_keep()
         logging.info(f"{self.decontamination_stats=}")
 
     def _convert_bam(self, paired=False):
@@ -441,31 +438,34 @@ class Sample:
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
         logging.info([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
 
-    def _read_it_and_keep(self, reads1, tech, reads2=None):
-        prefix = Path(self.working_dir) / Path(str(reads1).removesuffix(".fastq.gz"))
-        if not reads2:
-            cmd_run = run(
-                f"readItAndKeep --tech ont --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --outprefix {self.working_dir / self.sample_name}"
-            )
+    def _read_it_and_keep(self):
+        # prefix = Path(self.working_dir) / Path(str(reads1).removesuffix(".fastq.gz"))
+        if not self.fastq2:
+            cmd = f"readItAndKeep --tech ont --enumerate_names --ref_fasta {self.ref_path} --reads1 {self.fastq} --outprefix {self.working_dir / self.sample_name}"
         else:
-            cmd_run = run(
-                f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {reads1} --reads2 {reads2} --outprefix {self.working_dir / self.sample_name}"
-            )
+            cmd = f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {self.fastq1} --reads2 {self.fastq2} --outprefix {self.working_dir / self.sample_name}"
+
+        try:
+            cmd_run = run(cmd)
+        except CalledProcessError as e:
+            raise DecontaminationError(f"Decontamination failed for {self.sample_name}")
+
         self.riak_fastq = (
             self.working_dir / Path(self.sample_name + ".reads.fastq.gz")
-            if not reads2
+            if self.fastq
             else None
         )
         self.riak_fastq1 = (
             self.working_dir / Path(self.sample_name + ".reads_1.fastq.gz")
-            if reads2
+            if self.fastq1
             else None
         )
         self.riak_fastq2 = (
             self.working_dir / Path(self.sample_name + ".reads_2.fastq.gz")
-            if reads2
+            if self.fastq2
             else None
         )
+
         # logging.warning([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
         self.decontamination_stats = parse_decontamination_stats(cmd_run.stdout)
 
