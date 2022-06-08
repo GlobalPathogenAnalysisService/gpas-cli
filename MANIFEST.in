@@ -1,2 +1,0 @@
-include src/gpas/data/refs/*.fasta
-include src/gpas/data/countries/*.json
