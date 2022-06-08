@@ -22,7 +22,7 @@ jobs:
           conda install samtools=1.15.1 read-it-and-keep
           pip install pytest
           pip install .
-          pip install git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git
+#          pip install git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git
       - name: Test
         run: |
           python -m pytest tests/test_gpas.py

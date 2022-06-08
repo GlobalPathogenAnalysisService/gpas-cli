@@ -3,7 +3,6 @@ import asyncio
 import logging
 
 from pathlib import Path
-from re import T
 
 import defopt
 
