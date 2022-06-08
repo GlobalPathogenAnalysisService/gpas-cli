@@ -35,21 +35,29 @@ def test_static_assets_exist():
 
 def test_validate_ok():
     df, message = lib.validate(Path(data_dir) / Path("large-illumina-fastq.csv"))
-    assert message == {
-        "validation": {
-            "status": "success",
-            # "schema": "PairedFastqSchema",
-            "samples": [
-                {
-                    "sample_name": "cDNA-VOC-1-v4-1",
-                    "files": [
-                        "/Users/bede/Research/Git/gpas-cli/tests/test-data/reads/large-illumina-fastq_1.fastq.gz",
-                        "/Users/bede/Research/Git/gpas-cli/tests/test-data/reads/large-illumina-fastq_2.fastq.gz",
-                    ],
-                }
-            ],
-        }
-    }
+    # assert message == {
+    #     "validation": {
+    #         "status": "success",
+    #         # "schema": "PairedFastqSchema",
+    #         "samples": [
+    #             {
+    #                 "sample_name": "cDNA-VOC-1-v4-1",
+    #                 "files": [
+    #                     "/Users/bede/Research/Git/gpas-cli/tests/test-data/reads/large-illumina-fastq_1.fastq.gz",
+    #                     "/Users/bede/Research/Git/gpas-cli/tests/test-data/reads/large-illumina-fastq_2.fastq.gz",
+    #                 ],
+    #             }
+    #         ],
+    #     }
+    # }
+    # Can't do above because of absolute paths
+    assert message["validation"]["samples"][0]["sample_name"] == "cDNA-VOC-1-v4-1"
+    assert message["validation"]["samples"][0]["files"][0].endswith(
+        "gpas-cli/tests/test-data/reads/large-illumina-fastq_1.fastq.gz"
+    )
+    assert message["validation"]["samples"][0]["files"][1].endswith(
+        "gpas-cli/tests/test-data/reads/large-illumina-fastq_2.fastq.gz"
+    )
 
 
 def test_validate_new_cli():
