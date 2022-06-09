@@ -1,4 +1,5 @@
 import gzip
+import json
 import asyncio
 import subprocess
 
@@ -78,11 +79,14 @@ def test_status_guids_csv_online():
 
 
 @pytest.mark.online
-def test_status_mapping_csv_csv_online():
+def test_status_mapping_csv_json_online():
     run_cmd = run(
-        f"gpas status --mapping-csv example.mapping.csv --format csv token.json"
+        f"gpas status --mapping-csv example.mapping.csv --format json token.json"
     )
-    assert "6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased" in run_cmd.stdout
+    assert {
+        "sample": "6e024eb1-432c-4b1b-8f57-3911fe87555f",
+        "status": "Unreleased",
+    } in json.loads(run_cmd.stdout)
 
 
 @pytest.mark.online
@@ -179,9 +183,8 @@ def test_status_mapping_api_online():
     records = asyncio.run(
         lib.fetch_status_async(
             access_token=access_token,
-            guids=guids_names,
+            guids=guids_names.keys(),
             environment=ENVIRONMENTS.dev,
-            rename=False,
         )
     )
     assert records  # Smoke test
@@ -191,6 +194,49 @@ def test_status_mapping_api_online():
             r["sample"] == "8daadc7d-8d58-46a6-efb4-9ddefc1e4669"
             and r["status"] == "Uploaded"
         ):
+            passed = True
+    if not passed:
+        raise RuntimeError("Expected dict not found")
+
+
+# pytest -s --online tests/test_gpas_online.py::test_status_sync_mapping
+@pytest.mark.online
+def test_status_sync_mapping():
+    access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
+    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example.mapping.csv"))
+    records = lib.fetch_status(
+        access_token=access_token,
+        guids=guids_names.keys(),
+        environment=ENVIRONMENTS.dev,
+    )
+    print(records)
+    assert records  # Smoke test
+    passed = False
+    for r in records:
+        if (
+            r["sample"] == "8daadc7d-8d58-46a6-efb4-9ddefc1e4669"
+            and r["status"] == "Uploaded"
+        ):
+            passed = True
+    if not passed:
+        raise RuntimeError("Expected dict not found")
+
+
+# pytest -s --online tests/test_gpas_online.py::test_status_sync_mapping_rename
+@pytest.mark.online
+def test_status_sync_mapping_rename():
+    access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
+    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example.mapping.csv"))
+    records = lib.fetch_status(
+        access_token=access_token,
+        guids=guids_names,
+        environment=ENVIRONMENTS.dev,
+    )
+    print(records)
+    assert records  # Smoke test
+    passed = False
+    for r in records:
+        if r["sample"] == "test4_uploaded" and r["status"] == "Uploaded":
             passed = True
     if not passed:
         raise RuntimeError("Expected dict not found")
@@ -206,7 +252,6 @@ def test_status_mapping_rename_api_online():
             access_token=access_token,
             guids=guids_names,
             environment=ENVIRONMENTS.dev,
-            rename=True,
         )
     )
     assert records  # Smoke test

@@ -48,18 +48,21 @@ def status(
     """
     auth = lib.parse_token(token)
     if mapping_csv:
-        guids_names = lib.parse_mapping_csv(mapping_csv)  # dict
+        guids_ = lib.parse_mapping_csv(mapping_csv)  # dict
+        if not rename:
+            guids_ = guids_.keys()  # list
     elif guids:
-        guids_names = guids.strip(",").split(",")  # list
+        if rename:
+            logging.warning("Cannot rename outputs without mapping CSV")
+        guids_ = guids.strip(",").split(",")  # list
     else:
-        raise RuntimeError("Provide either --mapping-csv or --guids")
+        raise RuntimeError("Provide either a mapping CSV or a list of guids")
 
     records = asyncio.run(
         lib.fetch_status_async(
             access_token=auth["access_token"],
-            guids=guids_names,
+            guids=guids_,
             environment=environment,
-            rename=rename,
             raw=raw,
         )
     )
@@ -70,6 +73,8 @@ def status(
         records_fmt = pd.DataFrame(records).to_string(index=False)
     elif format.value == "csv":
         records_fmt = pd.DataFrame(records).to_csv(index=False).strip()
+    else:
+        raise RuntimeError("Unknown output format")
 
     print(records_fmt)
 
@@ -98,27 +103,29 @@ def download(
     file_types_fmt = file_types.strip(",").split(",")
     auth = lib.parse_token(token)
     if mapping_csv:
-        guids_names = lib.parse_mapping_csv(mapping_csv)
+        guids_ = lib.parse_mapping_csv(mapping_csv)  # dict
+        if not rename:
+            guids_ = guids_.keys()  # list
     elif guids:
         if rename:
             logging.warning("Cannot rename outputs without mapping CSV")
-        guids_names = guids.strip(",").split(",")
+        guids_ = guids.strip(",").split(",")  # list
     else:
         raise RuntimeError("Provide either a mapping CSV or a list of guids")
 
-    status_records = asyncio.run(
+    records = asyncio.run(
         lib.fetch_status_async(
             access_token=auth["access_token"],
-            guids=guids_names,
+            guids=guids_.keys() if type(guids_) is dict else guids_,
             environment=environment,
             raw=False,
         )
     )
     downloadable_guids = [
-        r.get("sample") for r in status_records if r.get("status") in GOOD_STATUSES
+        r.get("sample") for r in records if r.get("status") in GOOD_STATUSES
     ]
     if rename and mapping_csv:
-        downloadable_guids = {g: guids_names[g] for g in downloadable_guids}
+        downloadable_guids = {g: guids_[g] for g in downloadable_guids}
 
     asyncio.run(
         lib.download_async(
@@ -134,7 +141,7 @@ def download(
 def validate(
     upload_csv: Path,
     *,
-    token: Path = None,
+    token: Path | None = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     machine_readable: bool = False,
 ):
@@ -160,7 +167,7 @@ def validate(
 def upload(
     upload_csv: Path,
     *,
-    token: Path = None,
+    token: Path | None = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     machine_readable: bool = False,
 ):
