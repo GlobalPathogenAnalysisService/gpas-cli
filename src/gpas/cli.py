@@ -173,7 +173,10 @@ def upload(
     token: Path | None = None,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     machine_readable: bool = False,
+    debug: bool = False,
 ):
+    if debug:
+        logger.setLevel(logging.DEBUG)
     batch = lib.Batch(upload_csv, token=token, environment=environment)
     batch.upload()
 

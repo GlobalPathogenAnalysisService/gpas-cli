@@ -61,7 +61,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         + "userOrgDtls"
     )
     try:
-        logging.info(f"Fetching user details {endpoint=}")
+        logging.debug(f"Fetching user details {endpoint=}")
         r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
         if not r.ok:
             r.raise_for_status()
@@ -126,7 +126,7 @@ async def fetch_status_async(
         ]
 
     if type(guids) is dict:
-        print("RENAMING")
+        logging.debug("Renaming")
         records = pd.DataFrame(records).replace(guids).to_dict("records")
 
     return records
@@ -140,7 +140,7 @@ async def fetch_status_single_async(client, guid, url, headers, n_retries=5):
         result = dict(sample=guid, status=status)
         if status not in GOOD_STATUSES:
             with logging_redirect_tqdm():
-                logging.info(f"Skipping {guid} (status {status})")
+                logging.warning(f"Skipping {guid} (status {status})")
     else:
         result = dict(sample=guid, status="Unknown")
         with logging_redirect_tqdm():
@@ -340,7 +340,7 @@ class Sample:
         if "Bam" in self.schema_name:  # Preprocess BAMs into FASTQs
             self._convert_bam(paired=self.paired)
         self._read_it_and_keep()
-        logging.info(f"{self.decontamination_stats=}")
+        logging.debug(f"{self.decontamination_stats=}")
 
     def _convert_bam(self, paired=False):
         prefix = Path(self.working_dir) / Path(self.sample_name)
@@ -502,12 +502,12 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "createSampleGuids"
         )
-        logging.info(f"Fetching guids {endpoint=}")
+        logging.debug(f"Fetching guids; {endpoint=}")
         r = requests.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
         if not r.ok:
             r.raise_for_status()
         result = r.json()
-        logging.info(f"{result=}")
+        logging.debug(f"{result=}")
         self.batch_guid = result["batch"]["guid"]
         hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
         for sample in self.samples:
@@ -522,12 +522,12 @@ class Batch:
                 else None
             )
             s.riak_fastq1 = (
-                s.riak_fastq1.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
+                s.riak_fastq1.rename(s.working_dir / Path(s.guid + "_1.fastq.gz"))
                 if s.riak_fastq1
                 else None
             )
             s.riak_fastq2 = (
-                s.riak_fastq2.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
+                s.riak_fastq2.rename(s.working_dir / Path(s.guid + "_2.fastq.gz"))
                 if s.riak_fastq2
                 else None
             )
@@ -549,7 +549,7 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "pars"
         )
-        logging.info(f"Fetching PAR; {endpoint=} {self.headers=}")
+        logging.debug(f"Fetching PAR; {endpoint=} {self.headers=}")
         r = requests.get(url=endpoint, headers=self.headers)
         if not r.ok:
             r.raise_for_status()
@@ -557,7 +557,7 @@ class Batch:
         logging.debug(f"{result=}")
         if result.get("status") == "error":
             raise RuntimeError("Problem fetching PAR")
-        logging.info(result, r.status_code)
+        logging.debug(f"{result}, {r.status_code}")
         self.par = result["par"]
         self.bucket = self.par.split("/")[-3]
         self.batch_url = self.par + self.batch_guid + "/"
@@ -575,15 +575,15 @@ class Batch:
             print(json.dumps(self.submission, indent=4))
             self._upload_samples()
             for s in self.samples:
-                print("Uploaded", s.sample_name)
+                logging.info(f"Uploaded {s.sample_name} ({s.guid})")
         endpoint = (
             ENDPOINTS[self.environment.value]["HOST"]
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
         r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
-        logging.INFO("POSTing JSON")
-        logging.INFO(r.text)
+        logging.debug("POSTing JSON")
+        logging.debug(r.text)
         if not r.ok:
             self.errors["submission"].append(
                 {"error": "Sending metadata JSON to ORDS failed"}
@@ -591,7 +591,7 @@ class Batch:
         else:  # Make the finalisation mark
             url = self.par + self.batch_guid + "/upload_done.txt"
             r = requests.put(url=url, headers=self.upload_headers)
-            logging.INFO("PUTting upload_done.txt")
+            logging.info(f"Finished uploading batch {self.batch_guid}")
             if not r.ok:
                 self.errors["submission"].append(
                     {"error": "Sending metadata JSON to ORDS failed"}
@@ -631,7 +631,7 @@ class Batch:
                     "r2_uri": str(s.riak_fastq2),
                     "r2_md5": s.md5_2,
                 }
-                logging.info(f"{s.riak_fastq1=}, {s.riak_fastq2=}")
+                logging.debug(f"{s.riak_fastq1=}, {s.riak_fastq2=}")
             else:
                 sample["se_reads"] = {"uri": str(s.riak_fastq), "md5": s.md5}
             samples.append(sample)
