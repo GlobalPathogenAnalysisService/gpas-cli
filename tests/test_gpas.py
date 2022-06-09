@@ -78,6 +78,7 @@ def test_validate_new_cli():
 }"""
         in run_cmd.stdout
     )
+    assert run_cmd.stdout != 0
 
 
 def test_validate_fail_no_tags():
@@ -229,6 +230,33 @@ def test_validate_fail_select_schema():
             "error": "could not infer schema from available columns. For FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' and 'fastq2', and for BAM use 'bam'"
         }
     ]
+
+
+def test_validate_fail_wrong_fastq_suffixes():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("wrong-fastq-suffixes.csv")
+        )
+    assert e.value.errors == [
+        {
+            "sample_name": "cDNA-VOC-1-v4-1-x",
+            "error": "fastq1 must end with .fastq.gz, _1.fastq.gz, _2.fastq.gz or .bam as appropriate",
+        },
+        {
+            "sample_name": "cDNA-VOC-1-v4-1-x",
+            "error": "fastq2 must end with .fastq.gz, _1.fastq.gz, _2.fastq.gz or .bam as appropriate",
+        },
+    ]
+
+
+def test_validate_fail_wrong_instrument():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("wrong-instrument.csv")
+        )
+    assert e.value.errors[0]["error"].startswith(
+        "instrument_platform value 'Illuminati' is not in set"
+    )
 
 
 def test_decontamination():

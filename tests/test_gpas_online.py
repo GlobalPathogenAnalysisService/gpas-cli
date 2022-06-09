@@ -264,6 +264,7 @@ def test_gpas_validate_online():
     assert '"status": "success"' in run_cmd.stdout
 
 
+@pytest.mark.online
 def test_validate_fail_wrong_tags():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
@@ -283,6 +284,7 @@ def test_validate_fail_wrong_tags_cli():
         )
 
 
+@pytest.mark.online
 def test_validate_fail_no_tags():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
@@ -294,6 +296,7 @@ def test_validate_fail_no_tags():
     ]
 
 
+@pytest.mark.online
 def test_validate_fail_no_tags_colon():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
@@ -303,6 +306,17 @@ def test_validate_fail_no_tags_colon():
     assert e.value.errors == [
         {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
     ]
+
+
+@pytest.mark.online
+def test_auth_broken_token():
+    with pytest.raises(SystemExit):
+        broken_auth = lib.parse_token(
+            Path(data_dir) / Path("broken") / Path("broken-token.json")
+        )
+        _, _, allowed_tags = lib.fetch_user_details(
+            broken_auth["access_token"], ENVIRONMENTS.dev
+        )
 
 
 # @pytest.mark.online

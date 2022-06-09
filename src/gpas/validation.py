@@ -278,7 +278,7 @@ def parse_validation_errors(errors):
     -------
     pandas.DataFrame(columns=['sample_name', 'error_message'])
     """
-    # print(errors.failure_cases.to_dict("records"))
+    print(errors.failure_cases.to_dict("records"))
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
@@ -347,13 +347,13 @@ def parse_validation_error(row):
         return row.column + " cannot be empty"
     elif row.check.startswith("check_path"):
         return row.column + " file does not exist"
-    else:
-        return "problem in " + row.column + " field"
-    if row.check.startswith("str_endswith"):
+    elif row.check.startswith("str_endswith"):
         return (
             row.column
             + " must end with .fastq.gz, _1.fastq.gz, _2.fastq.gz or .bam as appropriate"
         )
+    else:
+        return "problem in " + row.column + " field"
 
 
 def select_schema(df: pd.DataFrame) -> pa.SchemaModel:
