@@ -69,11 +69,11 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         logging.debug(f"{result=}")
         user = result.get("userName")
         organisation = result.get("organisation")
-        permitted_tags = result.get("tags", {})[0].keys()
+        allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
     except requests.exceptions.RequestException as e:
         logging.error(str(e))
         sys.exit(1)
-    return user, organisation, permitted_tags
+    return user, organisation, allowed_tags
 
 
 def update_fasta_header(path: Path, guid: str, name: str):

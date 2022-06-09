@@ -22,7 +22,7 @@ COUNTRIES_ALPHA_3 = COUNTRIES_SUBDIVISIONS.keys()
 REGIONS = {i for l in COUNTRIES_SUBDIVISIONS.values() for i in l}
 
 
-class ValidationError(Exception):
+class ValidationError(SystemExit):
     def __init__(self, errors):
         self.errors = errors
         self.errors_df = pd.DataFrame(errors, columns=["sample_name", "error"]).fillna(
@@ -37,7 +37,7 @@ class ValidationError(Exception):
         super().__init__(self._message())
 
     def _message(self):
-        message = f"Failed to validate upload CSV ({len(self.errors)} errors):\n\n"
+        message = f"Failed to validate upload CSV ({len(self.errors)} errors):\n"
         message += self.errors_df.to_string(index=False, justify="left")
         return message
 
@@ -158,6 +158,11 @@ class BaseSchema(pa.SchemaModel):
                 valid = False
         return valid
 
+    @pa.check(tags, element_wise=True)
+    def tags_are_present(cls, value: str) -> bool:
+        """Catch colon-only case"""
+        return bool(str(value).strip(":"))
+
     class Config:
         strict = True
         coerce = True
@@ -275,6 +280,7 @@ def parse_validation_errors(errors):
     """
     # print(errors.failure_cases.to_dict("records"))
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
+    print(failure_cases["failure_case"].tolist())
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
     return remove_nones_in_ld(failures)
@@ -338,6 +344,8 @@ def parse_validation_error(row):
         return "problem"
     elif row.check == "tags_are_unique":
         return row.column + " cannot be repeated"
+    elif row.check == "tags_are_present":
+        return row.column + " cannot be empty"
     elif row.check.startswith("check_path"):
         return row.column + " file does not exist"
     else:
@@ -365,9 +373,9 @@ def select_schema(df: pd.DataFrame) -> pa.SchemaModel:
         raise ValidationError(
             [
                 {
-                    "error": "Failed inferring schema from available columns. For "
-                    "single FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' "
-                    "and 'fastq2', and for BAM submissions use 'bam'"
+                    "error": "could not infer schema from available columns. For "
+                    "FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' and "
+                    "'fastq2', and for BAM use 'bam'"
                 }
             ]
         )
@@ -390,12 +398,33 @@ def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def validate(upload_csv: Path) -> tuple[pd.DataFrame, dict]:
+def validate_tags(df, allowed_tags):
     """
-    Validate an upload CSV. Returns tuple of validity, the dataframe itself, and a message
+    Validate tags in upload csv
+    """
+    invalid_tags = set()
+    for i in df["tags"].tolist():
+        tags = set(i.strip(" :").split(":"))
+        for tag in tags:
+            if tag not in allowed_tags:
+                invalid_tags.add(tag)
+
+    if invalid_tags:
+        raise ValidationError(
+            [{"error": f"tag(s) {invalid_tags} are invalid for this organisation"}]
+        )
+
+
+def validate(
+    upload_csv: Path, allowed_tags: list[str] = []
+) -> tuple[pd.DataFrame, dict]:
+    """
+    Validate an upload CSV. Returns a dataframe and report
     """
     raw_df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
     try:
+        if allowed_tags:  # Only validate if we have tags
+            validate_tags(raw_df, allowed_tags)
         schema = select_schema(raw_df)
         with set_directory(upload_csv.parent):  # Enable file path validation
             df = resolve_paths(schema.validate(raw_df, lazy=True))

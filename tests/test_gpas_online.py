@@ -289,3 +289,17 @@ def test_gpas_uploader_download_mapping_rename_fasta_online():
     with gzip.open(Path(f"{data_dir}/test1.fasta.gz"), "rt") as fh:
         assert "cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839|test1" in fh.read()
     run("rm -f *.fasta.gz")
+
+
+@pytest.mark.online
+def test_gpas_validate_online():
+    run_cmd = run(f"gpas validate --token token.json large-nanopore-fastq.csv")
+    assert '"status": "success"' in run_cmd.stdout
+
+
+@pytest.mark.online
+def test_gpas_validate_online_wrong_tags():
+    with pytest.raises(subprocess.CalledProcessError):
+        run_cmd = run(
+            f"gpas validate --token tests/test-data/token.json tests/test-data/broken/wrong-tags.csv"
+        )

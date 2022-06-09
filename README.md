@@ -1,15 +1,15 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A **currently experimental** standalone command line and Python API client for the Global Pathogen Analysis Service. Tested on Linux, MacOS, and Windows\*.
+A **currently experimental** standalone command line and Python API client for the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned.
 
 **Progress**
 
 | Subcommand        | CLI | Python API |
 | ----------------- | ------- | ---------- |
-| `gpas upload` | ☑️ (wraps gpas-uploader) |  |
-| `gpas download` | ✅ | ✅ `download_async()` |
-| `gpas validate` | ☑️ (wraps gpas-uploader) |  |
-| `gpas status` | ✅ | ✅ `get_status_async()` |
+| `gpas upload` | ☑️ | ☑️ `lib.Batch(upload_csv, token).upload()` |
+| `gpas download` | ✅ | ✅ `lib.download_async()` |
+| `gpas validate` | ✅ | ✅ `validation.validate()` |
+| `gpas status` | ✅ | ✅ `lib.fetch_status()`, `lib.fetch_status_async()` |
 
 
 

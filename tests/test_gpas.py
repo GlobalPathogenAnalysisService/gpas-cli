@@ -34,7 +34,7 @@ def test_static_assets_exist():
 
 
 def test_validate_ok():
-    df, message = lib.validate(Path(data_dir) / Path("large-illumina-fastq.csv"))
+    df, message = validation.validate(Path(data_dir) / Path("large-illumina-fastq.csv"))
     # assert message == {
     #     "validation": {
     #         "status": "success",
@@ -81,7 +81,7 @@ def test_validate_new_cli():
 
 def test_validate_fail_no_tags():
     with pytest.raises(validation.ValidationError) as e:
-        _, message = lib.validate(
+        _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("large-illumina-no-tags-fastq.csv")
         )
     assert e.value.errors == [
@@ -99,7 +99,7 @@ def test_validate_fail_no_tags():
 
 def test_validate_fail_dupe_tags():
     with pytest.raises(validation.ValidationError) as e:
-        _, message = lib.validate(
+        _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("large-illumina-dupe-tags-fastq.csv")
         )
     assert e.value.errors == [
@@ -108,7 +108,7 @@ def test_validate_fail_dupe_tags():
 
 
 def test_validate_fail_missing_files():
-    # valid, schema, message = lib.validate(
+    # valid, schema, message = validation.validate(
     #     Path(data_dir) / Path("broken") / Path("broken-path.csv")
     # )
     # assert not valid and message == {
@@ -128,7 +128,7 @@ def test_validate_fail_missing_files():
     #     }
     # }
     with pytest.raises(validation.ValidationError) as e:
-        _, message = lib.validate(
+        _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("broken-path.csv")
         )
     assert e.value.errors == [
@@ -144,7 +144,7 @@ def test_validate_fail_missing_files():
 
 
 def test_validate_fail_different_platforms():
-    # valid, schema, message = lib.validate(
+    # valid, schema, message = validation.validate(
     #     Path(data_dir) / Path("broken") / Path("different-platforms.csv")
     # )
     # assert not valid and message == {
@@ -159,7 +159,7 @@ def test_validate_fail_different_platforms():
     #     }
     # }
     with pytest.raises(validation.ValidationError) as e:
-        _, message = lib.validate(
+        _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("different-platforms.csv")
         )
     assert e.value.errors == [
@@ -170,7 +170,7 @@ def test_validate_fail_different_platforms():
 
 
 def test_validate_fail_country_region():
-    # valid, schema, message = lib.validate(
+    # valid, schema, message = validation.validate(
     #     Path(data_dir) / Path("broken") / Path("invalid-country-region.csv")
     # )
     # assert not valid and message == {
@@ -190,7 +190,7 @@ def test_validate_fail_country_region():
     #     }
     # }
     with pytest.raises(validation.ValidationError) as e:
-        _, message = lib.validate(
+        _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("invalid-country-region.csv")
         )
     assert e.value.errors == [
@@ -210,12 +210,12 @@ def test_validate_fail_country_region():
 
 def test_validate_fail_select_schema():
     with pytest.raises(validation.ValidationError) as e:
-        _, message = lib.validate(
+        _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("no-schema.csv")
         )
     assert e.value.errors == [
         {
-            "error": "Failed inferring schema from available columns. For single FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' and 'fastq2', and for BAM submissions use 'bam'"
+            "error": "could not infer schema from available columns. For FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' and 'fastq2', and for BAM use 'bam'"
         }
     ]
 

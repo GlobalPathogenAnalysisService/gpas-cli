@@ -7,7 +7,6 @@ dependencies:
   - pip
   - python=3.10
   - read-it-and-keep
-  - samtools
+  - samtools=1.15.1
   - pip:
-    - git+https://github.com/GlobalPathogenAnalysisService/gpas-uploader.git#egg=gpas_uploader
     - git+https://github.com/GlobalPathogenAnalysisService/gpas-cli.git#egg=gpas

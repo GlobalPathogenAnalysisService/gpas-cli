@@ -19,7 +19,6 @@ from gpas.misc import (
     GOOD_STATUSES,
 )
 
-
 logger = logging.getLogger()
 logging.basicConfig(format="%(levelname)s: %(message)s")
 logger.setLevel(logging.INFO)
@@ -153,9 +152,13 @@ def validate(
     :arg environment: GPAS environment to use
     :arg json: Emit JSON to stdout
     """
-
+    if token:
+        auth = lib.parse_token(token)
+        _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], environment)
+    else:
+        allowed_tags = []
     try:
-        _, message = validation.validate(upload_csv)
+        _, message = validation.validate(upload_csv, allowed_tags)
         print(json.dumps(message, indent=4))
     except validation.ValidationError as e:
         if machine_readable:
