@@ -26,13 +26,13 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
 # CLI tests
 
 
-@pytest.mark.online
-def test_validate_online():
-    run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
-    assert (
-        '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-        in run_cmd.stdout
-    )
+# @pytest.mark.online
+# def test_validate_online():
+#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
+#     assert (
+#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
+#         in run_cmd.stdout
+#     )
 
 
 @pytest.mark.online
@@ -46,13 +46,13 @@ def test_gpas_uploader_validate_online():
     )
 
 
-@pytest.mark.online
-def test_validate_token_online():
-    run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
-    assert (
-        '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-        in run_cmd.stdout
-    )
+# @pytest.mark.online
+# def test_validate_token_online():
+#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
+#     assert (
+#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
+#         in run_cmd.stdout
+#     )
 
 
 @pytest.mark.online
@@ -109,15 +109,15 @@ def test_status_mapping_csv_rename_online():
     assert "test4_uploaded,Uploaded" in run_cmd.stdout
 
 
-@pytest.mark.online
-def test_gpas_uploader_download_mapping_csv_online_fasta():
-    run_cmd = run(
-        f"gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types fasta"
-    )
-    assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
-    run(
-        "rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz 657a8b5a-652f-f07c-bd39-287279306a75.fasta.gz cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839.fasta.gz"
-    )
+# @pytest.mark.online
+# def test_gpas_uploader_download_mapping_csv_online_fasta():
+#     run_cmd = run(
+#         f"gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types fasta"
+#     )
+#     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
+#     run(
+#         "rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz 657a8b5a-652f-f07c-bd39-287279306a75.fasta.gz cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839.fasta.gz"
+#     )
 
 
 @pytest.mark.online
@@ -148,7 +148,7 @@ def test_download_guid_rename_without_mapping():
     run_cmd = run(
         f"gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types vcf --rename token.json"
     )
-    assert "Samples not renamed" in run_cmd.stderr
+    assert "Cannot rename outputs without mapping CSV" in run_cmd.stderr
     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf").is_file()
     run("rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")
 
@@ -175,10 +175,11 @@ def test_download_guid_api_online():
 @pytest.mark.online
 def test_status_mapping_api_online():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
+    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example.mapping.csv"))
     records = asyncio.run(
         lib.fetch_status_async(
             access_token=access_token,
-            mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
+            guids=guids_names,
             environment=ENVIRONMENTS.dev,
             rename=False,
         )
@@ -199,10 +200,11 @@ def test_status_mapping_api_online():
 @pytest.mark.online
 def test_status_mapping_rename_api_online():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
+    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example.mapping.csv"))
     records = asyncio.run(
         lib.fetch_status_async(
             access_token=access_token,
-            mapping_csv=Path(data_dir) / Path("example.mapping.csv"),
+            guids=guids_names,
             environment=ENVIRONMENTS.dev,
             rename=True,
         )

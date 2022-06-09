@@ -47,7 +47,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         if not r.ok:
             r.raise_for_status()
         result = r.json().get("userOrgDtl", {})[0]
-        logging.info(f"{result=}")
+        logging.debug(f"{result=}")
         user = result.get("userName")
         organisation = result.get("organisation")
         permitted_tags = result.get("tags", {})[0].keys()
@@ -89,8 +89,7 @@ def update_fasta_header(path: Path, guid: str, name: str):
 
 async def fetch_status_async(
     access_token: str,
-    mapping_csv: Path = None,
-    guids: list[str] = [],
+    guids: list | dict,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     rename: bool = False,
     raw: bool = False,
@@ -106,15 +105,6 @@ async def fetch_status_async(
         + ENDPOINTS[environment.value]["API_PATH"]
         + "get_sample_detail"
     )
-
-    if mapping_csv:
-        logging.info(f"Using samples in {mapping_csv}")
-        mapping_df = parse_mapping(mapping_csv)
-        guids = mapping_df["gpas_sample_name"].tolist()
-    elif guids:
-        logging.info(f"Using list of guids")
-    else:
-        raise RuntimeError("Neither a mapping csv nor guids were specified")
 
     limits = httpx.Limits(
         max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
@@ -136,16 +126,8 @@ async def fetch_status_async(
             )
         ]
 
-    if rename:
-        if mapping_csv and "local_sample_name" in mapping_df.columns:
-            guids_names = mapping_df.set_index("gpas_sample_name")[
-                "local_sample_name"
-            ].to_dict()
-            records = pd.DataFrame(records).replace(guids_names).to_dict("records")
-        else:
-            logging.warning(
-                "Samples were not renamed because a valid mapping csv was not specified"
-            )
+    if rename and type(guids) is dict:
+        records = pd.DataFrame(records).replace(guids).to_dict("records")
 
     return records
 
@@ -191,13 +173,27 @@ async def fetch_status_single_async(client, guid, url, headers, n_retries=5):
     return result
 
 
+def parse_mapping_csv(mapping_csv) -> dict:
+    df = pd.read_csv(mapping_csv)
+    expected_columns = {
+        "local_batch",
+        "local_run_number",
+        "local_sample_name",
+        "gpas_batch",
+        "gpas_run_number",
+        "gpas_sample_name",
+    }
+    if not expected_columns.issubset(set(df.columns)):
+        raise RuntimeError(f"One or more expected columns missing from mapping CSV")
+    return df.set_index("gpas_sample_name")["local_sample_name"].to_dict()
+
+
 async def download_async(
-    guids: list,
-    file_types: list[str],
     access_token: str,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    guids: list | dict,
+    file_types: list[str] = ["fasta"],
     out_dir: Path = Path.cwd(),
-    guids_names=None,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
 ):
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -208,10 +204,25 @@ async def download_async(
         + ENDPOINTS[environment.value]["API_PATH"]
         + "get_output"
     )
+
+    # if mapping_csv:
+    #     with logging_redirect_tqdm():
+    #         logging.info(f"Using samples in {mapping_csv}")
+    #     mapping_df = parse_mapping(mapping_csv)
+    #     guids_names = mapping_df.set_index("gpas_sample_name")["local_sample_name"].to_dict()
+    #     guids = mapping_df["gpas_sample_name"].tolist()
+    # elif guids:
+    #     with logging_redirect_tqdm():
+    #         logging.info(f"Using list of guids")
+    #     guids_names = None
+    # else:
+    #     raise RuntimeError("Neither a mapping csv nor guids were specified")
+
     unrecognised_file_types = set(file_types) - {t.name for t in FILE_TYPES}
     if unrecognised_file_types:
         raise RuntimeError(f"Invalid file type(s): {unrecognised_file_types}")
-    logging.info(f"Fetching file types {file_types}")
+    with logging_redirect_tqdm():
+        logging.info(f"Fetching file types {file_types}")
 
     limits = httpx.Limits(
         max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
@@ -230,7 +241,7 @@ async def download_async(
                 url,
                 headers,
                 out_dir,
-                guids_names[guid] if guids_names else None,
+                guids[guid] if type(guids) is dict else None,
             )
             for (guid, file_type), url in guids_types_urls.items()
         ]
@@ -286,7 +297,9 @@ async def download_single_async(
     prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
-        print(Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"))
+        logging.debug(
+            Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}")
+        )
         with open(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"), "wb"
         ) as fh:
@@ -303,7 +316,7 @@ async def download_single_async(
 
 def fetch_status(
     access_token: str,
-    mapping_csv: Path = None,
+    mapping_csv: Path | None = None,
     guids: list[str] = [],
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     rename: bool = False,
@@ -324,11 +337,13 @@ def fetch_status(
     """
 
     if mapping_csv:
-        logging.info(f"Using samples in {mapping_csv}")
+        with logging_redirect_tqdm():
+            logging.info(f"Using samples in {mapping_csv}")
         mapping_df = parse_mapping(mapping_csv)
         guids = mapping_df["gpas_sample_name"].tolist()
     elif guids:
-        logging.info(f"Using list of guids")
+        with logging_redirect_tqdm():
+            logging.info(f"Using list of guids")
     else:
         raise RuntimeError("Neither a mapping csv nor guids were specified")
 
@@ -346,6 +361,7 @@ def fetch_status(
                 )
         else:
             records.append(dict(sample=guid, status="Unknown"))
+        with logging_redirect_tqdm():
             logging.warning(f"{guid} (error {r.status_code})")
 
     if rename:
@@ -355,9 +371,10 @@ def fetch_status(
             ].to_dict()
             records = pd.DataFrame(records).replace(guids_names).to_dict("records")
         else:
-            logging.warning(
-                "Samples were not renamed because a valid mapping csv was not specified"
-            )
+            with logging_redirect_tqdm():
+                logging.warning(
+                    "Samples were not renamed because a valid mapping csv was not specified"
+                )
 
     return records
 
@@ -635,11 +652,10 @@ class Batch:
         if not r.ok:
             r.raise_for_status()
         result = json.loads(r.content)
-        logging.info(f"{result=}")
-
+        logging.debug(f"{result=}")
         if result.get("status") == "error":
             raise RuntimeError("Problem fetching PAR")
-        print(result, r.status_code)
+        logging.info(result, r.status_code)
         self.par = result["par"]
         self.bucket = self.par.split("/")[-3]
         self.batch_url = self.par + self.batch_guid + "/"

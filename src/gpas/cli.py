@@ -25,99 +25,66 @@ logging.basicConfig(format="%(levelname)s: %(message)s")
 logger.setLevel(logging.INFO)
 
 
-def upload_old(
-    upload_csv: Path,
+def status(
     token: Path,
     *,
-    working_dir: Path = Path("/tmp"),
+    mapping_csv: Path | None = None,
+    guids: str = "",
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    mapping_prefix: str = "mapping",
-    threads: int = 0,
-    dry_run: bool = False,
-    json: bool = False,
+    format: FORMATS = DEFAULT_FORMAT,
+    rename: bool = False,
+    raw: bool = False,
 ):
     """
-    Validate, decontaminate and upload reads to the GPAS platform
+    Check the status of samples submitted to the GPAS platform
 
-    :arg upload_csv: Path of upload csv
     :arg token: Path of auth token available from GPAS Portal
-    :arg working_dir: Path of directory in which to generate intermediate files
+    :arg mapping_csv: Path of mapping CSV generated at upload time
+    :arg guids: Comma-separated list of GPAS sample guids
     :arg environment: GPAS environment to use
-    :arg mapping_prefix: Filename prefix for mapping CSV
-    :arg threads: Number of decontamination tasks to execute in parallel. 0 = auto
-    :arg dry_run: Skip final upload step
-    :arg json: Emit JSON to stdout
+    :arg format: Output format
+    :arg rename: Use local sample names (requires --mapping-csv)
+    :arg raw: Emit raw response
     """
-    if not upload_csv.is_file():
-        raise RuntimeError(f"Upload CSV not found: {upload_csv}")
-    if not token.is_file():
-        raise RuntimeError(f"Authentication token not found: {token}")
+    auth = lib.parse_token(token)
+    if mapping_csv:
+        guids_names = lib.parse_mapping_csv(mapping_csv)  # dict
+    elif guids:
+        guids_names = guids.strip(",").split(",")  # list
+    else:
+        raise RuntimeError("Provide either --mapping-csv or --guids")
 
-    flags_fmt = " ".join(
-        ["--json" if json else "", "--parallel" if threads == 0 or threads > 1 else ""]
+    records = asyncio.run(
+        lib.fetch_status_async(
+            access_token=auth["access_token"],
+            guids=guids_names,
+            environment=environment,
+            rename=rename,
+            raw=raw,
+        )
     )
 
-    if dry_run:
-        cmd = f"gpas-upload --environment {environment.value} --token {token} {flags_fmt} decontaminate {upload_csv} --dir {working_dir}"
-    else:
-        cmd = f"gpas-upload --environment {environment.value} --token {token} {flags_fmt} submit {upload_csv} --dir {working_dir} --output_csv {mapping_prefix}.csv"
+    if raw or format.value == "json":
+        records_fmt = json.dumps(records, indent=4)
+    elif format.value == "table":
+        records_fmt = pd.DataFrame(records).to_string(index=False)
+    elif format.value == "csv":
+        records_fmt = pd.DataFrame(records).to_csv(index=False).strip()
 
-    run_cmd = run(cmd)
-    if run_cmd.returncode == 0:
-        logging.info(f"Upload successful. Command: {cmd}")
-        stdout = run_cmd.stdout.strip()
-        print(stdout)
-    else:
-        logging.info(
-            f"Upload failed with exit code {run_cmd.returncode}. Command: {cmd}"
-        )
-
-
-def validate_old(
-    upload_csv: Path,
-    *,
-    token: Path = None,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    json: bool = False,
-):
-    """
-    Validate an upload CSV. Validates tags remotely if supplied with an authentication token
-
-    :arg upload_csv: Path of upload CSV
-    :arg token: Path of auth token available from GPAS Portal
-    :arg environment: GPAS environment to use
-    :arg json: Emit JSON to stdout
-    """
-    if not upload_csv.is_file():
-        raise RuntimeError(f"Upload CSV not found: {upload_csv}")
-
-    json_flag = "--json" if json else ""
-    if token:
-        cmd = f"gpas-upload --environment {environment.value} --token {token} {json_flag} validate {upload_csv}"
-    else:
-        cmd = f"gpas-upload --environment {environment.value} {json_flag} validate {upload_csv}"
-
-    logging.info(f"Validate command: {cmd}")
-
-    run_cmd = run(cmd)
-    if run_cmd.returncode == 0:
-        stdout = run_cmd.stdout.strip()
-        print(stdout)
-    else:
-        raise RuntimeError(f"{run_cmd.stdout} {run_cmd.stderr}")
+    print(records_fmt)
 
 
 def download(
     token: Path,
-    mapping_csv: Path = None,
-    guids: str = None,
+    mapping_csv: Path | None = None,
+    guids: str = "",
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     file_types: str = "fasta",
     out_dir: Path = Path.cwd(),
     rename: bool = False,
 ):
     """
-    Download analytical outputs from the GPAS platform for an uploaded batch or list of samples
+    Download analytical outputs from the GPAS platform for given a mapping csv or list of guids
 
     :arg token: Path of auth token (available from GPAS Portal)
     :arg mapping_csv: Path of mapping CSV generated at upload time
@@ -131,137 +98,37 @@ def download(
     file_types_fmt = file_types.strip(",").split(",")
     auth = lib.parse_token(token)
     if mapping_csv:
-        logging.info(f"Using samples in {mapping_csv}")
-        mapping_df = lib.parse_mapping(mapping_csv)
-        guids_ = mapping_df["gpas_sample_name"].tolist()
+        guids_names = lib.parse_mapping_csv(mapping_csv)
     elif guids:
-        logging.info(f"Using samples {guids}")
-        guids_ = guids.strip(",").split(",") if guids else None
+        if rename:
+            logging.warning("Cannot rename outputs without mapping CSV")
+        guids_names = guids.strip(",").split(",")
     else:
-        raise RuntimeError("Neither a mapping csv nor guids were specified")
-
-    if rename:
-        if mapping_csv and "local_sample_name" in mapping_df.columns:
-            guids_names = mapping_df.set_index("gpas_sample_name")[
-                "local_sample_name"
-            ].to_dict()
-        else:
-            guids_names = None
-            logging.warning(
-                "Samples not renamed since a valid mapping csv was not specified"
-            )
-    else:
-        guids_names = None
+        raise RuntimeError("Provide either a mapping CSV or a list of guids")
 
     status_records = asyncio.run(
         lib.fetch_status_async(
-            auth["access_token"],
-            mapping_csv,
-            guids_,
-            environment,
+            access_token=auth["access_token"],
+            guids=guids_names,
+            environment=environment,
+            raw=False,
         )
     )
-
     downloadable_guids = [
         r.get("sample") for r in status_records if r.get("status") in GOOD_STATUSES
     ]
+    if rename and mapping_csv:
+        downloadable_guids = {g: guids_names[g] for g in downloadable_guids}
 
     asyncio.run(
         lib.download_async(
-            downloadable_guids,
-            file_types_fmt,
-            auth["access_token"],
-            environment,
-            out_dir,
-            guids_names,
+            access_token=auth["access_token"],
+            guids=downloadable_guids,
+            file_types=file_types_fmt,
+            out_dir=out_dir,
+            environment=environment,
         )
     )
-
-
-def status(
-    token: Path,
-    *,
-    mapping_csv: Path = None,
-    guids: str = None,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    format: FORMATS = DEFAULT_FORMAT,
-    rename: bool = False,
-    raw: bool = False,
-):
-    """
-    Check the status of samples submitted to the GPAS platform
-
-    :arg token: Path of auth token available from GPAS Portal
-    :arg mapping_csv: Path of mapping CSV generated at upload time
-    :arg guids: Comma-separated list of GPAS sample guids
-    :arg environment: GPAS environment to use
-    :arg format: Output format
-    :arg rename: Use local sample names (requires --mapping-csv)
-    :arg raw: Emit raw response
-    """
-    auth = lib.parse_token(token)
-    guids_ = guids.strip(",").split(",") if guids else []
-    records = asyncio.run(
-        lib.fetch_status_async(
-            auth["access_token"],
-            mapping_csv,
-            guids_,
-            environment,
-            rename,
-            raw,
-        )
-    )
-
-    if raw or format.value == "json":
-        records_fmt = json.dumps(records, indent=4)
-    elif format.value == "table":
-        records_fmt = pd.DataFrame(records).to_string(index=False)
-    elif format.value == "csv":
-        records_fmt = pd.DataFrame(records).to_csv(index=False).strip()
-
-    print(records_fmt)
-
-
-def status_old(
-    token: Path,
-    *,
-    mapping_csv: Path = None,
-    guids: str = None,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    format: FORMATS = DEFAULT_FORMAT,
-    rename: bool = False,
-    raw: bool = False,
-):
-    """
-    Check the status of samples submitted to the GPAS platform
-
-    :arg token: Path of auth token available from GPAS Portal
-    :arg mapping_csv: Path of mapping CSV generated at upload time
-    :arg guids: Comma-separated list of GPAS sample guids
-    :arg environment: GPAS environment to use
-    :arg format: Output format
-    :arg rename: Use local sample names (requires --mapping-csv)
-    :arg raw: Emit raw response
-    """
-    auth = lib.parse_token(token)
-    guids_ = guids.strip(",").split(",") if guids else []
-    records = lib.fetch_status(
-        auth["access_token"],
-        mapping_csv,
-        guids_,
-        environment,
-        rename,
-        raw,
-    )
-
-    if raw or format.value == "json":
-        records_fmt = json.dumps(records, indent=4)
-    elif format.value == "table":
-        records_fmt = pd.DataFrame(records).to_string(index=False)
-    elif format.value == "csv":
-        records_fmt = pd.DataFrame(records).to_csv(index=False).strip()
-
-    print(records_fmt)
 
 
 def validate(
@@ -301,16 +168,62 @@ def upload(
     batch.upload()
 
 
+def upload_old(
+    upload_csv: Path,
+    token: Path,
+    *,
+    working_dir: Path = Path("/tmp"),
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    mapping_prefix: str = "mapping",
+    threads: int = 0,
+    dry_run: bool = False,
+    json: bool = False,
+):
+    """
+    Validate, decontaminate and upload reads to the GPAS platform
+
+    :arg upload_csv: Path of upload csv
+    :arg token: Path of auth token available from GPAS Portal
+    :arg working_dir: Path of directory in which to generate intermediate files
+    :arg environment: GPAS environment to use
+    :arg mapping_prefix: Filename prefix for mapping CSV
+    :arg threads: Number of decontamination tasks to execute in parallel. 0 = auto
+    :arg dry_run: Skip final upload step
+    :arg json: Emit JSON to stdout
+    """
+    if not upload_csv.is_file():
+        raise RuntimeError(f"Upload CSV not found: {upload_csv}")
+    if not token.is_file():
+        raise RuntimeError(f"Authentication token not found: {token}")
+
+    flags_fmt = " ".join(
+        ["--json" if json else "", "--parallel" if threads == 0 or threads > 1 else ""]
+    )
+
+    if dry_run:
+        cmd = f"gpas-upload --environment {environment.value} --token {token} {flags_fmt} decontaminate {upload_csv} --dir {working_dir}"
+    else:
+        cmd = f"gpas-upload --environment {environment.value} --token {token} {flags_fmt} submit {upload_csv} --dir {working_dir} --output_csv {mapping_prefix}.csv"
+
+    run_cmd = run(cmd)
+    if run_cmd.returncode == 0:
+        logger.info(f"Upload successful. Command: {cmd}")
+        stdout = run_cmd.stdout.strip()
+        print(stdout)
+    else:
+        logger.info(
+            f"Upload failed with exit code {run_cmd.returncode}. Command: {cmd}"
+        )
+
+
 def main():
     defopt.run(
         {
-            "validate": validate,
-            "upload": upload,
             "status": status,
             "download": download,
-            "validate-old": validate_old,
+            "validate": validate,
+            "upload": upload,
             "upload-old": upload_old,
-            "status-old": status_old,
         },
         no_negated_flags=True,
         strict_kwonly=False,
