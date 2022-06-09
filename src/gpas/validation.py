@@ -280,7 +280,6 @@ def parse_validation_errors(errors):
     """
     # print(errors.failure_cases.to_dict("records"))
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
-    print(failure_cases["failure_case"].tolist())
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
     return remove_nones_in_ld(failures)
@@ -403,11 +402,12 @@ def validate_tags(df, allowed_tags):
     Validate tags in upload csv
     """
     invalid_tags = set()
-    for i in df["tags"].tolist():
-        tags = set(i.strip(" :").split(":"))
-        for tag in tags:
-            if tag not in allowed_tags:
-                invalid_tags.add(tag)
+    for value in df["tags"].tolist():
+        if value and not pd.isna(value):
+            tags = set(value.strip(" :").split(":"))
+            for tag in tags:
+                if tag and tag not in allowed_tags:
+                    invalid_tags.add(tag)
 
     if invalid_tags:
         raise ValidationError(

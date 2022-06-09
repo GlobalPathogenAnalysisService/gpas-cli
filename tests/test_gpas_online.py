@@ -7,12 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from gpas import lib
+from gpas import lib, validation
 
 from gpas.misc import ENVIRONMENTS
 
 
 data_dir = "tests/test-data"
+
+auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+_, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
 
 
 def run(cmd, cwd="./"):  # Helper for CLI testing
@@ -24,18 +27,6 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
 # Requires a valid 'token.json' inside test-data. Runs on dev
 
 
-# CLI tests
-
-
-# @pytest.mark.online
-# def test_validate_online():
-#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
-#     assert (
-#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-#         in run_cmd.stdout
-#     )
-
-
 @pytest.mark.online
 def test_gpas_uploader_validate_online():
     run_cmd = run(
@@ -45,15 +36,6 @@ def test_gpas_uploader_validate_online():
         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
         in run_cmd.stdout
     )
-
-
-# @pytest.mark.online
-# def test_validate_token_online():
-#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
-#     assert (
-#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-#         in run_cmd.stdout
-#     )
 
 
 @pytest.mark.online
@@ -113,17 +95,6 @@ def test_status_mapping_csv_rename_online():
     assert "test4_uploaded,Uploaded" in run_cmd.stdout
 
 
-# @pytest.mark.online
-# def test_gpas_uploader_download_mapping_csv_online_fasta():
-#     run_cmd = run(
-#         f"gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types fasta"
-#     )
-#     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
-#     run(
-#         "rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz 657a8b5a-652f-f07c-bd39-287279306a75.fasta.gz cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839.fasta.gz"
-#     )
-
-
 @pytest.mark.online
 def test_gpas_uploader_download_mapping_csv_online():
     run_cmd = run(f"gpas download --mapping-csv example.mapping.csv token.json")
@@ -157,12 +128,8 @@ def test_download_guid_rename_without_mapping():
     run("rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")
 
 
-# API tests
-
-
 @pytest.mark.online
 def test_download_guid_api_online():
-    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
     asyncio.run(
         lib.download_async(
             guids=["6e024eb1-432c-4b1b-8f57-3911fe87555f"],
@@ -297,9 +264,71 @@ def test_gpas_validate_online():
     assert '"status": "success"' in run_cmd.stdout
 
 
+def test_validate_fail_wrong_tags():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            upload_csv=Path(data_dir) / Path("broken") / Path("wrong-tags.csv"),
+            allowed_tags=allowed_tags,
+        )
+    assert e.value.errors == [
+        {"error": "tag(s) {'heffalump'} are invalid for this organisation"}
+    ]
+
+
 @pytest.mark.online
-def test_gpas_validate_online_wrong_tags():
+def test_validate_fail_wrong_tags_cli():
     with pytest.raises(subprocess.CalledProcessError):
         run_cmd = run(
             f"gpas validate --token tests/test-data/token.json tests/test-data/broken/wrong-tags.csv"
         )
+
+
+def test_validate_fail_no_tags():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("no-tags.csv"),
+            allowed_tags=allowed_tags,
+        )
+    assert e.value.errors == [
+        {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
+    ]
+
+
+def test_validate_fail_no_tags_colon():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("no-tags-colon.csv"),
+            allowed_tags=allowed_tags,
+        )
+    assert e.value.errors == [
+        {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
+    ]
+
+
+# @pytest.mark.online
+# def test_validate_online():
+#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
+#     assert (
+#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
+#         in run_cmd.stdout
+#     )
+
+
+# @pytest.mark.online
+# def test_validate_token_online():
+#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
+#     assert (
+#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
+#         in run_cmd.stdout
+#     )
+
+
+# @pytest.mark.online
+# def test_gpas_uploader_download_mapping_csv_online_fasta():
+#     run_cmd = run(
+#         f"gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types fasta"
+#     )
+#     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
+#     run(
+#         "rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz 657a8b5a-652f-f07c-bd39-287279306a75.fasta.gz cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839.fasta.gz"
+#     )

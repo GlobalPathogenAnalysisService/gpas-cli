@@ -10,18 +10,18 @@ from gpas import lib, validation, misc, data_dir
 data_dir = "tests/test-data"
 
 
-def run(cmd, cwd="./"):  # Helper for CLI testing
-    return subprocess.run(
-        cmd, cwd=data_dir, shell=True, check=True, text=True, capture_output=True
-    )
-
-
 # def test_gpas_uploader_validate():
 #     run_cmd = run(f"gpas-upload --environment dev --json validate nanopore-fastq.csv")
 #     assert (
 #         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
 #         in run_cmd.stdout
 #     )
+
+
+def run(cmd, cwd="./"):  # Helper for CLI testing
+    return subprocess.run(
+        cmd, cwd=data_dir, shell=True, check=True, text=True, capture_output=True
+    )
 
 
 def test_version():
@@ -51,6 +51,7 @@ def test_validate_ok():
     #     }
     # }
     # Can't do above because of absolute paths
+    assert message["validation"]["status"] == "success"
     assert message["validation"]["samples"][0]["sample_name"] == "cDNA-VOC-1-v4-1"
     assert message["validation"]["samples"][0]["files"][0].endswith(
         "gpas-cli/tests/test-data/reads/large-illumina-fastq_1.fastq.gz"
@@ -82,7 +83,7 @@ def test_validate_new_cli():
 def test_validate_fail_no_tags():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
-            Path(data_dir) / Path("broken") / Path("large-illumina-no-tags-fastq.csv")
+            Path(data_dir) / Path("broken") / Path("no-tags.csv")
         )
     assert e.value.errors == [
         {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
@@ -97,10 +98,20 @@ def test_validate_fail_no_tags():
     }
 
 
+def test_validate_fail_no_tags_colon():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("no-tags-colon.csv")
+        )
+    assert e.value.errors == [
+        {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
+    ]
+
+
 def test_validate_fail_dupe_tags():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
-            Path(data_dir) / Path("broken") / Path("large-illumina-dupe-tags-fastq.csv")
+            Path(data_dir) / Path("broken") / Path("dupe-tags.csv")
         )
     assert e.value.errors == [
         {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be repeated"}
