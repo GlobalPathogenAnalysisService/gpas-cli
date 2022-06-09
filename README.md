@@ -1,15 +1,15 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A **currently experimental** standalone command line and Python API client for the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned.
+A **currently experimental** standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned.
 
 **Progress**
 
-| Subcommand        | CLI | Python API |
-| ----------------- | ------- | ---------- |
-| `gpas upload` | ☑️ | ☑️ `lib.Batch(upload_csv, token).upload()` |
-| `gpas download` | ✅ | ✅ `lib.download_async()` |
-| `gpas validate` | ✅ | ✅ `validation.validate()` |
-| `gpas status` | ✅ | ✅ `lib.fetch_status()`, `lib.fetch_status_async()` |
+| Command line interface | Python API |
+| ----------------- | ------- |
+| ☑️ `gpas upload` | ☑️ `lib.Batch(upload_csv, token).upload()` |
+| ✅ `gpas download` | ✅ `lib.download_async()` |
+| ✅ `gpas validate` | ✅ `validation.validate()` |
+| ✅ `gpas status` | ✅ `lib.fetch_status()`, `lib.fetch_status_async()` |
 
 
 
@@ -23,12 +23,12 @@ conda env create -f environment.yml  # Installs from main branch
 conda activate gpas-cli
 ```
 
-### With `pip`
+### With `pip` (not recommended)
 
 Install Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) manually
 
 ```
-pip install gpas gpas-uploader
+pip install gpas
 ```
 
 ## Authentication
