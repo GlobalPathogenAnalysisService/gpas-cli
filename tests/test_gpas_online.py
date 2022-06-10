@@ -10,6 +10,7 @@ from gpas.misc import ENVIRONMENTS
 
 data_dir = "tests/test-data"
 
+
 auth = lib.parse_token(Path(data_dir) / Path("token.json"))
 _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
 
@@ -126,6 +127,7 @@ def test_download_guid_rename_without_mapping():
 
 @pytest.mark.online
 def test_download_guid_api_online():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
     asyncio.run(
         lib.download_async(
             guids=["6e024eb1-432c-4b1b-8f57-3911fe87555f"],
@@ -262,6 +264,8 @@ def test_gpas_validate_online():
 
 @pytest.mark.online
 def test_validate_fail_wrong_tags():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             upload_csv=Path(data_dir) / Path("broken") / Path("wrong-tags.csv"),
@@ -282,6 +286,8 @@ def test_validate_fail_wrong_tags_cli():
 
 @pytest.mark.online
 def test_validate_fail_no_tags():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("no-tags.csv"),
@@ -294,6 +300,8 @@ def test_validate_fail_no_tags():
 
 @pytest.mark.online
 def test_validate_fail_no_tags_colon():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("no-tags-colon.csv"),
@@ -306,6 +314,8 @@ def test_validate_fail_no_tags_colon():
 
 @pytest.mark.online
 def test_auth_broken_token():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
     with pytest.raises(SystemExit):
         broken_auth = lib.parse_token(
             Path(data_dir) / Path("broken") / Path("broken-token.json")

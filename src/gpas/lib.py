@@ -375,7 +375,7 @@ class Sample:
             )
         else:
             cmd = (
-                f"readItAndKeep --tech ilumina --enumerate_names"
+                f"readItAndKeep --tech illumina --enumerate_names"
                 f" --ref_fasta {self.decontamination_ref_path}"
                 f" --reads1 {self.fastq1}"
                 f" --reads2 {self.fastq2}"
