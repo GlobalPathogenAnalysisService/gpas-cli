@@ -325,6 +325,13 @@ def test_auth_broken_token():
         )
 
 
+@pytest.mark.online
+def test_upload_ont_bam_dry():
+    run_cmd = run(f"gpas upload --token token.json large-nanopore-bam.csv --dry-run")
+    assert "INFO: Finished converting 1 samples" in run_cmd.stderr
+    assert "INFO: Finished decontaminating 1 samples" in run_cmd.stderr
+
+
 # @pytest.mark.online
 # def test_validate_online():
 #     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")

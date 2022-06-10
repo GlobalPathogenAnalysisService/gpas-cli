@@ -3,6 +3,7 @@ import datetime
 import gzip
 import json
 import logging
+import multiprocessing
 import sys
 from functools import partial
 from pathlib import Path
@@ -437,7 +438,7 @@ class Batch:
         self.environment = environment
         self.working_dir = working_dir
         self.mapping_prefix = mapping_prefix
-        self.processes = processes
+        self.processes = processes if processes else multiprocessing.cpu_count()
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.df, self.validation_report = validate(upload_csv)
         self.schema_name = self.df.pandera.schema.name
@@ -484,11 +485,19 @@ class Batch:
     def _decontaminate(self):
         if "Bam" in self.schema_name:  # Conversion necessary
             samples_cmds = self._get_convert_bam_cmds()
-            samples_runs = misc.run_parallel(samples_cmds)
+            samples_runs = misc.run_parallel(
+                names_cmds=samples_cmds,
+                processes=self.processes,
+                present_participle="Converting",
+            )
 
         samples_cmds = self._get_decontaminate_cmds()
         logging.debug(f"Decontamination commands: {samples_cmds}")
-        samples_runs = misc.run_parallel(samples_cmds)
+        samples_runs = misc.run_parallel(
+            names_cmds=samples_cmds,
+            processes=self.processes,
+            present_participle="Decontaminating",
+        )
 
     def _hash_fastqs(self):
         if not self.paired:
@@ -668,7 +677,7 @@ class Batch:
             },
         }
 
-    def upload(self):
+    def upload(self, dry_run: bool = False):
         self._decontaminate()
         self._hash_fastqs()
         self._fetch_guids()

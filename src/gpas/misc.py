@@ -10,6 +10,7 @@ from enum import Enum
 from pathlib import Path
 
 import pandas as pd
+import tqdm
 
 import gpas
 
@@ -52,16 +53,33 @@ def run(cmd):
 
 
 def run_parallel(
-    names_cmds: dict[str, str], processes: int = multiprocessing.cpu_count()
+    names_cmds: dict[str, str],
+    processes: int = multiprocessing.cpu_count(),
+    present_participle: str = "Processing",
 ) -> dict[str, subprocess.CompletedProcess]:
     processes = 1 if sys.platform == "win32" else processes
     if processes == 1:
         results = {n: run(c) for n, c in names_cmds.items()}
     else:
         names, cmds = zip(*names_cmds.items())
-        with multiprocessing.get_context("spawn").Pool(processes=processes) as pool:
-            results = {n: c for n, c in zip(names, pool.map(run, cmds))}
+        with multiprocessing.get_context("spawn").Pool(processes) as pool:
+            results = {
+                n: c
+                for n, c in zip(
+                    names,
+                    tqdm.tqdm(
+                        pool.imap_unordered(run, cmds),
+                        total=len(cmds),
+                        desc=f"{present_participle} {len(cmds)} samples",
+                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                        leave=False,
+                    ),
+                )
+            }
+            logging.info(f"Finished {present_participle.lower()} {len(cmds)} samples")
     return results
+
+    r = list(tqdm.tqdm(p.imap(_foo, range(30)), total=30))
 
 
 def check_unicode(data):

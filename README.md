@@ -213,9 +213,9 @@ git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
 cd gpas-cli
 pip install -e ./
 
-# Test
+# Offline unit tests
 pytest
 
-# Online tests, requires valid token
-pytest --online
+# Online and upload tests require a valid token
+pytest --online --upload
 ```

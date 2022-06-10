@@ -6,6 +6,8 @@ from pathlib import Path
 import defopt
 import pandas as pd
 
+logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
+
 from gpas import lib, validation
 from gpas.lib import logging
 from gpas.misc import (
@@ -16,9 +18,6 @@ from gpas.misc import (
     GOOD_STATUSES,
     run,
 )
-
-
-logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 
 def status(
