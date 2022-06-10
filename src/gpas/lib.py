@@ -333,24 +333,17 @@ class Sample:
         ref = organisms_decontamination_references[self.specimen_organism]
         return data_dir / Path("refs") / Path(ref)
 
-    def decontaminate(self):
-        if "Bam" in self.schema_name:  # Preprocess BAMs into FASTQs
-            self._convert_bam(paired=self.paired)
-
+    def _get_decontaminate_cmd(self):
         if self.specimen_organism == "SARS-CoV-2":
-            self._read_it_and_keep()
-        else:
-            raise DecontaminationError(
-                "Decontamination not implemented for this organism"
-            )
+            decontaminate_cmd = self._get_riak_cmd()
+        return decontaminate_cmd
 
-    def _convert_bam(self, paired=False):
+    def _get_convert_bam_cmd(self, paired=False) -> str:
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
             cmd = f"samtools fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
             self.fastq = self.working_dir / Path(self.sample_name + ".fastq.gz")
         else:
-            logging.debug(prefix)
             cmd = (
                 f"samtools sort {self.bam} |"
                 f" samtools fastq -N"
@@ -359,13 +352,9 @@ class Sample:
             )
             self.fastq1 = self.working_dir / Path(self.sample_name + "_1.fastq.gz")
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
-        logging.debug(f"Begin Sample._convert_bam(): {cmd=}")
-        cmd_run = run(cmd)
-        logging.debug(
-            f"End Sample._convert_bam(): {cmd_run.returncode=}, {cmd_run.stdout=}"
-        )
+        return cmd
 
-    def _read_it_and_keep(self):
+    def _get_riak_cmd(self) -> str:
         if not self.fastq2:
             cmd = (
                 f"readItAndKeep --tech ont --enumerate_names"
@@ -381,13 +370,6 @@ class Sample:
                 f" --reads2 {self.fastq2}"
                 f" --outprefix {self.working_dir / self.sample_name}"
             )
-
-        try:
-            logging.debug(f"Start Sample._read_it_and_keep(): {cmd=}")
-            cmd_run = run(cmd)
-        except CalledProcessError as e:
-            raise DecontaminationError(e)
-
         self.clean_fastq = (
             self.working_dir / Path(self.sample_name + ".reads.fastq.gz")
             if self.fastq
@@ -403,12 +385,7 @@ class Sample:
             if self.fastq2
             else None
         )
-
-        self.decontamination_stats = parse_decontamination_stats(cmd_run.stdout)
-        logging.debug(
-            f"End Sample._read_it_and_keep():"
-            f" {cmd_run.returncode=}, {cmd_run.stdout=}, {self.decontamination_stats=}"
-        )
+        return cmd
 
     def _hash_fastq(self):
         self.md5 = misc.hash_file(str(self.fastq))
@@ -493,8 +470,19 @@ class Batch:
     def _fetch_user_details(self):
         return fetch_user_details(self.token["access_token"], self.environment)
 
+    def _get_convert_bam_cmds(self) -> dict[str, str]:
+        return {s.sample_name: s._get_convert_bam_cmd() for s in self.samples}
+
+    def _get_decontaminate_cmds(self) -> dict[str, str]:
+        return {s.sample_name: s._get_decontaminate_cmd() for s in self.samples}
+
     def _decontaminate(self):
-        list(map(lambda s: s.decontaminate(), self.samples))
+        if "Bam" in self.schema_name:  # Conversion necessary
+            samples_cmds = self._get_convert_bam_cmds()
+            samples_runs = misc.run_parallel(samples_cmds)
+
+        samples_cmds = self._get_decontaminate_cmds()
+        samples_runs = misc.run_parallel(samples_cmds)
 
     def _hash_fastqs(self):
         if not self.paired:
@@ -585,7 +573,6 @@ class Batch:
         self.batch_url = self.par + self.batch_guid + "/"
 
     def _upload_samples(self):
-        # list(map(lambda s: s._upload_reads(), self.samples))
         for s in self.samples:
             s._upload_reads(self.batch_url, self.upload_headers)
 
