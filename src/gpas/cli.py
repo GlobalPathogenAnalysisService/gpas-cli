@@ -26,10 +26,10 @@ def status(
     *,
     mapping_csv: Path | None = None,
     guids: str = "",
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     format: FORMATS = DEFAULT_FORMAT,
     rename: bool = False,
     raw: bool = False,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
 ):
     """
     Check the status of samples submitted to the GPAS platform
@@ -37,10 +37,10 @@ def status(
     :arg token: Path of auth token available from GPAS Portal
     :arg mapping_csv: Path of mapping CSV generated at upload time
     :arg guids: Comma-separated list of GPAS sample guids
-    :arg environment: GPAS environment to use
     :arg format: Output format
     :arg rename: Use local sample names (requires --mapping-csv)
     :arg raw: Emit raw response
+    :arg environment: GPAS environment to use
     """
     auth = lib.parse_token(token)
     if mapping_csv:
@@ -58,8 +58,8 @@ def status(
         lib.fetch_status_async(
             access_token=auth["access_token"],
             guids=guids_,
-            environment=environment,
             raw=raw,
+            environment=environment,
         )
     )
 
@@ -79,10 +79,10 @@ def download(
     token: Path,
     mapping_csv: Path | None = None,
     guids: str = "",
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     file_types: str = "fasta",
     out_dir: Path = Path.cwd(),
     rename: bool = False,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
 ):
     """
     Download analytical outputs from the GPAS platform for given a mapping csv or list of guids
@@ -90,10 +90,10 @@ def download(
     :arg token: Path of auth token (available from GPAS Portal)
     :arg mapping_csv: Path of mapping CSV generated at upload time
     :arg guids: Comma-separated list of GPAS sample guids
-    :arg environment: GPAS environment to use
     :arg file_types: Comma separated list of outputs to download (json,fasta,bam,vcf)
     :arg out_dir: Path of output directory
     :arg rename: Rename outputs using local sample names (requires --mapping-csv)
+    :arg environment: GPAS environment to use
     """
     # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
     # gpas-upload --json --token ../../gpas-cli/tests/test-data/token.json --environment dev submit ../../gpas-cli/tests/test-data/large-nanopore-fastq.csv
@@ -140,16 +140,16 @@ def validate(
     upload_csv: Path,
     *,
     token: Path | None = None,
+    json_messages: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    machine_readable: bool = False,
 ):
     """
     Validate an upload CSV. Validates tags remotely if supplied with an authentication token
 
     :arg upload_csv: Path of upload CSV
     :arg token: Path of auth token available from GPAS Portal
-    :arg environment: GPAS environment to use
     :arg json: Emit JSON to stdout
+    :arg environment: GPAS environment to use
     """
     if token:
         auth = lib.parse_token(token)
@@ -160,7 +160,7 @@ def validate(
         _, message = validation.validate(upload_csv, allowed_tags)
         print(json.dumps(message, indent=4))
     except validation.ValidationError as e:
-        if machine_readable:
+        if json_messages:
             print(json.dumps(e.report, indent=4))
         else:
             raise e
@@ -170,26 +170,13 @@ def upload(
     upload_csv: Path,
     *,
     token: Path | None = None,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    machine_readable: bool = False,
-    debug: bool = False,
-):
-    if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-    batch = lib.Batch(upload_csv, token=token, environment=environment)
-    batch.upload()
-
-
-def upload_old(
-    upload_csv: Path,
-    token: Path,
-    *,
     working_dir: Path = Path("/tmp"),
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    mapping_prefix: str = "mapping",
-    threads: int = 0,
+    mapping_prefix: str = "",
+    processes: int = 0,
     dry_run: bool = False,
-    json: bool = False,
+    debug: bool = False,
+    json_messages: bool = False,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
 ):
     """
     Validate, decontaminate and upload reads to the GPAS platform
@@ -197,11 +184,49 @@ def upload_old(
     :arg upload_csv: Path of upload csv
     :arg token: Path of auth token available from GPAS Portal
     :arg working_dir: Path of directory in which to generate intermediate files
+    :arg mapping_prefix: Filename prefix for mapping CSV
+    :arg processes: Number of decontamination tasks to execute in parallel. 0 -> auto
+    :arg dry_run: Exit before submitting files
+    :arg debug: Print verbose debug messages
+    :arg json_over_stdout: Emit JSON messages over stdout
     :arg environment: GPAS environment to use
+
+    """
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    batch = lib.Batch(
+        upload_csv,
+        token=token,
+        working_dir=working_dir,
+        mapping_prefix=mapping_prefix,
+        processes=processes,
+        environment=environment,
+    )
+    batch.upload(dry_run=dry_run)
+
+
+def upload_old(
+    upload_csv: Path,
+    token: Path,
+    *,
+    working_dir: Path = Path("/tmp"),
+    mapping_prefix: str = "mapping",
+    threads: int = 0,
+    dry_run: bool = False,
+    json: bool = False,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+):
+    """
+    Validate, decontaminate and upload reads to the GPAS platform
+
+    :arg upload_csv: Path of upload csv
+    :arg token: Path of auth token available from GPAS Portal
+    :arg working_dir: Path of directory in which to generate intermediate files
     :arg mapping_prefix: Filename prefix for mapping CSV
     :arg threads: Number of decontamination tasks to execute in parallel. 0 = auto
     :arg dry_run: Skip final upload step
     :arg json: Emit JSON to stdout
+    :arg environment: GPAS environment to use
     """
     if not upload_csv.is_file():
         raise RuntimeError(f"Upload CSV not found: {upload_csv}")

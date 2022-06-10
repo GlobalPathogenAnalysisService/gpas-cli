@@ -427,15 +427,17 @@ class Batch:
         self,
         upload_csv: Path,
         token: Path = None,
-        environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
         working_dir: Path = Path("/tmp"),
-        threads: int = 0,
+        mapping_prefix: str = "",
+        processes: int = 0,
+        environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     ):
         self.upload_csv = upload_csv
         self.token = parse_token(token) if token else None
         self.environment = environment
         self.working_dir = working_dir
-        self.threads = threads
+        self.mapping_prefix = mapping_prefix
+        self.processes = processes
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.df, self.validation_report = validate(upload_csv)
         self.schema_name = self.df.pandera.schema.name
@@ -671,7 +673,8 @@ class Batch:
         self._hash_fastqs()
         self._fetch_guids()
         self._rename_fastqs()
-        self._submit()
+        if not dry_run:
+            self._submit()
         # for s in self.samples:
         # print(s.sample_name, s.decontamination_stats, s.md5, s.guid)
         # print(s.clean_fastq, s.clean_fastq1, s.clean_fastq2)

@@ -59,9 +59,7 @@ def test_validate_ok():
 
 
 def test_validate_new_cli():
-    run_cmd = run(
-        "gpas validate broken/impossible-country-region.csv --machine-readable"
-    )
+    run_cmd = run("gpas validate broken/impossible-country-region.csv --json-messages")
     assert (
         """{
     "validation": {

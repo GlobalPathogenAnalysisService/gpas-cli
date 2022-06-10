@@ -204,7 +204,7 @@ options:
 
 ## Development and testing
 
-Please configure pre-commit to apply black style before at commit time
+Use pre-commit to apply black style at commit time
 
 ```
 conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools=1.15.1 pytest black pre-commit mypy
