@@ -88,6 +88,7 @@ async def fetch_status_async(
     access_token: str,
     guids: list | dict,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    warn: bool = False,
     raw: bool = False,
 ) -> list[dict]:
     """Returns a list of dicts of containing status records"""
@@ -109,7 +110,7 @@ async def fetch_status_async(
     async with httpx.AsyncClient(transport=transport, timeout=30) as client:
         guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
         tasks = [
-            fetch_status_single_async(client, guid, url, headers)
+            fetch_status_single_async(client, guid, url, headers, warn)
             for guid, url in guids_urls.items()
         ]
         records = [
@@ -129,13 +130,15 @@ async def fetch_status_async(
     return records
 
 
-async def fetch_status_single_async(client, guid, url, headers, n_retries=5):
+async def fetch_status_single_async(
+    client, guid, url, headers, warn=False, n_retries=5
+):
     r = await client.get(url=url, headers=headers)
     if r.status_code == httpx.codes.ok:
         r_json = r.json()[0]
         status = r_json.get("status")
         result = dict(sample=guid, status=status)
-        if status not in GOOD_STATUSES:
+        if warn and status not in GOOD_STATUSES:
             with logging_redirect_tqdm():
                 logging.warning(f"Skipping {guid} (status {status})")
     else:
@@ -482,6 +485,7 @@ class Batch:
             samples_runs = misc.run_parallel(samples_cmds)
 
         samples_cmds = self._get_decontaminate_cmds()
+        logging.debug(f"Decontamination commands: {samples_cmds}")
         samples_runs = misc.run_parallel(samples_cmds)
 
     def _hash_fastqs(self):
@@ -527,17 +531,21 @@ class Batch:
         """Rename decontaminated fastqs using server-side guids"""
         for s in self.samples:
             s.clean_fastq = (
-                s.clean_fastq.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
+                s.clean_fastq.rename(s.working_dir / Path(s.guid + ".reads.fastq.gz"))
                 if s.clean_fastq
                 else None
             )
             s.clean_fastq1 = (
-                s.clean_fastq1.rename(s.working_dir / Path(s.guid + "_1.fastq.gz"))
+                s.clean_fastq1.rename(
+                    s.working_dir / Path(s.guid + ".reads_1.fastq.gz")
+                )
                 if s.clean_fastq1
                 else None
             )
             s.clean_fastq2 = (
-                s.clean_fastq2.rename(s.working_dir / Path(s.guid + "_2.fastq.gz"))
+                s.clean_fastq2.rename(
+                    s.working_dir / Path(s.guid + ".reads_2.fastq.gz")
+                )
                 if s.clean_fastq2
                 else None
             )

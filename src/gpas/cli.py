@@ -7,6 +7,7 @@ import defopt
 import pandas as pd
 
 from gpas import lib, validation
+from gpas.lib import logging
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     DEFAULT_FORMAT,
@@ -16,9 +17,8 @@ from gpas.misc import (
     run,
 )
 
-logger = logging.getLogger()
-logging.basicConfig(format="%(levelname)s: %(message)s")
-logger.setLevel(logging.INFO)
+
+logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 
 def status(
@@ -96,6 +96,7 @@ def download(
     :arg rename: Rename outputs using local sample names (requires --mapping-csv)
     """
     # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
+    # gpas-upload --json --token ../../gpas-cli/tests/test-data/token.json --environment dev submit ../../gpas-cli/tests/test-data/large-nanopore-fastq.csv
     file_types_fmt = file_types.strip(",").split(",")
     auth = lib.parse_token(token)
     if mapping_csv:
@@ -114,6 +115,7 @@ def download(
             access_token=auth["access_token"],
             guids=guids_.keys() if type(guids_) is dict else guids_,
             environment=environment,
+            warn=True,
             raw=False,
         )
     )
@@ -173,7 +175,7 @@ def upload(
     debug: bool = False,
 ):
     if debug:
-        logger.setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.DEBUG)
     batch = lib.Batch(upload_csv, token=token, environment=environment)
     batch.upload()
 
@@ -217,11 +219,11 @@ def upload_old(
 
     run_cmd = run(cmd)
     if run_cmd.returncode == 0:
-        logger.info(f"Upload successful. Command: {cmd}")
+        logging.info(f"Upload successful. Command: {cmd}")
         stdout = run_cmd.stdout.strip()
         print(stdout)
     else:
-        logger.info(
+        logging.info(
             f"Upload failed with exit code {run_cmd.returncode}. Command: {cmd}"
         )
 

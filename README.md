@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A **currently experimental** standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned.
+A **currently experimental** standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned. Python 3.10+
 
 **Progress**
 
@@ -204,18 +204,18 @@ options:
 
 ## Development and testing
 
+Please configure pre-commit to apply black style before at commit time
+
 ```
-conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools pytest black pre-commit mypy
+conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools=1.15.1 pytest black pre-commit mypy
 conda activate gpas-cli-dev
-git clone https://github.com/GlobalPathogenAnalysisService/gpas-uploader
-pip install -e ./gpas-uploader
 git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
-pip install -e ./gpas-cli
+cd gpas-cli
+pip install -e ./
 
 # Test
-cd gpas-uploader && pytest
-cd ../gpas-cli && pytest
+pytest
 
 # Online tests, requires valid token
-cd ../gpas-cli && pytest --online
+pytest --online
 ```

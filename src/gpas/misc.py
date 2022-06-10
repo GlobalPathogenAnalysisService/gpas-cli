@@ -1,15 +1,18 @@
 import functools
 import hashlib
 import json
+import logging
 import multiprocessing
 import os
 import subprocess
+import sys
 from enum import Enum
 from pathlib import Path
 
 import pandas as pd
 
 import gpas
+
 
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
@@ -48,17 +51,17 @@ def run(cmd):
     return subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
 
 
-def run_parallel(names_cmds: dict[str, str], processes=multiprocessing.cpu_count()):
-    names, cmds = zip(*names_cmds.items())
-    # run = functools.partial(
-    #     subprocess.run,
-    #     shell=True,
-    #     check=True, # Raise CalledProcessError with non zero exit code
-    #     text=True,
-    #     capture_output=True
-    # )
-    with multiprocessing.get_context("spawn").Pool(processes=processes) as pool:
-        return {k: v for k, v in zip(names, pool.map(run, cmds))}
+def run_parallel(
+    names_cmds: dict[str, str], processes: int = multiprocessing.cpu_count()
+) -> dict[str, subprocess.CompletedProcess]:
+    processes = 1 if sys.platform == "win32" else processes
+    if processes == 1:
+        results = {n: run(c) for n, c in names_cmds.items()}
+    else:
+        names, cmds = zip(*names_cmds.items())
+        with multiprocessing.get_context("spawn").Pool(processes=processes) as pool:
+            results = {n: c for n, c in zip(names, pool.map(run, cmds))}
+    return results
 
 
 def check_unicode(data):
