@@ -1,33 +1,30 @@
-from subprocess import CalledProcessError
-import sys
+import asyncio
+import datetime
 import gzip
 import json
-import asyncio
 import logging
-import datetime
-
-from typing import Any
-from pathlib import Path
+import sys
 from functools import partial
+from pathlib import Path
+from subprocess import CalledProcessError
+from typing import Any
 
-import tqdm
 import httpx
-import requests
-
 import pandas as pd
-
+import requests
+import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import misc, data_dir
-from gpas.validation import validate
+from gpas import data_dir, misc
 from gpas.misc import (
-    run,
-    ENVIRONMENTS,
     DEFAULT_ENVIRONMENT,
-    FILE_TYPES,
     ENDPOINTS,
+    ENVIRONMENTS,
+    FILE_TYPES,
     GOOD_STATUSES,
+    run,
 )
+from gpas.validation import validate
 
 
 class DecontaminationError(Exception):
@@ -327,66 +324,91 @@ class Sample:
         self.primer_scheme = primer_scheme
         self.schema_name = schema_name
         self.paired = True if self.schema_name.startswith("Paired") else False
-        self.ref_path = self.get_reference_path()
+        self.decontamination_ref_path = self.get_decontamination_ref_path()
         self.working_dir = working_dir
         self.uploaded = False
 
-    def get_reference_path(self):
-        prefix = data_dir / Path("refs")
-        organisms_paths = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
-        return prefix / organisms_paths[self.specimen_organism]
+    def get_decontamination_ref_path(self):
+        organisms_decontamination_references = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
+        ref = organisms_decontamination_references[self.specimen_organism]
+        return data_dir / Path("refs") / Path(ref)
 
     def decontaminate(self):
         if "Bam" in self.schema_name:  # Preprocess BAMs into FASTQs
             self._convert_bam(paired=self.paired)
-        self._read_it_and_keep()
-        logging.debug(f"{self.decontamination_stats=}")
+
+        if self.specimen_organism == "SARS-CoV-2":
+            self._read_it_and_keep()
+        else:
+            raise DecontaminationError(
+                "Decontamination not implemented for this organism"
+            )
 
     def _convert_bam(self, paired=False):
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
-            cmd_run = run(
-                f"samtools fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
-            )
+            cmd = f"samtools fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
             self.fastq = self.working_dir / Path(self.sample_name + ".fastq.gz")
         else:
-            cmd_run = run(
-                f"samtools sort {self.bam} | samtools fastq -N -1 {self.working_dir / Path(self.sample_name + '_1.fastq.gz')} -2 {self.working_dir /  Path(self.sample_name + '_2.fastq.gz')}"
+            logging.debug(prefix)
+            cmd = (
+                f"samtools sort {self.bam} |"
+                f" samtools fastq -N"
+                f" -1 {prefix.parent / (prefix.name + '_1.fastq.gz')}"
+                f" -2 {prefix.parent / (prefix.name + '_2.fastq.gz')}"
             )
             self.fastq1 = self.working_dir / Path(self.sample_name + "_1.fastq.gz")
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
-        logging.info([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
+        logging.debug(f"Begin Sample._convert_bam(): {cmd=}")
+        cmd_run = run(cmd)
+        logging.debug(
+            f"End Sample._convert_bam(): {cmd_run.returncode=}, {cmd_run.stdout=}"
+        )
 
     def _read_it_and_keep(self):
-        # prefix = Path(self.working_dir) / Path(str(reads1).removesuffix(".fastq.gz"))
         if not self.fastq2:
-            cmd = f"readItAndKeep --tech ont --enumerate_names --ref_fasta {self.ref_path} --reads1 {self.fastq} --outprefix {self.working_dir / self.sample_name}"
+            cmd = (
+                f"readItAndKeep --tech ont --enumerate_names"
+                f" --ref_fasta {self.decontamination_ref_path}"
+                f" --reads1 {self.fastq}"
+                f" --outprefix {self.working_dir / self.sample_name}"
+            )
         else:
-            cmd = f"readItAndKeep --tech illumina --enumerate_names --ref_fasta {self.ref_path} --reads1 {self.fastq1} --reads2 {self.fastq2} --outprefix {self.working_dir / self.sample_name}"
+            cmd = (
+                f"readItAndKeep --tech ilumina --enumerate_names"
+                f" --ref_fasta {self.decontamination_ref_path}"
+                f" --reads1 {self.fastq1}"
+                f" --reads2 {self.fastq2}"
+                f" --outprefix {self.working_dir / self.sample_name}"
+            )
 
         try:
+            logging.debug(f"Start Sample._read_it_and_keep(): {cmd=}")
             cmd_run = run(cmd)
         except CalledProcessError as e:
-            raise DecontaminationError(f"Decontamination failed for {self.sample_name}")
+            raise DecontaminationError(e)
 
-        self.riak_fastq = (
+        self.clean_fastq = (
             self.working_dir / Path(self.sample_name + ".reads.fastq.gz")
             if self.fastq
             else None
         )
-        self.riak_fastq1 = (
+        self.clean_fastq1 = (
             self.working_dir / Path(self.sample_name + ".reads_1.fastq.gz")
             if self.fastq1
             else None
         )
-        self.riak_fastq2 = (
+        self.clean_fastq2 = (
             self.working_dir / Path(self.sample_name + ".reads_2.fastq.gz")
             if self.fastq2
             else None
         )
 
-        # logging.warning([cmd_run.returncode, cmd_run.args, cmd_run.stdout])
         self.decontamination_stats = parse_decontamination_stats(cmd_run.stdout)
+        logging.debug(
+            f"End Sample._read_it_and_keep():"
+            f" {cmd_run.returncode=}, {cmd_run.stdout=}, {self.decontamination_stats=}"
+        )
 
     def _hash_fastq(self):
         self.md5 = misc.hash_file(str(self.fastq))
@@ -400,16 +422,16 @@ class Sample:
         url_prefix = batch_url + self.guid
         if not self.uploaded:
             if not self.paired:
-                with open(self.riak_fastq, "rb") as fh:
+                with open(self.clean_fastq, "rb") as fh:
                     r = requests.put(
                         url=f"{url_prefix}.reads.fastq.gz", data=fh, headers=headers
                     )
             else:
-                with open(self.riak_fastq1, "rb") as fh:
+                with open(self.clean_fastq1, "rb") as fh:
                     r = requests.put(
                         f"{url_prefix}.reads_1.fastq.gz", data=fh, headers=headers
                     )
-                with open(self.riak_fastq2, "rb") as fh:
+                with open(self.clean_fastq2, "rb") as fh:
                     r = requests.put(
                         f"{url_prefix}.reads_2.fastq.gz", data=fh, headers=headers
                     )
@@ -516,24 +538,24 @@ class Batch:
     def _rename_fastqs(self):
         """Rename decontaminated fastqs using server-side guids"""
         for s in self.samples:
-            s.riak_fastq = (
-                s.riak_fastq.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
-                if s.riak_fastq
+            s.clean_fastq = (
+                s.clean_fastq.rename(s.working_dir / Path(s.guid + ".fastq.gz"))
+                if s.clean_fastq
                 else None
             )
-            s.riak_fastq1 = (
-                s.riak_fastq1.rename(s.working_dir / Path(s.guid + "_1.fastq.gz"))
-                if s.riak_fastq1
+            s.clean_fastq1 = (
+                s.clean_fastq1.rename(s.working_dir / Path(s.guid + "_1.fastq.gz"))
+                if s.clean_fastq1
                 else None
             )
-            s.riak_fastq2 = (
-                s.riak_fastq2.rename(s.working_dir / Path(s.guid + "_2.fastq.gz"))
-                if s.riak_fastq2
+            s.clean_fastq2 = (
+                s.clean_fastq2.rename(s.working_dir / Path(s.guid + "_2.fastq.gz"))
+                if s.clean_fastq2
                 else None
             )
             # print(type(s.fastq))
             # print(s.fastq)
-            # print(s.riak_fastq)
+            # print(s.clean_fastq)
 
     def _fetch_par(self):
         """Private method that calls ORDS to get a Pre-Authenticated Request.
@@ -626,14 +648,14 @@ class Batch:
             }
             if self.paired:
                 sample["pe_reads"] = {
-                    "r1_uri": str(s.riak_fastq1),
+                    "r1_uri": str(s.clean_fastq1),
                     "r1_md5": s.md5_1,
-                    "r2_uri": str(s.riak_fastq2),
+                    "r2_uri": str(s.clean_fastq2),
                     "r2_md5": s.md5_2,
                 }
-                logging.debug(f"{s.riak_fastq1=}, {s.riak_fastq2=}")
+                logging.debug(f"{s.clean_fastq1=}, {s.clean_fastq2=}")
             else:
-                sample["se_reads"] = {"uri": str(s.riak_fastq), "md5": s.md5}
+                sample["se_reads"] = {"uri": str(s.clean_fastq), "md5": s.md5}
             samples.append(sample)
 
         self.submission = {
@@ -657,10 +679,10 @@ class Batch:
         self._submit()
         # for s in self.samples:
         # print(s.sample_name, s.decontamination_stats, s.md5, s.guid)
-        # print(s.riak_fastq, s.riak_fastq1, s.riak_fastq2)
-        # assert s.riak_fastq.exists() if s.riak_fastq else True
-        # assert s.riak_fastq1.exists() if s.riak_fastq1 else True
-        # assert s.riak_fastq2.exists() if s.riak_fastq2 else True
+        # print(s.clean_fastq, s.clean_fastq1, s.clean_fastq2)
+        # assert s.clean_fastq.exists() if s.clean_fastq else True
+        # assert s.clean_fastq1.exists() if s.clean_fastq1 else True
+        # assert s.clean_fastq2.exists() if s.clean_fastq2 else True
 
     # def _number_runs(self):
     #     run_number_lookup = {}

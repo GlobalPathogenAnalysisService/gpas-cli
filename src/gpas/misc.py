@@ -1,8 +1,7 @@
-import os
-import json
 import hashlib
+import json
+import os
 import subprocess
-
 from enum import Enum
 from pathlib import Path
 
@@ -10,15 +9,13 @@ import pandas as pd
 
 import gpas
 
-
-FORMATS = Enum("Formats", {"table": "table", "csv": "csv", "json": "json"})
+FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
-ENVIRONMENTS = Enum("Environment", {"dev": "dev", "staging": "staging", "prod": "prod"})
+ENVIRONMENTS = Enum("Environment", dict(dev="dev", staging="staging", prod="prod"))
 DEFAULT_ENVIRONMENT = ENVIRONMENTS.dev
-FILE_TYPES = Enum(
-    "FileType", {"json": "json", "fasta": "fasta", "bam": "bam", "vcf": "vcf"}
-)
+FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
 GOOD_STATUSES = {"Unreleased", "Released"}
+
 
 ENDPOINTS = {
     "dev": {

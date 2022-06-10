@@ -1,11 +1,8 @@
 import subprocess
-
 from pathlib import Path
 
 import pytest
-
-from gpas import lib, validation, misc, data_dir
-
+from gpas import data_dir, lib, misc, validation
 
 data_dir = "tests/test-data"
 

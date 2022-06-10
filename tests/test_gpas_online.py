@@ -1,16 +1,12 @@
+import asyncio
 import gzip
 import json
-import asyncio
 import subprocess
-
 from pathlib import Path
 
 import pytest
-
 from gpas import lib, validation
-
 from gpas.misc import ENVIRONMENTS
-
 
 data_dir = "tests/test-data"
 
