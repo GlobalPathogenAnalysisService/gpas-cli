@@ -1,4 +1,3 @@
-import functools
 import hashlib
 import json
 import logging
@@ -6,6 +5,8 @@ import multiprocessing
 import os
 import subprocess
 import sys
+from dataclasses import dataclass
+from functools import partial
 from enum import Enum
 from pathlib import Path
 
@@ -13,7 +14,6 @@ import pandas as pd
 import tqdm
 
 import gpas
-
 
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
@@ -48,38 +48,69 @@ ENDPOINTS = {
 }
 
 
-def run(cmd):
+@dataclass
+class LoggedShellCommand:
+    name: str
+    cmd: str
+    before_msg: dict
+    after_msg: dict
+
+
+def print_json(data):
+    """Send JSON to stdout"""
+    print(json.dumps(data, indent=4), flush=True)
+
+
+def run(cmd: str) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
 
 
-def run_parallel(
-    names_cmds: dict[str, str],
+def run_logged(
+    command: LoggedShellCommand, json_messages: bool = False
+) -> subprocess.CompletedProcess:
+    if json_messages:
+        logging.basicConfig(format="%(message)s", level=logging.INFO)
+        print_json(command.before_msg)
+    process = subprocess.run(
+        command.cmd, shell=True, check=True, text=True, capture_output=True
+    )
+    if json_messages:
+        print_json(command.after_msg)
+    return process
+
+
+def run_parallel_logged(
+    commands: list[LoggedShellCommand],
     processes: int = multiprocessing.cpu_count(),
-    present_participle: str = "Processing",
+    participle: str = "processing",
+    json_messages: bool = False,
 ) -> dict[str, subprocess.CompletedProcess]:
     processes = 1 if sys.platform == "win32" else processes
     if processes == 1:
-        results = {n: run(c) for n, c in names_cmds.items()}
+        results = {c.name: run(c.cmd) for c in commands}
     else:
-        names, cmds = zip(*names_cmds.items())
+        names = [c.name for c in commands]
+        cmds = [c.cmd for c in commands]
+        logging.debug(f"Started {participle.lower()} {len(cmds)} samples \n{cmds=}")
         with multiprocessing.get_context("spawn").Pool(processes) as pool:
             results = {
                 n: c
                 for n, c in zip(
                     names,
                     tqdm.tqdm(
-                        pool.imap_unordered(run, cmds),
+                        pool.imap_unordered(
+                            partial(run_logged, json_messages=json_messages),
+                            commands,
+                        ),
                         total=len(cmds),
-                        desc=f"{present_participle} {len(cmds)} samples",
+                        desc=f"{participle} {len(cmds)} samples",
                         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
                         leave=False,
                     ),
                 )
             }
-            logging.info(f"Finished {present_participle.lower()} {len(cmds)} samples")
+            logging.info(f"Finished {participle.lower()} {len(cmds)} samples")
     return results
-
-    r = list(tqdm.tqdm(p.imap(_foo, range(30)), total=30))
 
 
 def check_unicode(data):

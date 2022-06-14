@@ -7,7 +7,6 @@ import multiprocessing
 import sys
 from functools import partial
 from pathlib import Path
-from subprocess import CalledProcessError
 from typing import Any
 
 import httpx
@@ -339,8 +338,20 @@ class Sample:
 
     def _get_decontaminate_cmd(self):
         if self.specimen_organism == "SARS-CoV-2":
-            decontaminate_cmd = self._get_riak_cmd()
-        return decontaminate_cmd
+            cmd = self._get_riak_cmd()
+        else:
+            raise DecontaminationError("Invalid organism")
+
+        before_msg = {
+            "decontamination": {"sample": self.sample_name, "status": "started"}
+        }
+        after_msg = {
+            "decontamination": {"sample": self.sample_name, "status": "finished"}
+        }
+        command = misc.LoggedShellCommand(
+            name=self.sample_name, cmd=cmd, before_msg=before_msg, after_msg=after_msg
+        )
+        return command
 
     def _get_convert_bam_cmd(self, paired=False) -> str:
         prefix = Path(self.working_dir) / Path(self.sample_name)
@@ -356,7 +367,18 @@ class Sample:
             )
             self.fastq1 = self.working_dir / Path(self.sample_name + "_1.fastq.gz")
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
-        return cmd
+
+        before_msg = {
+            "bam_conversion": {"sample": self.sample_name, "status": "started"}
+        }
+        after_msg = {
+            "bam_conversion": {"sample": self.sample_name, "status": "finished"}
+        }
+        command = misc.LoggedShellCommand(
+            name=self.sample_name, cmd=cmd, before_msg=before_msg, after_msg=after_msg
+        )
+
+        return command
 
     def _get_riak_cmd(self) -> str:
         if not self.fastq2:
@@ -427,11 +449,12 @@ class Batch:
     def __init__(
         self,
         upload_csv: Path,
-        token: Path = None,
+        token: Path | None = None,
         working_dir: Path = Path("/tmp"),
         mapping_prefix: str = "",
         processes: int = 0,
         environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+        json_messages: bool = False,
     ):
         self.upload_csv = upload_csv
         self.token = parse_token(token) if token else None
@@ -440,6 +463,7 @@ class Batch:
         self.mapping_prefix = mapping_prefix
         self.processes = processes if processes else multiprocessing.cpu_count()
         self.json = {"validation": "", "decontamination": "", "submission": ""}
+        self.json_messages = json_messages
         self.df, self.validation_report = validate(upload_csv)
         self.schema_name = self.df.pandera.schema.name
         self.errors = {"decontamination": [], "submission": []}
@@ -476,27 +500,23 @@ class Batch:
     def _fetch_user_details(self):
         return fetch_user_details(self.token["access_token"], self.environment)
 
-    def _get_convert_bam_cmds(self) -> dict[str, str]:
-        return {s.sample_name: s._get_convert_bam_cmd() for s in self.samples}
+    def _get_convert_bam_cmds(self) -> list[misc.LoggedShellCommand]:
+        return [s._get_convert_bam_cmd() for s in self.samples]
 
-    def _get_decontaminate_cmds(self) -> dict[str, str]:
-        return {s.sample_name: s._get_decontaminate_cmd() for s in self.samples}
+    def _get_decontaminate_cmds(self) -> list[misc.LoggedShellCommand]:
+        return [s._get_decontaminate_cmd() for s in self.samples]
 
     def _decontaminate(self):
         if "Bam" in self.schema_name:  # Conversion necessary
-            samples_cmds = self._get_convert_bam_cmds()
-            samples_runs = misc.run_parallel(
-                names_cmds=samples_cmds,
-                processes=self.processes,
-                present_participle="Converting",
+            misc.run_parallel_logged(
+                self._get_convert_bam_cmds(),
+                participle="Converting",
+                json_messages=self.json_messages,
             )
-
-        samples_cmds = self._get_decontaminate_cmds()
-        logging.debug(f"Decontamination commands: {samples_cmds}")
-        samples_runs = misc.run_parallel(
-            names_cmds=samples_cmds,
-            processes=self.processes,
-            present_participle="Decontaminating",
+        misc.run_parallel_logged(
+            self._get_decontaminate_cmds(),
+            participle="Decontaminating",
+            json_messages=self.json_messages,
         )
 
     def _hash_fastqs(self):
@@ -600,7 +620,7 @@ class Batch:
         self._fetch_par()
         if not self.errors["decontamination"]:
             self._build_submission()
-            print(json.dumps(self.submission, indent=4))
+            logging.debug(json.dumps(self.submission, indent=4))
             self._upload_samples()
             for s in self.samples:
                 logging.info(f"Uploaded {s.sample_name} ({s.guid})")

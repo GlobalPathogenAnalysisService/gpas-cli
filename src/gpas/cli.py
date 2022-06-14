@@ -200,6 +200,7 @@ def upload(
         mapping_prefix=mapping_prefix,
         processes=processes,
         environment=environment,
+        json_messages=json_messages,
     )
     batch.upload(dry_run=dry_run)
 
