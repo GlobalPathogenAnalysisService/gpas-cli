@@ -461,7 +461,9 @@ class Batch:
         self.environment = environment
         self.working_dir = working_dir
         self.mapping_prefix = mapping_prefix
-        self.processes = processes if processes else multiprocessing.cpu_count()
+        self.processes = (
+            processes if processes else int(multiprocessing.cpu_count() / 2)
+        )
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.json_messages = json_messages
         self.df, self.validation_report = validate(upload_csv)
@@ -612,7 +614,12 @@ class Batch:
         self.batch_url = self.par + self.batch_guid + "/"
 
     def _upload_samples(self):
-        for s in self.samples:
+        for s in tqdm.tqdm(
+            self.samples,
+            desc=f"Uploading",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+            leave=False,
+        ):
             s._upload_reads(self.batch_url, self.upload_headers)
 
     def _submit(self):
@@ -698,6 +705,7 @@ class Batch:
         }
 
     def upload(self, dry_run: bool = False):
+        logging.debug(f"Using {self.processes} processes")
         self._decontaminate()
         self._hash_fastqs()
         self._fetch_guids()
