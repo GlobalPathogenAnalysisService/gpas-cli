@@ -24,30 +24,30 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
 # Requires a valid 'token.json' inside test-data. Runs on dev
 
 
-def test_gpas_uploader_validate():
-    run_cmd = run(
-        f"gpas-upload --environment dev --token token.json --json validate nanopore-fastq.csv"
-    )
-    assert (
-        '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-        in run_cmd.stdout
-    )
+# def test_gpas_uploader_validate():
+#     run_cmd = run(
+#         f"gpas-upload --environment dev --token token.json --json validate nanopore-fastq.csv"
+#     )
+#     assert (
+#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
+#         in run_cmd.stdout
+#     )
 
 
-def test_dry_run():
-    run_cmd = run(
-        f"gpas upload-old nanopore-fastq.csv --environment dev token.json --dry-run"
-    )
-    assert "successfully decontaminated" in run_cmd.stdout
-    run("rm -f sample_names* mapping*")
+# def test_dry_run():
+#     run_cmd = run(
+#         f"gpas upload-old nanopore-fastq.csv --environment dev token.json --dry-run"
+#     )
+#     assert "successfully decontaminated" in run_cmd.stdout
+#     run("rm -f sample_names* mapping*")
 
 
-def test_dry_run_json():
-    run_cmd = run(
-        f"gpas upload-old --dry-run --json nanopore-fastq.csv  --environment dev token.json"
-    )
-    assert '"file": "reads/nanopore-fastq/unpaired5.fastq.gz"' in run_cmd.stdout
-    run("rm -f sample_names* mapping*")
+# def test_dry_run_json():
+#     run_cmd = run(
+#         f"gpas upload-old --dry-run --json nanopore-fastq.csv  --environment dev token.json"
+#     )
+#     assert '"file": "reads/nanopore-fastq/unpaired5.fastq.gz"' in run_cmd.stdout
+#     run("rm -f sample_names* mapping*")
 
 
 def test_status_guids_csv():

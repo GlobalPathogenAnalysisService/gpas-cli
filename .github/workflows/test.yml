@@ -19,10 +19,9 @@ jobs:
           conda-channels: conda-forge, bioconda
       - name: Install
         run: |
-          conda install samtools=1.15.1 read-it-and-keep
+          conda install samtools=1.15.1 read-it-and-keep=0.3.0
           pip install pytest
           pip install .
-#          pip install git+https://github.com/GenomePathogenAnalysisService/gpas-uploader.git
       - name: Test
         run: |
           python -m pytest tests/test_gpas.py

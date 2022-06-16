@@ -207,7 +207,7 @@ options:
 Use pre-commit to apply black style at commit time
 
 ```
-conda create -n gpas-cli-dev python=3.10 read-it-and-keep samtools=1.15.1 pytest black pre-commit mypy
+conda create -n gpas-cli-dev python=3.10 read-it-and-keep=0.3.0 samtools=1.15.1 pytest black pre-commit mypy
 conda activate gpas-cli-dev
 git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
 cd gpas-cli
