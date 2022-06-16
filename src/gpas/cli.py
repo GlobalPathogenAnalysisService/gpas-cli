@@ -157,7 +157,8 @@ def validate(
         allowed_tags = []
     try:
         _, message = validation.validate(upload_csv, allowed_tags)
-        print(json.dumps(message, indent=4))
+        if json_messages:
+            print(json.dumps(message, indent=4))
     except validation.ValidationError as e:
         if json_messages:
             print(json.dumps(e.report, indent=4))

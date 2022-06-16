@@ -88,7 +88,7 @@ Decontaminate upload reads specified in `upload_csv` to the GPAS platform
 
 ```
 gpas upload --environment production nanopore-fastq.csv token.json
-gpas upload --environment production nanopore-fastq.csv token.json --dry-run  # Do not upload
+gpas upload --environment production nanopore-fastq.csv token.json --dry-run  # Skip submission
 ```
 
 ```
@@ -204,7 +204,7 @@ options:
 
 ## Development and testing
 
-Use pre-commit to apply black style at commit time
+Use pre-commit to apply black style at commit time (should happen automatically)
 
 ```
 conda create -n gpas-cli-dev python=3.10 read-it-and-keep=0.3.0 samtools=1.15.1 pytest black pre-commit mypy
@@ -214,8 +214,8 @@ cd gpas-cli
 pip install -e ./
 
 # Offline unit tests
-pytest
+pytest tests/test_gpas.py
 
 # Online and upload tests require a valid token
-pytest --online --upload
+pytest
 ```

@@ -246,8 +246,18 @@ def test_gpas_uploader_download_mapping_rename_fasta():
 
 
 def test_gpas_validate():
+    """Check that stderr says successful but that stdout is empty"""
     run_cmd = run(
         f"gpas validate --token token.json --environment dev large-nanopore-fastq.csv"
+    )
+    assert "success" in run_cmd.stderr
+    assert run_cmd.stdout == ""
+
+
+def test_gpas_validate_message():
+    """Check that"""
+    run_cmd = run(
+        f"gpas validate --token token.json --environment dev large-nanopore-fastq.csv --json-messages"
     )
     assert '"status": "success"' in run_cmd.stdout
 

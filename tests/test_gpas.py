@@ -114,6 +114,13 @@ def test_validate_fail_dupe_tags():
     ]
 
 
+def test_validate_wrong_tags():
+    """Should pass since tag validation does not happen offline"""
+    run_cmd = run(f"gpas validate broken/wrong-tags.csv")
+    assert "Validation successful" in run_cmd.stderr
+    assert run_cmd.stdout == ""
+
+
 def test_validate_fail_missing_files():
     # valid, schema, message = validation.validate(
     #     Path(data_dir) / Path("broken") / Path("broken-path.csv")

@@ -57,6 +57,9 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         + ENDPOINTS[environment.value]["ORDS_PATH"]
         + "userOrgDtls"
     )
+    http_errors_messages = {  # Custom messages for specific error codes
+        401: "Authorisation failed, check access token validity",
+    }
     try:
         logging.debug(f"Fetching user details {endpoint=}")
         r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
@@ -490,6 +493,11 @@ class Batch:
             }
             self.upload_headers = {k: v for k, v in self.headers.items()}
             self.upload_headers["Content-Type"] = "application/octet-stream"
+        else:
+            self.user = None
+            self.organisation = None
+            self.permitted_tags = None
+            self.upload_headers = None
 
         currentTime = (
             datetime.datetime.now(datetime.timezone.utc)

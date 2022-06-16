@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 from pathlib import Path
 
@@ -275,7 +276,6 @@ def parse_validation_errors(errors):
     -------
     pandas.DataFrame(columns=['sample_name', 'error_message'])
     """
-    print(errors.failure_cases.to_dict("records"))
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
@@ -419,10 +419,10 @@ def validate(
     Validate an upload CSV. Returns a dataframe and report
     """
     raw_df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
+    schema = select_schema(raw_df)
+    if allowed_tags:  # Only validate if we have tags
+        validate_tags(raw_df, allowed_tags)
     try:
-        if allowed_tags:  # Only validate if we have tags
-            validate_tags(raw_df, allowed_tags)
-        schema = select_schema(raw_df)
         with set_directory(upload_csv.parent):  # Enable file path validation
             df = resolve_paths(schema.validate(raw_df, lazy=True))
         records = get_valid_samples(df, schema.__name__)
@@ -434,4 +434,5 @@ def validate(
         }
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         raise ValidationError(parse_validation_errors(e)) from None
+    logging.info("Validation successful")
     return df, report
