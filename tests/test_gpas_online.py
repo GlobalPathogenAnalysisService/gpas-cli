@@ -35,27 +35,31 @@ def test_gpas_uploader_validate():
 
 
 def test_dry_run():
-    run_cmd = run(f"gpas upload-old nanopore-fastq.csv token.json --dry-run")
+    run_cmd = run(
+        f"gpas upload-old nanopore-fastq.csv --environment dev token.json --dry-run"
+    )
     assert "successfully decontaminated" in run_cmd.stdout
     run("rm -f sample_names* mapping*")
 
 
 def test_dry_run_json():
-    run_cmd = run(f"gpas upload-old --dry-run --json nanopore-fastq.csv token.json")
+    run_cmd = run(
+        f"gpas upload-old --dry-run --json nanopore-fastq.csv  --environment dev token.json"
+    )
     assert '"file": "reads/nanopore-fastq/unpaired5.fastq.gz"' in run_cmd.stdout
     run("rm -f sample_names* mapping*")
 
 
 def test_status_guids_csv():
     run_cmd = run(
-        f"gpas status --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f,2ddbd7d4-9979-4960-8c17-e7b92f0bf413,8daadc7d-8d58-46a6-efb4-9ddefc1e4669 --format csv token.json"
+        f"gpas status --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f,2ddbd7d4-9979-4960-8c17-e7b92f0bf413,8daadc7d-8d58-46a6-efb4-9ddefc1e4669 --format csv --environment dev token.json"
     )
     assert "6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased" in run_cmd.stdout
 
 
 def test_status_mapping_csv_json():
     run_cmd = run(
-        f"gpas status --mapping-csv example.mapping.csv --format json token.json"
+        f"gpas status --mapping-csv example.mapping.csv --format json --environment dev token.json"
     )
     assert {
         "sample": "6e024eb1-432c-4b1b-8f57-3911fe87555f",
@@ -65,40 +69,44 @@ def test_status_mapping_csv_json():
 
 def test_status_mapping_csv_csv():
     run_cmd = run(
-        f"gpas status --mapping-csv example.mapping.csv --format csv token.json"
+        f"gpas status --mapping-csv example.mapping.csv --format csv --environment dev token.json"
     )
     assert "6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased" in run_cmd.stdout
 
 
 def test_status_mapping_csv_table():
     run_cmd = run(
-        f"gpas status --mapping-csv example.mapping.csv --format table token.json"
+        f"gpas status --mapping-csv example.mapping.csv --format table --environment dev token.json"
     )
     assert "6e024eb1-432c-4b1b-8f57-3911fe87555f Unreleased" in run_cmd.stdout
 
 
 def test_status_mapping_csv_rename():
     run_cmd = run(
-        f"gpas status --mapping-csv example.mapping.csv token.json --format csv --rename"
+        f"gpas status --mapping-csv example.mapping.csv --environment dev token.json --format csv --rename"
     )
     assert "test4_uploaded,Uploaded" in run_cmd.stdout
 
 
 def test_gpas_uploader_download_mapping_csv():
-    run_cmd = run(f"gpas download --mapping-csv example.mapping.csv token.json")
+    run_cmd = run(
+        f"gpas download --mapping-csv example.mapping.csv --environment dev token.json"
+    )
     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
     run("rm -f *.fasta.gz")
 
 
 def test_download_mapping_csv():
-    run_cmd = run(f"gpas download --mapping-csv example.mapping.csv token.json")
+    run_cmd = run(
+        f"gpas download --mapping-csv example.mapping.csv --environment dev token.json"
+    )
     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
     run("rm -f *.fasta.gz")
 
 
 def test_download_mapping_csv_rename():
     run_cmd = run(
-        f"gpas download --rename --mapping-csv example.mapping.csv --file-types vcf token.json"
+        f"gpas download --rename --mapping-csv example.mapping.csv --file-types vcf --environment dev token.json"
     )
     assert Path(f"{data_dir}/test1.vcf").is_file()
     run("rm -f test*.vcf")
@@ -106,7 +114,7 @@ def test_download_mapping_csv_rename():
 
 def test_download_guid_rename_without_mapping():
     run_cmd = run(
-        f"gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types vcf --rename token.json"
+        f"gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types vcf --rename --environment dev token.json"
     )
     assert "Cannot rename outputs without mapping CSV" in run_cmd.stderr
     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf").is_file()
@@ -121,6 +129,7 @@ def test_download_guid_api():
             file_types=["vcf"],
             access_token=auth["access_token"],
             out_dir=data_dir,
+            environment=ENVIRONMENTS.dev,
         )
     )
     assert (Path(data_dir) / Path("6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")).is_file()
@@ -213,7 +222,7 @@ def test_status_mapping_rename_api():
 
 def test_gpas_uploader_download_mapping_rename_fasta():
     run_cmd = run(
-        f"gpas download --mapping-csv example.mapping.csv --rename token.json"
+        f"gpas download --mapping-csv example.mapping.csv --rename --environment dev token.json"
     )
     with gzip.open(Path(f"{data_dir}/test1.fasta.gz"), "rt") as fh:
         assert "cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839|test1" in fh.read()
@@ -229,7 +238,7 @@ def test_check_auth_success():
 
 def test_gpas_uploader_download_mapping_rename_fasta():
     run_cmd = run(
-        f"gpas download --mapping-csv example.mapping.csv --rename token.json"
+        f"gpas download --mapping-csv example.mapping.csv --rename --environment dev token.json"
     )
     with gzip.open(Path(f"{data_dir}/test1.fasta.gz"), "rt") as fh:
         assert "cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839|test1" in fh.read()
@@ -237,7 +246,9 @@ def test_gpas_uploader_download_mapping_rename_fasta():
 
 
 def test_gpas_validate():
-    run_cmd = run(f"gpas validate --token token.json large-nanopore-fastq.csv")
+    run_cmd = run(
+        f"gpas validate --token token.json --environment dev large-nanopore-fastq.csv"
+    )
     assert '"status": "success"' in run_cmd.stdout
 
 
@@ -257,7 +268,7 @@ def test_validate_fail_wrong_tags():
 def test_validate_fail_wrong_tags_cli():
     with pytest.raises(subprocess.CalledProcessError):
         run_cmd = run(
-            f"gpas validate --token tests/test-data/token.json tests/test-data/broken/wrong-tags.csv"
+            f"gpas validate --environment dev --token tests/test-data/token.json tests/test-data/broken/wrong-tags.csv"
         )
 
 
@@ -300,7 +311,9 @@ def test_auth_broken_token():
 
 
 def test_ont_bam_dry():
-    run_cmd = run(f"gpas upload --token token.json large-nanopore-bam.csv --dry-run")
+    run_cmd = run(
+        f"gpas upload --environment dev --token token.json large-nanopore-bam.csv --dry-run"
+    )
     assert "INFO: Finished converting 1 samples" in run_cmd.stderr
     assert "INFO: Finished decontaminating 1 samples" in run_cmd.stderr
 
