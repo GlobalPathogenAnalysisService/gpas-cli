@@ -222,6 +222,13 @@ def test_validate_fail_country_region():
     ]
 
 
+def test_validate_empty_region():
+    """Empty region should be fine"""
+    _, message = validation.validate(
+        Path(data_dir) / Path("broken") / Path("empty-region.csv")
+    )
+
+
 def test_validate_fail_select_schema():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(

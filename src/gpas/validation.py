@@ -63,8 +63,10 @@ def region_is_valid(df):
     """
 
     def validate_region(row):
-        if row["region"] and row["region"] not in COUNTRIES_SUBDIVISIONS.get(
-            row["country"], {}
+        if (
+            row["region"]
+            and not pd.isna(row["region"])
+            and row["region"] not in COUNTRIES_SUBDIVISIONS.get(row["country"], {})
         ):
             valid = False
         else:
