@@ -6,7 +6,7 @@ A **currently experimental** standalone command line and Python API client for i
 
 | Command line interface | Python API |
 | ----------------- | ------- |
-| ☑️ `gpas upload` | ☑️ `lib.Batch(upload_csv, token).upload()` |
+| ✅ `gpas upload` | ✅ `lib.Batch(upload_csv, token).upload()` |
 | ✅ `gpas download` | ✅ `lib.download_async()` |
 | ✅ `gpas validate` | ✅ `validation.validate()` |
 | ✅ `gpas status` | ✅ `lib.fetch_status()`, `lib.fetch_status_async()` |
@@ -19,6 +19,7 @@ A **currently experimental** standalone command line and Python API client for i
 
 
 ```
+curl https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml --output environment.yml
 conda env create -f environment.yml  # Installs from main branch
 conda activate gpas-cli
 ```
@@ -207,7 +208,7 @@ options:
 Use pre-commit to apply black style at commit time (should happen automatically)
 
 ```
-conda create -n gpas-cli-dev python=3.10 read-it-and-keep=0.3.0 samtools=1.15.1 pytest black pre-commit mypy
+conda create -n gpas-cli-dev python=3.10 read-it-and-keep=0.3.0 samtools=1.15.1 pytest pytest-cov black pre-commit mypy
 conda activate gpas-cli-dev
 git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
 cd gpas-cli
@@ -217,5 +218,5 @@ pip install -e ./
 pytest tests/test_gpas.py
 
 # Online and upload tests require a valid token
-pytest
+pytest --cov=gpas
 ```
