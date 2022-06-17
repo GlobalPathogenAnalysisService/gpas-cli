@@ -22,8 +22,8 @@ def test_upload_ont_bam_dry():
     run_cmd = run(
         f"gpas upload --environment dev --token token.json large-nanopore-bam.csv --dry-run"
     )
-    assert "INFO: Finished converting 1 samples" in run_cmd.stderr
-    assert "INFO: Finished decontaminating 1 samples" in run_cmd.stderr
+    assert "INFO: Finished converting 1 sample(s)" in run_cmd.stderr
+    assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
 
 
 def test_upload_ont_bam_dry_json():

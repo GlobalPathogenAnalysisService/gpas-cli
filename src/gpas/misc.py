@@ -91,7 +91,7 @@ def run_parallel_logged(
     else:
         names = [c.name for c in commands]
         cmds = [c.cmd for c in commands]
-        logging.debug(f"Started {participle.lower()} {len(cmds)} samples \n{cmds=}")
+        logging.debug(f"Started {participle.lower()} {len(cmds)} sample(s) \n{cmds=}")
         with multiprocessing.get_context("spawn").Pool(processes) as pool:
             results = {
                 n: c
@@ -103,13 +103,13 @@ def run_parallel_logged(
                             commands,
                         ),
                         total=len(cmds),
-                        desc=f"{participle} {len(cmds)} samples",
+                        desc=f"{participle} {len(cmds)} sample(s)",
                         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
                         leave=False,
                     ),
                 )
             }
-            logging.info(f"Finished {participle.lower()} {len(cmds)} samples")
+            logging.info(f"Finished {participle.lower()} {len(cmds)} sample(s)")
     return results
 
 

@@ -31,6 +31,10 @@ class DecontaminationError(Exception):
     pass
 
 
+class SubmissionError(Exception):
+    pass
+
+
 def parse_token(token: Path) -> dict:
     return json.loads(token.read_text())
 
@@ -57,9 +61,6 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         + ENDPOINTS[environment.value]["ORDS_PATH"]
         + "userOrgDtls"
     )
-    http_errors_messages = {  # Custom messages for specific error codes
-        401: "Authorisation failed, check access token validity",
-    }
     try:
         logging.debug(f"Fetching user details {endpoint=}")
         r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
@@ -313,6 +314,7 @@ class Sample:
     ):
         self.batch = batch
         self.run_number = run_number
+        self.gpas_run_number = None
         self.sample_name = sample_name
         self.fastq = fastq
         self.fastq1 = fastq1
@@ -497,6 +499,7 @@ class Batch:
             self.user = None
             self.organisation = None
             self.permitted_tags = None
+            self.headers = None
             self.upload_headers = None
 
         currentTime = (
@@ -506,6 +509,8 @@ class Batch:
         )
         tzStartIndex = len(currentTime) - 6
         self.uploaded_on = currentTime[:tzStartIndex] + "Z" + currentTime[tzStartIndex:]
+
+        self._number_runs()
 
     def _fetch_user_details(self):
         return fetch_user_details(self.token["access_token"], self.environment)
@@ -539,9 +544,20 @@ class Batch:
         return {s.sample_name: getattr(s, attr) for s in self.samples}
 
     def _set_samples(self, name, value):
-        map(partial(setattr, name, value), self.samples)
+        for s in self.samples:
+            setattr(s, name, value)
 
     def _fetch_guids(self):
+        if not self.headers:
+            logging.warning("No token provided, quitting after decontamination")
+            for s in self.samples:
+                logging.info(
+                    f"{s.sample_name}: {s.clean_fastq}"
+                ) if s.clean_fastq else None
+                logging.info(
+                    f"{s.sample_name}: {s.clean_fastq1} {s.clean_fastq2}"
+                ) if s.clean_fastq1 else None
+            sys.exit()
         md5_attr = "md5" if not self.paired else "md5_1"
         checksums = list(self._get_sample_attrs(md5_attr).values())
         payload = {
@@ -647,10 +663,10 @@ class Batch:
         r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
         logging.debug("POSTing JSON")
         logging.debug(r.text)
-        if not r.ok:
-            self.errors["submission"].append(
-                {"error": "Sending metadata JSON to ORDS failed"}
-            )
+        r.raise_for_status()
+        # Needed since endpoint returns status 200 for errors!
+        if r.json().get("status") != "success":
+            raise SubmissionError(r.json().get("errorMsg"))
         else:  # Make the finalisation mark
             url = self.par + self.batch_guid + "/upload_done.txt"
             r = requests.put(url=url, headers=self.upload_headers)
@@ -668,14 +684,14 @@ class Batch:
             dict : JSON payload to pass to GPAS Electron upload app via STDOUT
         """
         # self.sample_sheet = copy.deepcopy(self.df[['batch', 'run_number', 'sample_name', 'gpas_batch', 'gpas_run_number', 'gpas_sample_name']])
-        # self.sample_sheet.rename(columns={'batch': 'local_batch', 'run_number': 'local_run_number', 'sample_name': 'local_sample_name'}, inplace=True)
+        # self.sample_sheet.rename(columns={'batch': 'local_batch', 'run_number': 'gpas_run_number', 'sample_name': 'local_sample_name'}, inplace=True)
         # self.df.set_index('gpas_sample_name', inplace=True)
 
         samples = []
         for s in self.samples:
             sample = {
                 "name": s.guid,
-                # "run_number": row.gpas_run_number,
+                "run_number": s.gpas_run_number,
                 "tags": s.tags,
                 "control": s.control,
                 "collection_date": str(s.collection_date.date()),
@@ -707,39 +723,36 @@ class Batch:
                 "uploaded_on": str(self.uploaded_on),
                 "uploaded_by": self.user,
                 "organisation": self.organisation,
-                # "run_numbers": [i for i in self.run_number_lookup.values()],
+                # "run_numbers": list(self._get_sample_attrs('gpas_run_number').values()),
                 "samples": samples,
             },
         }
 
     def upload(self, dry_run: bool = False):
-        logging.debug(f"Using {self.processes} processes")
+        logging.info(f"Using {self.processes} processes")
         self._decontaminate()
         self._hash_fastqs()
         self._fetch_guids()
         self._rename_fastqs()
         if not dry_run:
             self._submit()
-        # for s in self.samples:
-        # print(s.sample_name, s.decontamination_stats, s.md5, s.guid)
-        # print(s.clean_fastq, s.clean_fastq1, s.clean_fastq2)
-        # assert s.clean_fastq.exists() if s.clean_fastq else True
-        # assert s.clean_fastq1.exists() if s.clean_fastq1 else True
-        # assert s.clean_fastq2.exists() if s.clean_fastq2 else True
+        for s in self.samples:
+            logging.debug(
+                # f"{s.sample_name=}; {s.md5=}; {s.decontamination_stats=}"
+                f" {s.clean_fastq}; {s.clean_fastq1}; {s.clean_fastq2}"
+            )
 
-    # def _number_runs(self):
-    #     run_number_lookup = {}
-    #     # deal with case when they are all NaN
-    #     if self.df.run_number.isna().all():
-    #         run_number_lookup[''] = ''
-    #     else:
-    #         self.run_numbers = list(self.df.run_number.unique())
-    #         gpas_run = 1
-    #         for i in self.run_numbers:
-    #             if pandas.notna(i):
-    #                 run_number_lookup[i] = gpas_run
-    #                 gpas_run += 1
-    #    return run_number_lookup
+    def _number_runs(self) -> None:
+        """Enumerate unique values of run_number for submission"""
+        samples_runs = self._get_sample_attrs("run_number")
+        runs = set(samples_runs.values())
+        if list(filter(None, runs)):  # More than just an empty string
+            runs_numbers = {r: str(i) for i, r in enumerate(runs, start=1)}
+        else:
+            runs_numbers = {"": ""}
+        # print(f"{samples_runs=}, {runs=}, {runs_numbers=} {bool(runs)}")
+        for s in self.samples:
+            s.gpas_run_number = runs_numbers[s.run_number]
 
 
 def parse_decontamination_stats(stdout: str) -> dict:

@@ -420,7 +420,9 @@ def validate(
     """
     Validate an upload CSV. Returns a dataframe and report
     """
-    raw_df = pd.read_csv(upload_csv, encoding="utf-8", index_col="sample_name")
+    raw_df = pd.read_csv(
+        upload_csv, encoding="utf-8", index_col="sample_name", dtype={"run_number": str}
+    )
     schema = select_schema(raw_df)
     if allowed_tags:  # Only validate if we have tags
         validate_tags(raw_df, allowed_tags)

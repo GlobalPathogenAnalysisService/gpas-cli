@@ -224,9 +224,7 @@ def test_validate_fail_country_region():
 
 def test_validate_empty_region():
     """Empty region should be fine"""
-    _, message = validation.validate(
-        Path(data_dir) / Path("broken") / Path("empty-region.csv")
-    )
+    _, message = validation.validate(Path(data_dir) / Path("empty-region.csv"))
 
 
 def test_validate_fail_select_schema():
@@ -287,3 +285,9 @@ Kept reads 2	5006
         "out": 10012,
         "fraction": 0.0056,
     }
+
+
+def test_upload_no_token():
+    """When run without a token, upload should quit (exit code 0) after decontamination"""
+    run_cmd = run("gpas upload large-nanopore-fastq.csv")
+    assert "COVID_locost_2_barcode10.reads.fastq.gz" in run_cmd.stderr
