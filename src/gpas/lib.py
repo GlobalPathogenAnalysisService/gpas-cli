@@ -335,6 +335,8 @@ class Sample:
         self.decontamination_ref_path = self.get_decontamination_ref_path()
         self.working_dir = working_dir
         self.uploaded = False
+        self.guid = None
+        self.mapping_path = None
 
     def get_decontamination_ref_path(self):
         organisms_decontamination_references = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
@@ -424,6 +426,15 @@ class Sample:
     def _hash_fastqs(self):
         self.md5_1 = misc.hash_file(str(self.fastq1))
         self.md5_2 = misc.hash_file(str(self.fastq2))
+
+    def _build_mapping_record(self) -> dict[str, Any]:
+        return {
+            "local_batch": self.batch,
+            "local_run_number": self.run_number,
+            "local_sample_name": self.sample_name,
+            "gpas_run_number": self.gpas_run_number,
+            "gpas_sample_name": self.guid,
+        }
 
     def _upload_reads(self, batch_url, headers):
         """Upload an unpaired FASTQ file to the Organisation's input bucket in OCI"""
@@ -610,6 +621,27 @@ class Batch:
             # print(s.fastq)
             # print(s.clean_fastq)
 
+    def _build_mapping_csv(self):
+        records = [  # Collects attrs from Sample, except for gpas_batch (Batch)
+            {**s._build_mapping_record(), "gpas_batch": self.batch_guid}
+            for s in self.samples
+        ]
+        df = pd.DataFrame(
+            records,
+            columns=[
+                "local_batch",
+                "local_run_number",
+                "local_sample_name",
+                "gpas_batch",
+                "gpas_run_number",
+                "gpas_sample_name",
+            ],
+        )
+        target_path = self.upload_csv.parent / Path(self.batch_guid + ".mapping.csv")
+        df.to_csv(target_path, index=False)
+        self.mapping_path = target_path
+        logging.info(f"Saved mapping CSV to {self.mapping_path}")
+
     def _fetch_par(self):
         """Private method that calls ORDS to get a Pre-Authenticated Request.
 
@@ -667,7 +699,7 @@ class Batch:
         # Needed since endpoint returns status 200 for errors!
         if r.json().get("status") != "success":
             raise SubmissionError(r.json().get("errorMsg"))
-        else:  # Make the finalisation mark
+        else:  # Upload the finalisation mark
             url = self.par + self.batch_guid + "/upload_done.txt"
             r = requests.put(url=url, headers=self.upload_headers)
             logging.info(f"Finished uploading batch {self.batch_guid}")
@@ -733,6 +765,7 @@ class Batch:
         self._decontaminate()
         self._hash_fastqs()
         self._fetch_guids()
+        self._build_mapping_csv()
         self._rename_fastqs()
         if not dry_run:
             self._submit()

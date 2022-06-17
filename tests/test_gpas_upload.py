@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 
+import pandas as pd
 import pytest
 from gpas import lib
 from gpas.misc import ENVIRONMENTS
@@ -24,9 +25,11 @@ def test_upload_ont_bam_dry():
     )
     assert "INFO: Finished converting 1 sample(s)" in run_cmd.stderr
     assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
+    batch_guid = run_cmd.stderr.partition(".mapping.csv")[0].rpartition(" ")[2]
+    run(f"rm -f {batch_guid}.mapping.csv")
 
 
-def test_upload_ont_bam_dry_json():
+def test_upload_ont_bam_dry_json_and_mapping_csv():
     run_cmd = run(
         f"gpas upload --environment dev --token token.json large-nanopore-bam.csv --dry-run --json-messages"
     )
@@ -34,3 +37,14 @@ def test_upload_ont_bam_dry_json():
     assert "COVID_locost_2_barcode10" in run_cmd.stdout
     assert "finished" in run_cmd.stdout
     assert "decontamination" in run_cmd.stdout
+
+    # Check all mapping CSV fields except for server side names
+    batch_guid = run_cmd.stderr.partition(".mapping.csv")[0].rpartition(" ")[2]
+    records = pd.read_csv(
+        Path(data_dir) / Path(f"{batch_guid}.mapping.csv"), dtype=str
+    ).to_dict("records")
+    assert records[0]["local_batch"] == "run1"
+    assert records[0]["local_run_number"] == "run1.1"
+    assert records[0]["local_sample_name"] == "COVID_locost_2_barcode10"
+    assert records[0]["gpas_run_number"] == "1"
+    run(f"rm -f {batch_guid}.mapping.csv")
