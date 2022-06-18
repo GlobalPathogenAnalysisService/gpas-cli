@@ -81,6 +81,7 @@ def download(
     file_types: str = "fasta",
     out_dir: Path = Path.cwd(),
     rename: bool = False,
+    debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
 ):
     """
@@ -94,6 +95,8 @@ def download(
     :arg rename: Rename outputs using local sample names (requires --mapping-csv)
     :arg environment: GPAS environment to use
     """
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
     # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
     # gpas-upload --json --token ../../gpas-cli/tests/test-data/token.json --environment dev submit ../../gpas-cli/tests/test-data/large-nanopore-fastq.csv
     file_types_fmt = file_types.strip(",").split(",")

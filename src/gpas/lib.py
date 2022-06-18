@@ -352,10 +352,18 @@ class Sample:
             raise DecontaminationError("Invalid organism")
 
         before_msg = {
-            "decontamination": {"sample": self.sample_name, "status": "started"}
+            "progress": {
+                "action": "decontamination",
+                "status": "started",
+                "sample": self.sample_name,
+            }
         }
         after_msg = {
-            "decontamination": {"sample": self.sample_name, "status": "finished"}
+            "progress": {
+                "action": "decontamination",
+                "status": "finished",
+                "sample": self.sample_name,
+            }
         }
         command = misc.LoggedShellCommand(
             name=self.sample_name, cmd=cmd, before_msg=before_msg, after_msg=after_msg
@@ -378,10 +386,18 @@ class Sample:
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
 
         before_msg = {
-            "bam_conversion": {"sample": self.sample_name, "status": "started"}
+            "progress": {
+                "action": "bam_conversion",
+                "status": "started",
+                "sample_name": self.sample_name,
+            }
         }
         after_msg = {
-            "bam_conversion": {"sample": self.sample_name, "status": "finished"}
+            "progress": {
+                "action": "bam_conversion",
+                "status": "finished",
+                "sample_name": self.sample_name,
+            }
         }
         command = misc.LoggedShellCommand(
             name=self.sample_name, cmd=cmd, before_msg=before_msg, after_msg=after_msg
@@ -438,10 +454,26 @@ class Sample:
             "gpas_sample_name": self.guid,
         }
 
-    def _upload_reads(self, batch_url, headers):
+    def _upload_reads(self, batch_url, headers, json_messages):
         """Upload an unpaired FASTQ file to the Organisation's input bucket in OCI"""
+        before_msg = {
+            "progress": {
+                "action": "upload",
+                "status": "started",
+                "sample_name": self.sample_name,
+            }
+        }
+        after_msg = {
+            "progress": {
+                "action": "upload",
+                "status": "finished",
+                "sample_name": self.sample_name,
+            }
+        }
         url_prefix = batch_url + self.guid
         if not self.uploaded:
+            if json_messages:
+                print(json.dumps(before_msg, indent=4))
             if not self.paired:
                 with open(self.clean_fastq, "rb") as fh:
                     r = requests.put(
@@ -456,6 +488,23 @@ class Sample:
                     r = requests.put(
                         f"{url_prefix}.reads_2.fastq.gz", data=fh, headers=headers
                     )
+            if json_messages:
+                before_msg = {
+                    "progress": {
+                        "action": "upload",
+                        "status": "started",
+                        "sample_name": self.sample_name,
+                    }
+                }
+                after_msg = {
+                    "progress": {
+                        "action": "upload",
+                        "status": "finished",
+                        "sample_name": self.sample_name,
+                    }
+                }
+                if json_messages:
+                    print(json.dumps(after_msg, indent=4))
         self.uploaded = True
 
 
@@ -524,6 +573,9 @@ class Batch:
         self.uploaded_on = currentTime[:tzStartIndex] + "Z" + currentTime[tzStartIndex:]
 
         self._number_runs()
+
+        if self.json_messages:
+            print(json.dumps(self.validation_report, indent=4))
 
     def _fetch_user_details(self):
         return fetch_user_details(self.token["access_token"], self.environment)
@@ -679,7 +731,7 @@ class Batch:
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
             leave=False,
         ):
-            s._upload_reads(self.batch_url, self.upload_headers)
+            s._upload_reads(self.batch_url, self.upload_headers, self.json_messages)
 
     def _submit(self):
         self._set_samples("uploaded", False)
