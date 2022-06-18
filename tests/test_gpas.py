@@ -54,10 +54,10 @@ def test_validate_ok():
     assert message["validation"]["status"] == "success"
     assert message["validation"]["samples"][0]["sample_name"] == "cDNA-VOC-1-v4-1"
     assert message["validation"]["samples"][0]["files"][0].endswith(
-        "gpas-cli/tests/test-data/reads/large-illumina-fastq_1.fastq.gz"
+        "reads/large-illumina-fastq_1.fastq.gz"
     )
     assert message["validation"]["samples"][0]["files"][1].endswith(
-        "gpas-cli/tests/test-data/reads/large-illumina-fastq_2.fastq.gz"
+        "reads/large-illumina-fastq_2.fastq.gz"
     )
 
 

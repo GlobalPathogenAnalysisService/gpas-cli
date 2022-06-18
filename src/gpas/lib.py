@@ -490,22 +490,7 @@ class Sample:
                         f"{url_prefix}.reads_2.fastq.gz", data=fh, headers=headers
                     )
             if json_messages:
-                before_msg = {
-                    "progress": {
-                        "action": "upload",
-                        "status": "started",
-                        "sample_name": self.sample_name,
-                    }
-                }
-                after_msg = {
-                    "progress": {
-                        "action": "upload",
-                        "status": "finished",
-                        "sample_name": self.sample_name,
-                    }
-                }
-                if json_messages:
-                    print(json.dumps(after_msg, indent=4))
+                print(json.dumps(after_msg, indent=4))
         self.uploaded = True
 
 
@@ -733,38 +718,44 @@ class Batch:
             leave=False,
         ):
             s._upload_reads(self.batch_url, self.upload_headers, self.json_messages)
-
-    def _submit(self):
-        self._set_samples("uploaded", False)
-        self._fetch_par()
-        if not self.errors["decontamination"]:
-            self._build_submission()
-            logging.debug(json.dumps(self.submission, indent=4))
-            self._upload_samples()
-            for s in self.samples:
+            with logging_redirect_tqdm():
                 logging.info(f"Uploaded {s.sample_name} ({s.guid})")
+
+    def _finalise_submission(self):
         endpoint = (
             ENDPOINTS[self.environment.value]["HOST"]
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
-        r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
-        logging.debug("POSTing JSON")
-        logging.debug(r.text)
-        r.raise_for_status()
-        # Needed since endpoint returns status 200 for errors!
-        if r.json().get("status") != "success":
-            raise SubmissionError(r.json().get("errorMsg"))
-        else:  # Upload the finalisation mark
-            url = self.par + self.batch_guid + "/upload_done.txt"
+        try:
+            r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
+            r.raise_for_status()
+            logging.debug(f"POSTing JSON {r.text=}")
+            if r.json().get("status") != "success":
+                raise SubmissionError(r.json().get("errorMsg"))
+            url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
             r = requests.put(url=url, headers=self.upload_headers)
+            r.raise_for_status()
             logging.info(f"Finished uploading batch {self.batch_guid}")
-            if not r.ok:
-                self.errors["submission"].append(
-                    {"error": "Sending metadata JSON to ORDS failed"}
-                )
+            success_message = {
+                "submission": {
+                    "status": "success",
+                    "samples": [s.sample_name for s in self.samples],
+                }
+            }
+            if self.json_messages:
+                print(json.dumps(success_message, indent=4))
+        except Exception as e:
+            raise SubmissionError(repr(e))
 
-    def _build_submission(self):
+    def _submit(self):
+        self._set_samples("uploaded", False)
+        self._fetch_par()
+        self._upload_samples()
+        self._prepare_submission()
+        self._finalise_submission()
+
+    def _prepare_submission(self):
         """Prepare the JSON payload for the GPAS Upload app
 
         Returns
@@ -815,6 +806,7 @@ class Batch:
                 "samples": samples,
             },
         }
+        logging.debug(json.dumps(self.submission, indent=4))
 
     def upload(self, dry_run: bool = False):
         logging.info(f"Using {self.processes} processes")

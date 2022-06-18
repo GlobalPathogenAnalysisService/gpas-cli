@@ -63,7 +63,7 @@ def jsonify_exceptions(function, **kwargs):
 
     def jsonify(obj, generic=False) -> str:
         if generic:
-            output = json.dumps({"error": obj}, indent=4)
+            output = json.dumps({"error": repr(obj)}, indent=4)
         else:
             output = json.dumps(obj, indent=4)
         print(str(output), flush=True)
