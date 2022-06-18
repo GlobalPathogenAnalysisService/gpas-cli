@@ -12,7 +12,7 @@ data_dir = "tests/test-data"
 
 
 auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-_, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+_, _, permitted_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
 
 
 def run(cmd, cwd="./"):  # Helper for CLI testing
@@ -264,11 +264,13 @@ def test_gpas_validate_message():
 
 def test_validate_fail_wrong_tags():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+    _, _, permitted_tags = lib.fetch_user_details(
+        auth["access_token"], ENVIRONMENTS.dev
+    )
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             upload_csv=Path(data_dir) / Path("broken") / Path("wrong-tags.csv"),
-            allowed_tags=allowed_tags,
+            permitted_tags=permitted_tags,
         )
     assert e.value.errors == [
         {"error": "tag(s) {'heffalump'} are invalid for this organisation"}
@@ -284,11 +286,13 @@ def test_validate_fail_wrong_tags_cli():
 
 def test_validate_fail_no_tags():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+    _, _, permitted_tags = lib.fetch_user_details(
+        auth["access_token"], ENVIRONMENTS.dev
+    )
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("no-tags.csv"),
-            allowed_tags=allowed_tags,
+            permitted_tags=permitted_tags,
         )
     assert e.value.errors == [
         {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
@@ -297,11 +301,13 @@ def test_validate_fail_no_tags():
 
 def test_validate_fail_no_tags_colon():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+    _, _, permitted_tags = lib.fetch_user_details(
+        auth["access_token"], ENVIRONMENTS.dev
+    )
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("no-tags-colon.csv"),
-            allowed_tags=allowed_tags,
+            permitted_tags=permitted_tags,
         )
     assert e.value.errors == [
         {"sample_name": "cDNA-VOC-1-v4-1", "error": "tags cannot be empty"}
@@ -310,12 +316,14 @@ def test_validate_fail_no_tags_colon():
 
 def test_auth_broken_token():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+    _, _, permitted_tags = lib.fetch_user_details(
+        auth["access_token"], ENVIRONMENTS.dev
+    )
     with pytest.raises(SystemExit):
         broken_auth = lib.parse_token(
             Path(data_dir) / Path("broken") / Path("broken-token.json")
         )
-        _, _, allowed_tags = lib.fetch_user_details(
+        _, _, permitted_tags = lib.fetch_user_details(
             broken_auth["access_token"], ENVIRONMENTS.dev
         )
 

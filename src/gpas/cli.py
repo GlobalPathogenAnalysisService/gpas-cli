@@ -36,15 +36,10 @@ def validate(
         _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], environment)
     else:
         allowed_tags = []
-    try:
-        _, message = validation.validate(upload_csv, allowed_tags)
-        if json_messages:
-            print(json.dumps(message, indent=4))
-    except validation.ValidationError as e:
-        if json_messages:
-            print(json.dumps(e.report, indent=4))
-        else:
-            raise e
+    df, schema_name = validation.validate(upload_csv, allowed_tags)
+    message = validation.build_validation_message(df, schema_name)
+    if json_messages:
+        print(json.dumps(message, indent=4))
 
 
 def validate_wrapper(

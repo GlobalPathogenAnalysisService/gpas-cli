@@ -15,17 +15,17 @@ import requests
 import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import data_dir, misc
+from gpas import data_dir, misc, validation
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     ENDPOINTS,
     ENVIRONMENTS,
     FILE_TYPES,
     GOOD_STATUSES,
-    run,
     jsonify_exceptions,
+    run,
 )
-from gpas.validation import validate
+from gpas.validation import build_validation_message, validate
 
 
 class DecontaminationError(Exception):
@@ -534,18 +534,6 @@ class Batch:
         )
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.json_messages = json_messages
-        self.df, self.validation_report = validate(upload_csv)
-        self.schema_name = self.df.pandera.schema.name
-        self.errors = {"decontamination": [], "submission": []}
-        batch_attrs = {
-            "schema_name": self.schema_name,
-            "working_dir": self.working_dir,
-        }
-        self.samples = [
-            Sample(**r, **batch_attrs)
-            for r in self.df.fillna("").reset_index().to_dict("records")
-        ]
-        self.paired = self.samples[0].paired
         if self.token:
             (
                 self.user,
@@ -561,9 +549,21 @@ class Batch:
         else:
             self.user = None
             self.organisation = None
-            self.permitted_tags = None
+            self.permitted_tags = []
             self.headers = None
             self.upload_headers = None
+        self.df, self.schema_name = validate(self.upload_csv, self.permitted_tags)
+        self.validation_json = build_validation_message(self.df, self.schema_name)
+        self.errors = {"decontamination": [], "submission": []}
+        batch_attrs = {
+            "schema_name": self.schema_name,
+            "working_dir": self.working_dir,
+        }
+        self.samples = [
+            Sample(**r, **batch_attrs)
+            for r in self.df.fillna("").reset_index().to_dict("records")
+        ]
+        self.paired = self.samples[0].paired
 
         currentTime = (
             datetime.datetime.now(datetime.timezone.utc)
@@ -576,7 +576,7 @@ class Batch:
         self._number_runs()
 
         if self.json_messages:
-            print(json.dumps(self.validation_report, indent=4))
+            print(json.dumps(self.validation_json, indent=4))
 
     def _fetch_user_details(self):
         return fetch_user_details(self.token["access_token"], self.environment)

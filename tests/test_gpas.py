@@ -26,12 +26,15 @@ def test_version():
 
 
 def test_static_assets_exist():
-    misc.parse_countries_subdivisions()
+    validation.parse_countries_subdivisions()
     assert misc.get_reference_path("SARS-CoV-2").exists()
 
 
 def test_validate_ok():
-    df, message = validation.validate(Path(data_dir) / Path("large-illumina-fastq.csv"))
+    df, schema_name = validation.validate(
+        Path(data_dir) / Path("large-illumina-fastq.csv")
+    )
+    message = validation.build_validation_message(df, schema_name)
     # assert message == {
     #     "validation": {
     #         "status": "success",
