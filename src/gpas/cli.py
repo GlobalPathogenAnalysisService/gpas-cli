@@ -171,7 +171,7 @@ def upload(
     *,
     token: Path | None = None,
     working_dir: Path = Path("/tmp"),
-    mapping_prefix: str = "",
+    out_dir: Path = Path(),
     processes: int = 0,
     dry_run: bool = False,
     debug: bool = False,
@@ -183,9 +183,9 @@ def upload(
 
     :arg upload_csv: Path of upload csv
     :arg token: Path of auth token available from GPAS Portal
-    :arg working_dir: Path of directory in which to generate intermediate files
-    :arg mapping_prefix: Filename prefix for mapping CSV
-    :arg processes: Number of decontamination tasks to execute in parallel. 0 -> auto
+    :arg working_dir: Path of directory in which to make intermediate files
+    :arg out_dir: Path of directory in which to save mapping CSV
+    :arg processes: Number of tasks to execute in parallel. 0 = auto
     :arg dry_run: Exit before submitting files
     :arg debug: Print verbose debug messages
     :arg json_over_stdout: Emit JSON messages over stdout
@@ -198,7 +198,7 @@ def upload(
         upload_csv,
         token=token,
         working_dir=working_dir,
-        mapping_prefix=mapping_prefix,
+        out_dir=out_dir,
         processes=processes,
         environment=environment,
         json_messages=json_messages,

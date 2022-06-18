@@ -48,3 +48,11 @@ def test_upload_ont_bam_dry_json_and_mapping_csv():
     assert records[0]["local_sample_name"] == "COVID_locost_2_barcode10"
     assert records[0]["gpas_run_number"] == "1"
     run(f"rm -f {batch_guid}.mapping.csv")
+
+
+def test_upload_dry_working_dir():
+    run_cmd = run(
+        f"gpas upload --environment dev --token token.json large-illumina-bam.csv --dry-run --working-dir temp"
+    )
+    assert (data_dir / Path("temp") / Path("cDNA-VOC-1-v4-1_2.fastq.gz")).exists()
+    run(f"rm -rf temp *.mapping.csv")

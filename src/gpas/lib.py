@@ -181,7 +181,7 @@ async def download_async(
         logging.info(f"Fetching file types {file_types}")
 
     limits = httpx.Limits(
-        max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
+        max_keepalive_connections=8, max_connections=16, keepalive_expiry=100
     )
     transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
     async with httpx.AsyncClient(transport=transport, timeout=120) as client:
@@ -223,6 +223,7 @@ async def download_single_async(
     }
     prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
+    Path(out_dir).mkdir(parents=False, exist_ok=True)
     if r.status_code == httpx.codes.ok:
         logging.debug(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}")
@@ -333,7 +334,8 @@ class Sample:
         self.schema_name = schema_name
         self.paired = True if self.schema_name.startswith("Paired") else False
         self.decontamination_ref_path = self.get_decontamination_ref_path()
-        self.working_dir = working_dir
+        self.working_dir = Path(working_dir)
+        self.working_dir.mkdir(parents=False, exist_ok=True)
         self.uploaded = False
         self.guid = None
         self.mapping_path = None
@@ -467,7 +469,7 @@ class Batch:
         upload_csv: Path,
         token: Path | None = None,
         working_dir: Path = Path("/tmp"),
-        mapping_prefix: str = "",
+        out_dir: Path = Path(),
         processes: int = 0,
         environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
         json_messages: bool = False,
@@ -476,7 +478,7 @@ class Batch:
         self.token = parse_token(token) if token else None
         self.environment = environment
         self.working_dir = working_dir
-        self.mapping_prefix = mapping_prefix
+        self.out_dir = out_dir
         self.processes = (
             processes if processes else int(multiprocessing.cpu_count() / 2)
         )
@@ -637,7 +639,8 @@ class Batch:
                 "gpas_sample_name",
             ],
         )
-        target_path = self.upload_csv.parent / Path(self.batch_guid + ".mapping.csv")
+        Path(self.out_dir).mkdir(parents=False, exist_ok=True)
+        target_path = self.out_dir / Path(self.batch_guid + ".mapping.csv")
         df.to_csv(target_path, index=False)
         self.mapping_path = target_path
         logging.info(f"Saved mapping CSV to {self.mapping_path}")
