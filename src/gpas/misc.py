@@ -56,6 +56,20 @@ class LoggedShellCommand:
     after_msg: dict
 
 
+def jsonify_exceptions(function, **kwargs):
+    """Catch exceptions and return JSON"""
+    if kwargs["json_messages"]:
+        try:
+            return function(**kwargs)
+        # except ValidationError:
+
+        except Exception as e:
+            print(vars(e))
+            print(json.dumps(e.args, indent=4))
+    else:
+        return function(**kwargs)
+
+
 def print_json(data):
     """Send JSON to stdout"""
     print(json.dumps(data, indent=4), flush=True)

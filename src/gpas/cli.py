@@ -2,14 +2,18 @@ import asyncio
 import json
 import logging
 from pathlib import Path
+from xml.dom import ValidationErr
 
 import defopt
 import pandas as pd
+
+from gpas.misc import jsonify_exceptions
 
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 from gpas import lib, validation
 from gpas.lib import logging
+from gpas.validation import ValidationError
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     DEFAULT_FORMAT,
@@ -18,6 +22,118 @@ from gpas.misc import (
     GOOD_STATUSES,
     run,
 )
+
+
+def validate(
+    upload_csv: Path,
+    *,
+    token: Path | None = None,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    json_messages: bool = False,
+):
+    if token:
+        auth = lib.parse_token(token)
+        _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], environment)
+    else:
+        allowed_tags = []
+    try:
+        _, message = validation.validate(upload_csv, allowed_tags)
+        if json_messages:
+            print(json.dumps(message, indent=4))
+    except validation.ValidationError as e:
+        if json_messages:
+            print(json.dumps(e.report, indent=4))
+        else:
+            raise e
+
+
+def validate_wrapper(
+    upload_csv: Path,
+    *,
+    token: Path | None = None,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    json_messages: bool = False,
+):
+    """
+    Validate an upload CSV. Validates tags remotely if supplied with an authentication token
+
+    :arg upload_csv: Path of upload CSV
+    :arg token: Path of auth token available from GPAS Portal
+    :arg json: Emit JSON to stdout
+    :arg environment: GPAS environment to use
+    """
+    jsonify_exceptions(
+        validate,
+        upload_csv=upload_csv,
+        token=token,
+        environment=environment,
+        json_messages=json_messages,
+    )
+
+
+def upload(
+    upload_csv: Path,
+    *,
+    token: Path | None = None,
+    working_dir: Path = Path("/tmp"),
+    out_dir: Path = Path(),
+    processes: int = 0,
+    dry_run: bool = False,
+    debug: bool = False,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    json_messages: bool = False,
+):
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    batch = lib.Batch(
+        upload_csv,
+        token=token,
+        working_dir=working_dir,
+        out_dir=out_dir,
+        processes=processes,
+        environment=environment,
+        json_messages=json_messages,
+    )
+    batch.upload(dry_run=dry_run)
+
+
+def upload_wrapper(
+    upload_csv: Path,
+    token: Path | None = None,
+    working_dir: Path = Path("/tmp"),
+    out_dir: Path = Path(),
+    processes: int = 0,
+    dry_run: bool = False,
+    debug: bool = False,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    json_messages: bool = False,
+):
+    """
+    Validate, decontaminate and upload reads to the GPAS platform
+
+    :arg upload_csv: Path of upload csv
+    :arg token: Path of auth token available from GPAS Portal
+    :arg working_dir: Path of directory in which to make intermediate files
+    :arg out_dir: Path of directory in which to save mapping CSV
+    :arg processes: Number of tasks to execute in parallel. 0 = auto
+    :arg dry_run: Exit before submitting files
+    :arg debug: Print verbose debug messages
+    :arg json_over_stdout: Emit JSON messages over stdout
+    :arg environment: GPAS environment to use
+
+    """
+    jsonify_exceptions(
+        upload,
+        upload_csv=upload_csv,
+        token=token,
+        working_dir=working_dir,
+        out_dir=out_dir,
+        processes=processes,
+        dry_run=dry_run,
+        debug=debug,
+        environment=environment,
+        json_messages=json_messages,
+    )
 
 
 def status(
@@ -97,8 +213,6 @@ def download(
     """
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
-    # gpas-upload --json --token token.json --environment dev download example.mapping.csv --file_types json fasta --rename
-    # gpas-upload --json --token ../../gpas-cli/tests/test-data/token.json --environment dev submit ../../gpas-cli/tests/test-data/large-nanopore-fastq.csv
     file_types_fmt = file_types.strip(",").split(",")
     auth = lib.parse_token(token)
     if mapping_csv:
@@ -138,82 +252,11 @@ def download(
     )
 
 
-def validate(
-    upload_csv: Path,
-    *,
-    token: Path | None = None,
-    json_messages: bool = False,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-):
-    """
-    Validate an upload CSV. Validates tags remotely if supplied with an authentication token
-
-    :arg upload_csv: Path of upload CSV
-    :arg token: Path of auth token available from GPAS Portal
-    :arg json: Emit JSON to stdout
-    :arg environment: GPAS environment to use
-    """
-    if token:
-        auth = lib.parse_token(token)
-        _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], environment)
-    else:
-        allowed_tags = []
-    try:
-        _, message = validation.validate(upload_csv, allowed_tags)
-        if json_messages:
-            print(json.dumps(message, indent=4))
-    except validation.ValidationError as e:
-        if json_messages:
-            print(json.dumps(e.report, indent=4))
-        else:
-            raise e
-
-
-def upload(
-    upload_csv: Path,
-    *,
-    token: Path | None = None,
-    working_dir: Path = Path("/tmp"),
-    out_dir: Path = Path(),
-    processes: int = 0,
-    dry_run: bool = False,
-    debug: bool = False,
-    json_messages: bool = False,
-    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-):
-    """
-    Validate, decontaminate and upload reads to the GPAS platform
-
-    :arg upload_csv: Path of upload csv
-    :arg token: Path of auth token available from GPAS Portal
-    :arg working_dir: Path of directory in which to make intermediate files
-    :arg out_dir: Path of directory in which to save mapping CSV
-    :arg processes: Number of tasks to execute in parallel. 0 = auto
-    :arg dry_run: Exit before submitting files
-    :arg debug: Print verbose debug messages
-    :arg json_over_stdout: Emit JSON messages over stdout
-    :arg environment: GPAS environment to use
-
-    """
-    if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-    batch = lib.Batch(
-        upload_csv,
-        token=token,
-        working_dir=working_dir,
-        out_dir=out_dir,
-        processes=processes,
-        environment=environment,
-        json_messages=json_messages,
-    )
-    batch.upload(dry_run=dry_run)
-
-
 def main():
     defopt.run(
         {
-            "validate": validate,
-            "upload": upload,
+            "validate": validate_wrapper,
+            "upload": upload_wrapper,
             "status": status,
             "download": download,
         },
