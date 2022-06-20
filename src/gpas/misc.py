@@ -3,6 +3,7 @@ import json
 import logging
 import multiprocessing
 import os
+import shutil
 import subprocess
 import sys
 import traceback
@@ -186,6 +187,16 @@ def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
     if "bam" in df.columns:
         df["bam"] = df["bam"].apply(resolve)
     return df
+
+
+def get_binary_path(filename: str) -> str:
+    path = Path(f"./{filename}")  # Look for local binary first
+    if path.exists():
+        return str(path.resolve())
+    elif shutil.which(filename) is not None:  # In $PATH? Use that instead
+        return str(Path(shutil.which(filename)))
+    else:
+        raise FileNotFoundError(f"Could not find {filename} binary")
 
 
 def hash_file(file_path: Path):

@@ -21,6 +21,7 @@ from gpas.misc import (
     ENVIRONMENTS,
     FILE_TYPES,
     GOOD_STATUSES,
+    get_binary_path,
 )
 from gpas.validation import build_validation_message, validate
 
@@ -371,14 +372,15 @@ class Sample:
         return command
 
     def _get_convert_bam_cmd(self, paired=False) -> str:
+        samtools = get_binary_path("samtools")
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
-            cmd = f"samtools fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
+            cmd = f"{samtools} fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
             self.fastq = self.working_dir / Path(self.sample_name + ".fastq.gz")
         else:
             cmd = (
-                f"samtools sort {self.bam} |"
-                f" samtools fastq -N"
+                f"{samtools} sort {self.bam} |"
+                f" {samtools} fastq -N"
                 f" -1 {prefix.parent / (prefix.name + '_1.fastq.gz')}"
                 f" -2 {prefix.parent / (prefix.name + '_2.fastq.gz')}"
             )
@@ -406,16 +408,17 @@ class Sample:
         return command
 
     def _get_riak_cmd(self) -> str:
+        riak = get_binary_path("readItAndKeep")
         if not self.fastq2:
             cmd = (
-                f"readItAndKeep --tech ont --enumerate_names"
+                f"{riak} --tech ont --enumerate_names"
                 f" --ref_fasta {self.decontamination_ref_path}"
                 f" --reads1 {self.fastq}"
                 f" --outprefix {self.working_dir / self.sample_name}"
             )
         else:
             cmd = (
-                f"readItAndKeep --tech illumina --enumerate_names"
+                f"{riak} --tech illumina --enumerate_names"
                 f" --ref_fasta {self.decontamination_ref_path}"
                 f" --reads1 {self.fastq1}"
                 f" --reads2 {self.fastq2}"
