@@ -280,7 +280,7 @@ def test_validate_fail_wrong_tags():
 def test_validate_fail_wrong_tags_cli():
     with pytest.raises(subprocess.CalledProcessError):
         run_cmd = run(
-            f"gpas validate --environment dev --token tests/test-data/token.json tests/test-data/broken/wrong-tags.csv"
+            f"gpas validate --environment dev --token token.json broken/wrong-tags.csv"
         )
 
 

@@ -714,8 +714,6 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
-        # self.headers["Authorization"] = f"Bearer {self.token['access_token']}DOG",
-
         r = requests.get(url=endpoint, json=self.submission, headers=self.headers)
         r.raise_for_status()
         logging.debug(f"POSTing JSON {r.text=}")

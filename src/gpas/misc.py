@@ -30,24 +30,6 @@ class DecontaminationError(Exception):
     pass
 
 
-class SubmissionError(Exception):
-    def __init__(self, error):
-        _, v, tb = sys.exc_info()
-        self.error = error
-        self.report = {
-            "submission": {
-                "status": "failure",
-                "error": repr(v),
-                "traceback": traceback.format_tb(tb, limit=2),
-            }
-        }
-
-    #     super().__init__(self._message())
-
-    # def _message(self):
-    #     return f"Error submitting batch\n {repr(self.error)}"
-
-
 ENDPOINTS = {
     "dev": {
         "HOST": "https://portal.dev.gpas.ox.ac.uk/",
@@ -81,10 +63,18 @@ class LoggedShellCommand:
     after_msg: dict
 
 
+def get_value_traceback(e: Exception) -> tuple[str, str, list]:
+    e_type, e_value, e_traceback = sys.exc_info()
+    e_t = str(e_type)
+    e_v = repr(e_value)
+    e_tb = traceback.format_tb(e_traceback)
+    return e_t, e_v, e_tb
+
+
 def jsonify_exceptions(function, **kwargs):
     """Catch exceptions and print JSON"""
 
-    def jsonify(obj, generic=False) -> str:
+    def jsonify(obj, generic=False) -> None:
         if generic:
             output = json.dumps({"error": repr(obj)}, indent=4)
         else:
@@ -96,10 +86,9 @@ def jsonify_exceptions(function, **kwargs):
             return function(**kwargs)
         except validation.ValidationError as e:
             jsonify(e.report)
-        except SubmissionError as e:
-            jsonify(e.report)
         except Exception as e:
-            jsonify(e, generic=True)
+            e_t, e_v, e_tb = get_value_traceback(e)
+            jsonify({"exception": e_v, "traceback": e_tb})
     else:
         return function(**kwargs)
 

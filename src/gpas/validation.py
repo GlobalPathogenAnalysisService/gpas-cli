@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -10,6 +11,7 @@ import pandera.extensions as extensions
 from pandera.typing import Index, Series
 
 import gpas
+from gpas import misc
 
 
 def parse_countries_subdivisions():
@@ -267,7 +269,7 @@ def get_valid_samples(df: pd.DataFrame, schema_name: str) -> list[dict]:
         elif schema_name in {"BamSchema", "PairedBamSchema"}:
             samples.append({"sample_name": row.sample_name, "files": [row.bam]})
         else:
-            raise ValidationError("Unexpected schema")
+            raise ValidationError([{"error": "Unexpected schema"}])
     return samples
 
 
@@ -415,20 +417,10 @@ def validate_tags(df, permitted_tags):
                     invalid_tags.add(tag)
 
     if invalid_tags:
+        print(invalid_tags)
         raise ValidationError(
             [{"error": f"tag(s) {invalid_tags} are invalid for this organisation"}]
         )
-
-
-# def parse_upload_csv(upload_csv: Path) -> pd.DataFrame:
-#     df = pd.read_csv(
-#         upload_csv,
-#         encoding="utf-8",
-#         index_col="sample_name",
-#         dtype={"run_number": str},
-#     )
-#     with set_directory(upload_csv.parent):
-#         return resolve_paths(df)
 
 
 def validate(
@@ -437,6 +429,7 @@ def validate(
     """
     Validate a dataframe. Returns success message or throws ValidationError
     """
+
     df = pd.read_csv(
         upload_csv,
         encoding="utf-8",
