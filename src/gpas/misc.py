@@ -27,7 +27,15 @@ FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="v
 GOOD_STATUSES = {"Unreleased", "Released"}
 
 
+class AuthenticationError(Exception):
+    pass
+
+
 class DecontaminationError(Exception):
+    pass
+
+
+class SubmissionError(Exception):
     pass
 
 

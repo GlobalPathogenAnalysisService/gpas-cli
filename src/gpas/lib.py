@@ -21,14 +21,11 @@ from gpas.misc import (
     ENVIRONMENTS,
     FILE_TYPES,
     GOOD_STATUSES,
-    get_binary_path,
+    AuthenticationError,
+    DecontaminationError,
+    SubmissionError,
 )
 from gpas.validation import build_validation_message, validate
-
-
-class AuthenticationError(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__(*args)
 
 
 def parse_token(token: Path) -> dict:
@@ -350,7 +347,7 @@ class Sample:
         if self.specimen_organism == "SARS-CoV-2":
             cmd = self._get_riak_cmd()
         else:
-            raise misc.DecontaminationError("Invalid organism")
+            raise DecontaminationError("Invalid organism")
 
         before_msg = {
             "progress": {
@@ -372,7 +369,7 @@ class Sample:
         return command
 
     def _get_convert_bam_cmd(self, paired=False) -> str:
-        samtools = get_binary_path("samtools")
+        samtools = misc.get_binary_path("samtools")
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
             cmd = f"{samtools} fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
@@ -408,7 +405,7 @@ class Sample:
         return command
 
     def _get_riak_cmd(self) -> str:
-        riak = get_binary_path("readItAndKeep")
+        riak = misc.get_binary_path("readItAndKeep")
         if not self.fastq2:
             cmd = (
                 f"{riak} --tech ont --enumerate_names"
@@ -724,11 +721,11 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
-        r = requests.get(url=endpoint, json=self.submission, headers=self.headers)
+        r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
         r.raise_for_status()
         logging.debug(f"POSTing JSON {r.text=}")
         if r.json().get("status") != "success":
-            raise misc.SubmissionError(r.json().get("errorMsg"))
+            raise SubmissionError(r.json().get("errorMsg"))
         url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
         r = requests.put(url=url, headers=self.headers)
         r.raise_for_status()
@@ -750,7 +747,7 @@ class Batch:
             self._prepare_submission()
             self._finalise_submission()
         except Exception as e:
-            raise misc.SubmissionError(e) from None
+            raise SubmissionError(e) from None
 
     def _prepare_submission(self):
         """Prepare the JSON payload for the GPAS Upload app
