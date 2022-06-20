@@ -1,0 +1,66 @@
+name: Build binaries for distribution
+on:
+    workflow_dispatch:
+  # release:
+  #   types: [published]
+jobs:
+  build:
+    name: Run tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+        fail-fast: false
+        matrix:
+            # os: [ubuntu-latest, macos-latest]
+            os: [ubuntu-latest]
+            python-version: ['3.10']
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+    - name: Install Python dependencies
+      run: |
+        pip install pytest pytest-cov pyinstaller
+        pip install ./
+
+    - name: Install samtools
+      run: |
+        wget https://github.com/samtools/samtools/releases/download/1.15.1/samtools-1.15.1.tar.bz2
+        bunzip2 samtools-1.15.1.tar.bz2
+        tar xvf samtools-1.15.1.tar
+        cd samtools-1.15.1
+        ./configure
+        make
+        cp samtools ..
+        cd ..
+        rm -rf read-it-and-keep
+    - name: Install readItAndKeep
+      run: |
+        git clone https://github.com/GenomePathogenAnalysisService/read-it-and-keep.git
+        cd read-it-and-keep/src
+        make
+        mv readItAndKeep ../..
+        cd ../..
+        rm -r read-it-and-keep
+    - name: Test with pytest
+      run: |
+        pytest --exitfirst --verbose --failed-first \
+        --cov=. --cov-report html tests/test_gpas.py
+    - name: Create PyInstaller binary
+      run: |
+        python -m PyInstaller -F src/gpas/cli.py
+    - name: Copy files into dist/
+      run: |
+        cp readItAndKeep dist/
+        cp samtools dist/
+    - name: Test binary
+      run: |
+        cd dist/
+        ./gpas -h
+
+    - name: Store dist
+      uses: actions/upload-artifact@v2
+      with:
+        name: gpas-upload-${{ matrix.os }}
+        path: dist/*

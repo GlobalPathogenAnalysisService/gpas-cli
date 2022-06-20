@@ -198,13 +198,15 @@ def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_binary_path(filename: str) -> str:
-    path = Path(f"./{filename}")  # Look for local binary first
-    if path.exists():
-        return str(path.resolve())
-    elif shutil.which(filename) is not None:  # In $PATH? Use that instead
-        return str(Path(shutil.which(filename)))
+    if Path(f"./{filename}").exists():  # Look for local binary first
+        path = Path(f"./{filename}").resolve()
+    elif Path(f"dist/{filename}").exists():
+        path = Path(f"dist/{filename}").resolve()
+    elif shutil.which(filename):  # In $PATH? Use that instead
+        path = shutil.which(filename)
     else:
         raise FileNotFoundError(f"Could not find {filename} binary")
+    return str(path)
 
 
 def hash_file(file_path: Path):
