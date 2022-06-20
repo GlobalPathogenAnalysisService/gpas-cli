@@ -314,12 +314,20 @@ def test_validate_fail_no_tags_colon():
     ]
 
 
+def test_fail_auth():
+    with pytest.raises(lib.AuthenticationError):
+        auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+        _, _, permitted_tags = lib.fetch_user_details(
+            auth["access_token"], ENVIRONMENTS.prod
+        )
+
+
 def test_auth_broken_token():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
     _, _, permitted_tags = lib.fetch_user_details(
         auth["access_token"], ENVIRONMENTS.dev
     )
-    with pytest.raises(SystemExit):
+    with pytest.raises(lib.AuthenticationError):
         broken_auth = lib.parse_token(
             Path(data_dir) / Path("broken") / Path("broken-token.json")
         )

@@ -25,6 +25,11 @@ from gpas.misc import (
 from gpas.validation import build_validation_message, validate
 
 
+class AuthenticationError(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
 def parse_token(token: Path) -> dict:
     return json.loads(token.read_text())
 
@@ -61,9 +66,14 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         user = result.get("userName")
         organisation = result.get("organisation")
         allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
-    except requests.exceptions.RequestException as e:
-        logging.error(str(e))
-        sys.exit(1)
+    except requests.exceptions.HTTPError as e:
+        status_code = e.response.status_code
+        if status_code == 401:
+            raise AuthenticationError(
+                f"Authentication failed, check access token and environment"
+            ) from None
+        else:
+            raise e from None
     return user, organisation, allowed_tags
 
 
@@ -513,7 +523,7 @@ class Batch:
                 self.user,
                 self.organisation,
                 self.permitted_tags,
-            ) = self._fetch_user_details()
+            ) = fetch_user_details(self.token["access_token"], self.environment)
             self.headers = {
                 "Authorization": f"Bearer {self.token['access_token']}",
                 "Content-Type": "application/json",
@@ -549,9 +559,6 @@ class Batch:
 
         if self.json_messages:
             print(json.dumps(self.validation_json, indent=4))
-
-    def _fetch_user_details(self):
-        return fetch_user_details(self.token["access_token"], self.environment)
 
     def _get_convert_bam_cmds(self) -> list[misc.LoggedShellCommand]:
         return [s._get_convert_bam_cmd() for s in self.samples]
