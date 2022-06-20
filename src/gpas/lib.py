@@ -5,7 +5,6 @@ import json
 import logging
 import multiprocessing
 import sys
-from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -22,18 +21,8 @@ from gpas.misc import (
     ENVIRONMENTS,
     FILE_TYPES,
     GOOD_STATUSES,
-    jsonify_exceptions,
-    run,
 )
 from gpas.validation import build_validation_message, validate
-
-
-class DecontaminationError(Exception):
-    pass
-
-
-class SubmissionError(Exception):
-    pass
 
 
 def parse_token(token: Path) -> dict:
@@ -350,7 +339,7 @@ class Sample:
         if self.specimen_organism == "SARS-CoV-2":
             cmd = self._get_riak_cmd()
         else:
-            raise DecontaminationError("Invalid organism")
+            raise misc.DecontaminationError("Invalid organism")
 
         before_msg = {
             "progress": {
@@ -529,14 +518,12 @@ class Batch:
                 "Authorization": f"Bearer {self.token['access_token']}",
                 "Content-Type": "application/json",
             }
-            self.upload_headers = {k: v for k, v in self.headers.items()}
-            self.upload_headers["Content-Type"] = "application/octet-stream"
+
         else:
             self.user = None
             self.organisation = None
             self.permitted_tags = []
             self.headers = None
-            self.upload_headers = None
         self.df, self.schema_name = validate(self.upload_csv, self.permitted_tags)
         self.validation_json = build_validation_message(self.df, self.schema_name)
         self.errors = {"decontamination": [], "submission": []}
@@ -717,7 +704,7 @@ class Batch:
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
             leave=False,
         ):
-            s._upload_reads(self.batch_url, self.upload_headers, self.json_messages)
+            s._upload_reads(self.batch_url, self.headers, self.json_messages)
             with logging_redirect_tqdm():
                 logging.info(f"Uploaded {s.sample_name} ({s.guid})")
 
@@ -727,33 +714,35 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
-        try:
-            r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
-            r.raise_for_status()
-            logging.debug(f"POSTing JSON {r.text=}")
-            if r.json().get("status") != "success":
-                raise SubmissionError(r.json().get("errorMsg"))
-            url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
-            r = requests.put(url=url, headers=self.upload_headers)
-            r.raise_for_status()
-            logging.info(f"Finished uploading batch {self.batch_guid}")
-            success_message = {
-                "submission": {
-                    "status": "success",
-                    "samples": [s.sample_name for s in self.samples],
-                }
+        # self.headers["Authorization"] = f"Bearer {self.token['access_token']}DOG",
+
+        r = requests.get(url=endpoint, json=self.submission, headers=self.headers)
+        r.raise_for_status()
+        logging.debug(f"POSTing JSON {r.text=}")
+        if r.json().get("status") != "success":
+            raise misc.SubmissionError(r.json().get("errorMsg"))
+        url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
+        r = requests.put(url=url, headers=self.headers)
+        r.raise_for_status()
+        logging.info(f"Finished uploading batch {self.batch_guid}")
+        success_message = {
+            "submission": {
+                "status": "success",
+                "batch": self.batch_guid,
+                "samples": [s.sample_name for s in self.samples],
             }
-            if self.json_messages:
-                print(json.dumps(success_message, indent=4))
-        except Exception as e:
-            raise SubmissionError(repr(e))
+        }
+        if self.json_messages:
+            print(json.dumps(success_message, indent=4))
 
     def _submit(self):
-        self._set_samples("uploaded", False)
-        self._fetch_par()
-        self._upload_samples()
-        self._prepare_submission()
-        self._finalise_submission()
+        try:
+            self._fetch_par()
+            self._upload_samples()
+            self._prepare_submission()
+            self._finalise_submission()
+        except Exception as e:
+            raise misc.SubmissionError(e) from None
 
     def _prepare_submission(self):
         """Prepare the JSON payload for the GPAS Upload app

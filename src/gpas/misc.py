@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import subprocess
 import sys
+import traceback
 from dataclasses import dataclass
 from functools import partial
 from enum import Enum
@@ -23,6 +24,28 @@ ENVIRONMENTS = Enum("Environment", dict(dev="dev", staging="staging", prod="prod
 DEFAULT_ENVIRONMENT = ENVIRONMENTS.prod
 FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
 GOOD_STATUSES = {"Unreleased", "Released"}
+
+
+class DecontaminationError(Exception):
+    pass
+
+
+class SubmissionError(Exception):
+    def __init__(self, error):
+        _, v, tb = sys.exc_info()
+        self.error = error
+        self.report = {
+            "submission": {
+                "status": "failure",
+                "error": repr(v),
+                "traceback": traceback.format_tb(tb, limit=2),
+            }
+        }
+
+    #     super().__init__(self._message())
+
+    # def _message(self):
+    #     return f"Error submitting batch\n {repr(self.error)}"
 
 
 ENDPOINTS = {
@@ -72,6 +95,8 @@ def jsonify_exceptions(function, **kwargs):
         try:
             return function(**kwargs)
         except validation.ValidationError as e:
+            jsonify(e.report)
+        except SubmissionError as e:
             jsonify(e.report)
         except Exception as e:
             jsonify(e, generic=True)

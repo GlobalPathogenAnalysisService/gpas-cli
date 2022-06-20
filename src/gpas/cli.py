@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from xml.dom import ValidationErr
 
 import defopt
 import pandas as pd
@@ -13,14 +12,12 @@ logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 from gpas import lib, validation
 from gpas.lib import logging
-from gpas.validation import ValidationError
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     DEFAULT_FORMAT,
     ENVIRONMENTS,
     FORMATS,
     GOOD_STATUSES,
-    run,
 )
 
 

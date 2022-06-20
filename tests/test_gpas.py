@@ -242,23 +242,6 @@ def test_validate_fail_select_schema():
     ]
 
 
-def test_validate_fail_wrong_fastq_suffixes():
-    with pytest.raises(validation.ValidationError) as e:
-        _, message = validation.validate(
-            Path(data_dir) / Path("broken") / Path("wrong-fastq-suffixes.csv")
-        )
-    assert e.value.errors == [
-        {
-            "sample_name": "cDNA-VOC-1-v4-1-x",
-            "error": "fastq1 must end with .fastq.gz, _1.fastq.gz, _2.fastq.gz or .bam as appropriate",
-        },
-        {
-            "sample_name": "cDNA-VOC-1-v4-1-x",
-            "error": "fastq2 must end with .fastq.gz, _1.fastq.gz, _2.fastq.gz or .bam as appropriate",
-        },
-    ]
-
-
 def test_validate_fail_wrong_instrument():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
@@ -267,6 +250,10 @@ def test_validate_fail_wrong_instrument():
     assert e.value.errors[0]["error"].startswith(
         "instrument_platform value 'Illuminati' is not in set"
     )
+
+
+def test_validate_nullable_batch():
+    _, message = validation.validate(Path(data_dir) / Path("empty-batch-run.csv"))
 
 
 def test_decontamination():
@@ -294,3 +281,10 @@ def test_upload_no_token():
     """When run without a token, upload should quit (exit code 0) after decontamination"""
     run_cmd = run("gpas upload large-nanopore-fastq.csv")
     assert "COVID_locost_2_barcode10.reads.fastq.gz" in run_cmd.stderr
+
+
+def test_weird_illumina_suffix():
+    run("cp reads/large-illumina-fastq_1.fastq.gz reads/foo.fastq.gz")
+    run("cp reads/large-illumina-fastq_2.fastq.gz reads/baa.fastq.gz")
+    _, message = validation.validate(Path(data_dir) / Path("weird-illumina-suffix.csv"))
+    run("rm reads/foo.fastq.gz reads/baa.fastq.gz")

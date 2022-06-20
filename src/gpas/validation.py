@@ -91,7 +91,7 @@ class BaseSchema(pa.SchemaModel):
     """
 
     # validate that batch is alphanumeric only
-    batch: Series[str] = pa.Field(str_matches=r"^[A-Za-z0-9._-]+$", nullable=False)
+    batch: Series[str] = pa.Field(str_matches=r"^[A-Za-z0-9._-]+$", nullable=True)
 
     # validate run_number is alphanumeric but can also be null
     run_number: Series[str] = pa.Field(
@@ -206,7 +206,7 @@ class PairedFastqSchema(BaseSchema):
     fastq1: Series[str] = pa.Field(
         # unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9/._-]+$",
-        str_endswith="_1.fastq.gz",
+        str_endswith=".fastq.gz",
         nullable=False,
         coerce=False,
     )
@@ -215,7 +215,7 @@ class PairedFastqSchema(BaseSchema):
     fastq2: Series[str] = pa.Field(
         # unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9/._-]+$",
-        str_endswith="_2.fastq.gz",
+        str_endswith=".fastq.gz",
         nullable=False,
         coerce=False,
     )
@@ -356,10 +356,7 @@ def parse_validation_error(row):
     elif row.check.startswith("check_path"):
         return row.column + " file does not exist"
     elif row.check.startswith("str_endswith"):
-        return (
-            row.column
-            + " must end with .fastq.gz, _1.fastq.gz, _2.fastq.gz or .bam as appropriate"
-        )
+        return row.column + " must end with .fastq.gz or .bam as appropriate"
     else:
         return "problem in " + row.column + " field"
 
