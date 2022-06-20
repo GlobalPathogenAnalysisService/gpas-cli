@@ -288,3 +288,9 @@ def test_weird_illumina_suffix():
     run("cp reads/large-illumina-fastq_2.fastq.gz reads/baa.fastq.gz")
     _, message = validation.validate(Path(data_dir) / Path("weird-illumina-suffix.csv"))
     run("rm reads/foo.fastq.gz reads/baa.fastq.gz")
+
+
+def test_fail_no_header_cli():
+    """Generic uncaught exception"""
+    run_cmd = run("gpas validate broken/no-header.csv --json-messages")
+    assert "unsupported operand type(s) for -: 'str' and 'int'" in run_cmd.stdout
