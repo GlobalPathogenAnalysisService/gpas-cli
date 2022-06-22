@@ -11,7 +11,6 @@ import pandera.extensions as extensions
 from pandera.typing import Index, Series
 
 import gpas
-from gpas import misc
 
 
 def parse_countries_subdivisions():
@@ -443,7 +442,7 @@ def validate(
         index_col="sample_name",
         dtype={"run_number": str},
     )
-    with set_directory(upload_csv.parent):
+    with set_directory(Path(upload_csv).parent):
         df = resolve_paths(df)
     schema = select_schema(df)
     if permitted_tags:  # Only validate if we have tags

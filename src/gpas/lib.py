@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import subprocess
 import datetime
 import gzip
 import json
@@ -7,6 +8,7 @@ import multiprocessing
 import sys
 from pathlib import Path
 from typing import Any
+from attr import s
 
 import httpx
 import pandas as pd
@@ -341,6 +343,7 @@ class Sample:
         self.mapping_path = None
         self.samtools_path = samtools_path
         self.decontaminator_path = decontaminator_path
+        self.decontamination_stats = None
 
     def get_decontamination_ref_path(self):
         organisms_decontamination_references = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
@@ -573,18 +576,31 @@ class Batch:
     def _get_decontaminate_cmds(self) -> list[misc.LoggedShellCommand]:
         return [s._get_decontaminate_cmd() for s in self.samples]
 
-    def _decontaminate(self):
+    def _decontaminate(self) -> None:
+        """
+        Convert BAM files to FASTQ files, if necessary, and then decontaminate
+        """
         if "Bam" in self.schema_name:  # Conversion necessary
             misc.run_parallel_logged(
                 self._get_convert_bam_cmds(),
                 participle="Converting",
                 json_messages=self.json_messages,
             )
-        misc.run_parallel_logged(
+        samples_runs = misc.run_parallel_logged(
             self._get_decontaminate_cmds(),
             participle="Decontaminating",
             json_messages=self.json_messages,
         )
+        self._parse_decontamination_stats(samples_runs)
+
+    def _parse_decontamination_stats(self, samples_runs) -> None:
+        samples_decontamination_stats = {
+            s: parse_decontamination_stats(r.stdout) for s, r in samples_runs.items()
+        }
+        for sample in self.samples:
+            sample.decontamination_stats = samples_decontamination_stats.get(
+                sample.sample_name
+            )
 
     def _hash_fastqs(self):
         if not self.paired:
@@ -658,9 +674,6 @@ class Batch:
                 if s.clean_fastq2
                 else None
             )
-            # print(type(s.fastq))
-            # print(s.fastq)
-            # print(s.clean_fastq)
 
     def _build_mapping_csv(self):
         records = [  # Collects attrs from Sample, except for gpas_batch (Batch)
@@ -763,9 +776,6 @@ class Batch:
         -------
             dict : JSON payload to pass to GPAS Electron upload app via STDOUT
         """
-        # self.sample_sheet = copy.deepcopy(self.df[['batch', 'run_number', 'sample_name', 'gpas_batch', 'gpas_run_number', 'gpas_sample_name']])
-        # self.sample_sheet.rename(columns={'batch': 'local_batch', 'run_number': 'gpas_run_number', 'sample_name': 'local_sample_name'}, inplace=True)
-        # self.df.set_index('gpas_sample_name', inplace=True)
 
         samples = []
         for s in self.samples:
@@ -782,6 +792,7 @@ class Batch:
                 "host": s.host,
                 "instrument": {"platform": s.instrument_platform},
                 "primer_scheme": s.primer_scheme,
+                "decontamination_stats": s.decontamination_stats,
             }
             if self.paired:
                 sample["pe_reads"] = {
@@ -803,7 +814,6 @@ class Batch:
                 "uploaded_on": str(self.uploaded_on),
                 "uploaded_by": self.user,
                 "organisation": self.organisation,
-                # "run_numbers": list(self._get_sample_attrs('gpas_run_number').values()),
                 "samples": samples,
             },
         }
@@ -816,13 +826,13 @@ class Batch:
         self._fetch_guids()
         self._build_mapping_csv()
         self._rename_fastqs()
-        if not dry_run:
+        if dry_run:
+            logging.info("Skipped submission")
+        else:
             self._submit()
+
         for s in self.samples:
-            logging.debug(
-                # f"{s.sample_name=}; {s.md5=}; {s.decontamination_stats=}"
-                f" {s.clean_fastq}; {s.clean_fastq1}; {s.clean_fastq2}"
-            )
+            logging.debug(f" {s.clean_fastq=}; {s.clean_fastq1=}; {s.clean_fastq2=}")
 
     def _number_runs(self) -> None:
         """Enumerate unique values of run_number for submission"""
@@ -832,7 +842,6 @@ class Batch:
             runs_numbers = {r: str(i) for i, r in enumerate(runs, start=1)}
         else:
             runs_numbers = {"": ""}
-        # print(f"{samples_runs=}, {runs=}, {runs_numbers=} {bool(runs)}")
         for s in self.samples:
             s.gpas_run_number = runs_numbers[s.run_number]
 

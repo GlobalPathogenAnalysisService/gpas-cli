@@ -256,3 +256,12 @@ def main():
         strict_kwonly=False,
         short={},
     )
+    # import fire
+    # fire.Fire(
+    #     {
+    #         "validate": validate_wrapper,
+    #         "upload": upload_wrapper,
+    #         "status": status,
+    #         "download": download,
+    #     },
+    # )
