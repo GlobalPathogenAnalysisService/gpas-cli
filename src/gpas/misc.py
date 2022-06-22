@@ -198,12 +198,15 @@ def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_binary_path(filename: str) -> str:
-    if Path(f"./{filename}").exists():  # Look for local binary first
+    if Path(f"./{filename}").exists():  # EC?
         path = Path(f"./{filename}").resolve()
-    elif Path(f"dist/{filename}").exists():
+        print("cat")
+    elif Path(f"dist/{filename}").exists():  # GitHub Actions
         path = Path(f"dist/{filename}").resolve()
-    elif shutil.which(filename):  # In $PATH? Use that instead
+        print("dog")
+    elif shutil.which(filename):  # In $PATH? Conda etc
         path = shutil.which(filename)
+        print("rabbit")
     else:
         raise FileNotFoundError(f"Could not find {filename} binary")
     return str(path)

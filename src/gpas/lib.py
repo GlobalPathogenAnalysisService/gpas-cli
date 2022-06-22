@@ -305,6 +305,8 @@ class Sample:
         primer_scheme,
         schema_name,
         working_dir,
+        samtools_path,
+        decontaminator_path,
         district=None,
         fastq=None,
         fastq1=None,
@@ -337,6 +339,8 @@ class Sample:
         self.uploaded = False
         self.guid = None
         self.mapping_path = None
+        self.samtools_path = samtools_path
+        self.decontaminator_path = decontaminator_path
 
     def get_decontamination_ref_path(self):
         organisms_decontamination_references = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
@@ -369,15 +373,14 @@ class Sample:
         return command
 
     def _get_convert_bam_cmd(self, paired=False) -> str:
-        samtools = misc.get_binary_path("samtools")
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
-            cmd = f"{samtools} fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
+            cmd = f"{self.samtools_path} fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
             self.fastq = self.working_dir / Path(self.sample_name + ".fastq.gz")
         else:
             cmd = (
-                f"{samtools} sort {self.bam} |"
-                f" {samtools} fastq -N"
+                f"{self.samtools_path} sort {self.bam} |"
+                f" {self.samtools_path} fastq -N"
                 f" -1 {prefix.parent / (prefix.name + '_1.fastq.gz')}"
                 f" -2 {prefix.parent / (prefix.name + '_2.fastq.gz')}"
             )
@@ -405,17 +408,16 @@ class Sample:
         return command
 
     def _get_riak_cmd(self) -> str:
-        riak = misc.get_binary_path("readItAndKeep")
         if not self.fastq2:
             cmd = (
-                f"{riak} --tech ont --enumerate_names"
+                f"{self.decontaminator_path} --tech ont --enumerate_names"
                 f" --ref_fasta {self.decontamination_ref_path}"
                 f" --reads1 {self.fastq}"
                 f" --outprefix {self.working_dir / self.sample_name}"
             )
         else:
             cmd = (
-                f"{riak} --tech illumina --enumerate_names"
+                f"{self.decontaminator_path} --tech illumina --enumerate_names"
                 f" --ref_fasta {self.decontamination_ref_path}"
                 f" --reads1 {self.fastq1}"
                 f" --reads2 {self.fastq2}"
@@ -518,6 +520,8 @@ class Batch:
         )
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.json_messages = json_messages
+        self.samtools_path = misc.get_binary_path("samtools")
+        self.decontaminator_path = misc.get_binary_path("readItAndKeep")
         if self.token:
             (
                 self.user,
@@ -536,10 +540,11 @@ class Batch:
             self.headers = None
         self.df, self.schema_name = validate(self.upload_csv, self.permitted_tags)
         self.validation_json = build_validation_message(self.df, self.schema_name)
-        self.errors = {"decontamination": [], "submission": []}
         batch_attrs = {
             "schema_name": self.schema_name,
             "working_dir": self.working_dir,
+            "samtools_path": self.samtools_path,
+            "decontaminator_path": self.decontaminator_path,
         }
         self.samples = [
             Sample(**r, **batch_attrs)
@@ -547,13 +552,15 @@ class Batch:
         ]
         self.paired = self.samples[0].paired
 
-        currentTime = (
+        current_time = (
             datetime.datetime.now(datetime.timezone.utc)
             .astimezone()
             .isoformat(timespec="milliseconds")
         )
-        tzStartIndex = len(currentTime) - 6
-        self.uploaded_on = currentTime[:tzStartIndex] + "Z" + currentTime[tzStartIndex:]
+        tz_start_index = len(current_time) - 6
+        self.uploaded_on = (
+            current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]
+        )
 
         self._number_runs()
 
