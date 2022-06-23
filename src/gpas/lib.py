@@ -8,7 +8,6 @@ import multiprocessing
 import sys
 from pathlib import Path
 from typing import Any
-from attr import s
 
 import httpx
 import pandas as pd
@@ -31,7 +30,7 @@ from gpas.validation import build_validation_message, validate
 
 
 def parse_token(token: Path) -> dict:
-    return json.loads(token.read_text())
+    return json.loads(Path(token).read_text())
 
 
 def parse_mapping_csv(mapping_csv: Path) -> dict:

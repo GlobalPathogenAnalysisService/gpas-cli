@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A **currently experimental** standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned. Python 3.10+
+A standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned. Uses Python 3.10+
 
 **Progress**
 
@@ -15,57 +15,47 @@ A **currently experimental** standalone command line and Python API client for i
 
 ## Install
 
-###  With `conda` (recommended)
+###  With `conda`
 
 
-```
+```shell
 curl https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml --output environment.yml
-conda env create -f environment.yml  # Installs from main branch
+conda env create -f environment.yml
 conda activate gpas-cli
+pip install gpas==0.1.0  # If you'd like a versioned release
 ```
 
-### With `pip` (not recommended)
+### With `pip`
 
 Install Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) manually
 
-```
+```shell
 pip install gpas
+# Tell gpas-cli where you installed samtools and read-it-and-keep
+export GPAS_SAMTOOLS_PATH=path/to/samtools
+export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 ```
 
 ## Authentication
 
-Most gpas-cli actions require a valid API token (`token.json`). This can be saved using the 'Get API token' button on the upload page of the GPAS portal.
+Most gpas-cli actions require a valid API token (`token.json`). This can be saved using the 'Get API token' button on the `Upload Client` page of the GPAS portal. If you can't see this button, please ask the team to enable it for you.
 
-## Usage (command line)
-
-```
-% gpas -h
-usage: gpas [-h] [--version] {upload,validate,download,status} ...
-
-positional arguments:
-  {upload,validate,download,status}
-    upload              Validate, decontaminate and upload reads to the GPAS platform
-    validate            Validate an upload CSV. Validates tags remotely if supplied with an authentication token
-    download            Download analytical outputs from the GPAS platform for an uploaded batch or list of samples
-    status              Check the status of samples submitted to the GPAS platform
-
-options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-```
+## Command line usage
 
 ### `gpas validate`
 
-Validate an `upload_csv`
+Validates an `upload_csv` and checks that the fastq or bam files it references exist.
 
-```
-gpas validate nanopore-fastq.csv
-gpas validate --token token.json nanopore-fastq.csv  # Validates tags
+```shell
+gpas validate large-nanopore-fastq.csv
+
+# Validate supplied tags
+gpas validate --environment dev --token token.json large-nanopore-fastq.csv
 ```
 
 ```
 % gpas validate -h
-usage: gpas validate [-h] [--token TOKEN] [--environment {development,staging,production}] [--json] upload_csv
+usage: gpas validate [-h] [--token TOKEN] [--environment {dev,staging,prod}] [--json-messages] upload_csv
 
 Validate an upload CSV. Validates tags remotely if supplied with an authentication token
 
@@ -76,69 +66,80 @@ options:
   -h, --help            show this help message and exit
   --token TOKEN         Path of auth token available from GPAS Portal
                         (default: None)
-  --environment {development,staging,production}
+  --environment {dev,staging,prod}
                         GPAS environment to use
-                        (default: development)
-  --json                Emit JSON to stdout
+                        (default: prod)
+  --json-messages       Emit JSON to stdout
                         (default: False)
 ```
 
 ### `gpas upload`
 
-Decontaminate upload reads specified in `upload_csv` to the GPAS platform
+Validates, decontaminates and upload reads specified in `upload_csv` to the specified GPAS environment
 
-```
-gpas upload --environment production nanopore-fastq.csv token.json
-gpas upload --environment production nanopore-fastq.csv token.json --dry-run  # Skip submission
+```shell
+gpas upload --environment dev --token token.json large-illumina-bam.csv
+
+# Dry run; skip submission
+gpas upload --dry-run --environment dev --token token.json large-illumina-bam.csv
+
+# Offline mode; quit after decontamination
+gpas upload tests/test-data/large-nanopore-fastq.csv
 ```
 
 ```
 % gpas upload -h
-usage: gpas upload [-h] [--working-dir WORKING_DIR] [--environment {development,staging,production}] [--mapping-prefix MAPPING_PREFIX] [--threads THREADS]
-                   [--dry-run] [--json]
-                   upload_csv token
+usage: gpas upload [-h] [--token TOKEN] [--working-dir WORKING_DIR] [--out-dir OUT_DIR] [--processes PROCESSES] [--dry-run]
+                   [--debug] [--environment {dev,staging,prod}] [--json-messages]
+                   upload_csv
 
 Validate, decontaminate and upload reads to the GPAS platform
 
 positional arguments:
   upload_csv            Path of upload csv
-  token                 Path of auth token available from GPAS Portal
 
 options:
   -h, --help            show this help message and exit
+  --token TOKEN         Path of auth token available from GPAS Portal
+                        (default: None)
   --working-dir WORKING_DIR
-                        Path of directory in which to generate intermediate files
+                        Path of directory in which to make intermediate files
                         (default: /tmp)
-  --environment {development,staging,production}
-                        GPAS environment to use
-                        (default: development)
-  --mapping-prefix MAPPING_PREFIX
-                        Filename prefix for mapping CSV
-                        (default: mapping)
-  --threads THREADS     Number of decontamination tasks to execute in parallel. 0 = auto
+  --out-dir OUT_DIR     Path of directory in which to save mapping CSV
+                        (default: .)
+  --processes PROCESSES
+                        Number of tasks to execute in parallel. 0 = auto
                         (default: 0)
-  --dry-run             Skip final upload step
+  --dry-run             Exit before submitting files
                         (default: False)
-  --json                Emit JSON to stdout
+  --debug               Emit verbose debug messages
+                        (default: False)
+  --environment {dev,staging,prod}
+                        GPAS environment to use
+                        (default: prod)
+  --json-messages       Emit JSON to stdout
                         (default: False)
 ```
 
 ### `gpas download`
 
-Download json, fasta, vcf and/or bam outputs from the GPAS platform by passing either a `mapping_csv` generated at upload time, or a comma-separated list of guids
+Downloads `json`, `fasta`, `vcf` and `bam` outputs from the GPAS platform by passing either a `mapping_csv` generated during batch upload, or a comma-separated list of sample guids. By passing both `--mapping-csv` and `--rename`, output files are saved using local sample names without the platform's knowledge.
 
-```
-gpas download --rename --mapping-csv example.mapping.csv token.json  # Download and rename fastas
-gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types json,vcf token.json  # vcf and json
+```shell
+# Download and rename BAMs for a previous upload
+gpas download --rename --mapping-csv example_mapping.csv --file-types bam token.json
+
+# Download all outputs for a single guid
+gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types json,vcf,bam,fasta token.json
 ```
 
 ```
 % gpas download -h
-usage: gpas download [-h] [--mapping-csv MAPPING_CSV] [--guids GUIDS] [--environment {development,staging,production}] [--file-types FILE_TYPES]
-                     [--out-dir OUT_DIR] [--rename]
+usage: gpas download [-h] [--mapping-csv MAPPING_CSV] [--guids GUIDS] [--file-types FILE_TYPES] [--out-dir OUT_DIR] [--rename]
+                     [--debug] [--environment {dev,staging,prod}]
                      token
 
-Download analytical outputs from the GPAS platform for an uploaded batch or list of samples
+Download analytical outputs from the GPAS platform for given a mapping csv or list of guids
 
 positional arguments:
   token                 Path of auth token (available from GPAS Portal)
@@ -149,10 +150,7 @@ options:
                         Path of mapping CSV generated at upload time
                         (default: None)
   --guids GUIDS         Comma-separated list of GPAS sample guids
-                        (default: None)
-  --environment {development,staging,production}
-                        GPAS environment to use
-                        (default: development)
+                        (default: )
   --file-types FILE_TYPES
                         Comma separated list of outputs to download (json,fasta,bam,vcf)
                         (default: fasta)
@@ -160,21 +158,26 @@ options:
                         (default: /Users/bede/Research/Git/gpas-cli)
   --rename              Rename outputs using local sample names (requires --mapping-csv)
                         (default: False)
+  --debug               Emit verbose debug messages
+                        (default: False)
+  --environment {dev,staging,prod}
+                        GPAS environment to use
+                        (default: prod)
 ```
 
 ### `gpas status`
 
-Check the processing status of one or more samples by passing either a `mapping_csv` generated at upload time, or a comma-separated list of guids
+Check the processing status of an uploaded batch by passing either a `mapping_csv` generated at upload time, or a comma-separated list of sample guids.
 
-```
-gpas status --mapping-csv example.mapping.csv token.json  # prints table to stdout
-gpas status --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --format json token.json  # Prints json to stdout
+```shell
+gpas status --mapping-csv example_mapping.csv --environment dev token.json
+gpas status --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --format json token.json
 ```
 
 ```
 % gpas status -h
-usage: gpas status [-h] [--mapping-csv MAPPING_CSV] [--guids GUIDS] [--environment {development,staging,production}] [--format {table,csv,json}] [--rename]
-                   [--raw]
+usage: gpas status [-h] [--mapping-csv MAPPING_CSV] [--guids GUIDS] [--format {table,csv,json}] [--rename] [--raw]
+                   [--environment {dev,staging,prod}]
                    token
 
 Check the status of samples submitted to the GPAS platform
@@ -188,10 +191,7 @@ options:
                         Path of mapping CSV generated at upload time
                         (default: None)
   --guids GUIDS         Comma-separated list of GPAS sample guids
-                        (default: None)
-  --environment {development,staging,production}
-                        GPAS environment to use
-                        (default: development)
+                        (default: )
   --format {table,csv,json}
                         Output format
                         (default: table)
@@ -199,6 +199,9 @@ options:
                         (default: False)
   --raw                 Emit raw response
                         (default: False)
+  --environment {dev,staging,prod}
+                        GPAS environment to use
+                        (default: prod)
 ```
 
 

@@ -51,8 +51,8 @@ def validate_wrapper(
 
     :arg upload_csv: Path of upload CSV
     :arg token: Path of auth token available from GPAS Portal
-    :arg json: Emit JSON to stdout
     :arg environment: GPAS environment to use
+    :arg json_messages: Emit JSON to stdout
     """
     jsonify_exceptions(
         validate,
@@ -109,10 +109,9 @@ def upload_wrapper(
     :arg out_dir: Path of directory in which to save mapping CSV
     :arg processes: Number of tasks to execute in parallel. 0 = auto
     :arg dry_run: Exit before submitting files
-    :arg debug: Print verbose debug messages
-    :arg json_over_stdout: Emit JSON messages over stdout
+    :arg debug: Emit verbose debug messages
     :arg environment: GPAS environment to use
-
+    :arg json_messages: Emit JSON to stdout
     """
     jsonify_exceptions(
         upload,
@@ -201,6 +200,7 @@ def download(
     :arg file_types: Comma separated list of outputs to download (json,fasta,bam,vcf)
     :arg out_dir: Path of output directory
     :arg rename: Rename outputs using local sample names (requires --mapping-csv)
+    :arg debug: Emit verbose debug messages
     :arg environment: GPAS environment to use
     """
     if debug:
@@ -256,12 +256,7 @@ def main():
         strict_kwonly=False,
         short={},
     )
-    # import fire
-    # fire.Fire(
-    #     {
-    #         "validate": validate_wrapper,
-    #         "upload": upload_wrapper,
-    #         "status": status,
-    #         "download": download,
-    #     },
-    # )
+
+
+if __name__ == "__main__":
+    main()
