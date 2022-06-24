@@ -15,14 +15,14 @@ A standalone command line and Python API client for interacting with the Global 
 
 ## Install
 
-###  With `conda`
+###  With `conda` (recommended)
 
 
 ```shell
 curl https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml --output environment.yml
 conda env create -f environment.yml
 conda activate gpas-cli
-pip install gpas==0.1.0  # If you'd like a versioned release
+pip install gpas==0.5.0  # If you'd like a versioned release
 ```
 
 ### With `pip`
@@ -31,6 +31,7 @@ Install Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysi
 
 ```shell
 pip install gpas
+
 # Tell gpas-cli where you installed samtools and read-it-and-keep
 export GPAS_SAMTOOLS_PATH=path/to/samtools
 export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
@@ -220,6 +221,20 @@ pip install -e ./
 # Offline unit tests
 pytest tests/test_gpas.py
 
-# Online and upload tests require a valid token
+# Online and upload tests require a valid token insides tests/test-data
 pytest --cov=gpas
 ```
+
+
+
+## Binary distribution
+
+The functionality of `gpas upload` is also distributed as a binary packaged with PyInstaller. This is a portable, standalone executable. Download them from https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
+
+Usage:
+
+```
+cli-upload --environment dev --token token.json tests/test-data/large-illumina-bam.csv --json-messages
+```
+
+If you encounter exceptions related to running `samtools` and `readItAndKeep`, set the environment variables `GPAS_READITANDKEEP_PATH` and `GPAS_SAMTOOLS_PATH` to the respective binary paths.

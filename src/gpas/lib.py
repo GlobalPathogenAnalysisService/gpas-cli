@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 import pandas as pd
 import requests
+
 import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -118,6 +119,7 @@ async def fetch_status_async(
         ]
         records = [
             await f
+            # for f in asyncio.as_completed(tasks)
             for f in tqdm.tqdm(
                 asyncio.as_completed(tasks),
                 desc=f"Querying status for {len(guids)} samples",
@@ -347,7 +349,7 @@ class Sample:
     def get_decontamination_ref_path(self):
         organisms_decontamination_references = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
         ref = organisms_decontamination_references[self.specimen_organism]
-        return data_dir / Path("refs") / Path(ref)
+        return misc.get_data_path() / Path("refs") / Path(ref)
 
     def _get_decontaminate_cmd(self):
         if self.specimen_organism == "SARS-CoV-2":
@@ -355,22 +357,25 @@ class Sample:
         else:
             raise DecontaminationError("Invalid organism")
 
-        before_msg = {
-            "progress": {
-                "action": "decontamination",
-                "status": "started",
-                "sample": self.sample_name,
-            }
-        }
-        after_msg = {
-            "progress": {
-                "action": "decontamination",
-                "status": "finished",
-                "sample": self.sample_name,
-            }
-        }
+        # before_msg = {
+        #     "progress": {
+        #         "action": "decontamination",
+        #         "status": "started",
+        #         "sample": self.sample_name,
+        #     }
+        # }
+        # after_msg = {
+        #     "progress": {
+        #         "action": "decontamination",
+        #         "status": "finished",
+        #         "sample": self.sample_name,
+        #     }
+        # }
+
         command = misc.LoggedShellCommand(
-            name=self.sample_name, cmd=cmd, before_msg=before_msg, after_msg=after_msg
+            name=self.sample_name,
+            action="decontamination",
+            cmd=cmd,
         )
         return command
 
@@ -389,22 +394,25 @@ class Sample:
             self.fastq1 = self.working_dir / Path(self.sample_name + "_1.fastq.gz")
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
 
-        before_msg = {
-            "progress": {
-                "action": "bam_conversion",
-                "status": "started",
-                "sample_name": self.sample_name,
-            }
-        }
-        after_msg = {
-            "progress": {
-                "action": "bam_conversion",
-                "status": "finished",
-                "sample_name": self.sample_name,
-            }
-        }
+        # before_msg = {
+        #     "progress": {
+        #         "action": action,
+        #         "status": "started",
+        #         "sample_name": self.sample_name,
+        #     }
+        # }
+        # after_msg = {
+        #     "progress": {
+        #         "action": action,
+        #         "status": "finished",
+        #         "sample_name": self.sample_name,
+        #     }
+        # }
+
         command = misc.LoggedShellCommand(
-            name=self.sample_name, cmd=cmd, before_msg=before_msg, after_msg=after_msg
+            name=self.sample_name,
+            action="bam_conversion",
+            cmd=cmd,
         )
 
         return command
@@ -460,24 +468,12 @@ class Sample:
 
     def _upload_reads(self, batch_url, headers, json_messages):
         """Upload an unpaired FASTQ file to the Organisation's input bucket in OCI"""
-        before_msg = {
-            "progress": {
-                "action": "upload",
-                "status": "started",
-                "sample_name": self.sample_name,
-            }
-        }
-        after_msg = {
-            "progress": {
-                "action": "upload",
-                "status": "finished",
-                "sample_name": self.sample_name,
-            }
-        }
         url_prefix = batch_url + self.guid
         if not self.uploaded:
             if json_messages:
-                print(json.dumps(before_msg, indent=4))
+                misc.print_progress_message_json(
+                    action="upload", status="started", sample=self.sample_name
+                )
             if not self.paired:
                 with open(self.clean_fastq, "rb") as fh:
                     r = requests.put(
@@ -493,7 +489,9 @@ class Sample:
                         f"{url_prefix}.reads_2.fastq.gz", data=fh, headers=headers
                     )
             if json_messages:
-                print(json.dumps(after_msg, indent=4))
+                misc.print_progress_message_json(
+                    action="upload", status="started", sample=self.sample_name
+                )
         self.uploaded = True
 
 
@@ -584,11 +582,14 @@ class Batch:
                 self._get_convert_bam_cmds(),
                 participle="Converting",
                 json_messages=self.json_messages,
+                processes=self.processes,
             )
+
         samples_runs = misc.run_parallel_logged(
             self._get_decontaminate_cmds(),
             participle="Decontaminating",
             json_messages=self.json_messages,
+            processes=self.processes,
         )
         self._parse_decontamination_stats(samples_runs)
 
@@ -724,15 +725,21 @@ class Batch:
         self.batch_url = self.par + self.batch_guid + "/"
 
     def _upload_samples(self):
-        for s in tqdm.tqdm(
-            self.samples,
-            desc=f"Uploading",
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-            leave=False,
-        ):
+        if self.json_messages:
+            misc.print_progress_message_json(action="upload", status="started")
+        # for s in tqdm.tqdm(
+        #     self.samples,
+        #     desc=f"Uploading",
+        #     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+        #     leave=False,
+        #     disable=True
+        # ):
+        for s in self.samples:
             s._upload_reads(self.batch_url, self.headers, self.json_messages)
-            with logging_redirect_tqdm():
-                logging.info(f"Uploaded {s.sample_name} ({s.guid})")
+            # with logging_redirect_tqdm():
+            logging.info(f"Finished uploading {s.sample_name} ({s.guid})")
+        if self.json_messages:
+            misc.print_progress_message_json(action="upload", status="finished")
 
     def _finalise_submission(self):
         endpoint = (
@@ -760,13 +767,13 @@ class Batch:
             print(json.dumps(success_message, indent=4))
 
     def _submit(self):
-        try:
-            self._fetch_par()
-            self._upload_samples()
-            self._prepare_submission()
-            self._finalise_submission()
-        except Exception as e:
-            raise SubmissionError(e) from None
+        # try:
+        self._fetch_par()
+        self._upload_samples()
+        self._prepare_submission()
+        self._finalise_submission()
+        # except Exception as e:
+        #     raise SubmissionError(e) from None
 
     def _prepare_submission(self):
         """Prepare the JSON payload for the GPAS Upload app
@@ -819,7 +826,8 @@ class Batch:
         logging.debug(json.dumps(self.submission, indent=4))
 
     def upload(self, dry_run: bool = False):
-        logging.info(f"Using {self.processes} processes")
+        if self.processes > 1:
+            logging.info(f"Using {self.processes} processes")
         self._decontaminate()
         self._hash_fastqs()
         self._fetch_guids()

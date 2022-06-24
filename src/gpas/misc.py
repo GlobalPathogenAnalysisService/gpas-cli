@@ -1,7 +1,7 @@
 import hashlib
 import json
 import logging
-import multiprocessing
+from multiprocessing.dummy import Pool
 import os
 import shutil
 import subprocess
@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 import gpas
 from gpas import validation
@@ -67,9 +68,8 @@ ENDPOINTS = {
 @dataclass
 class LoggedShellCommand:
     name: str
+    action: str
     cmd: str
-    before_msg: dict
-    after_msg: dict
 
 
 def get_value_traceback(e: Exception) -> tuple[str, str, list]:
@@ -106,54 +106,98 @@ def run(cmd: str) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
 
 
+def print_json(data):
+    print(json.dumps(data, indent=4), flush=True)
+
+
+def print_progress_message_json(action: str, status: str, sample: str = ""):
+    message = {
+        "progress": {
+            "action": action,
+            "status": status,
+        }
+    }
+    if sample:
+        message["progress"]["sample"] = sample
+    print(json.dumps(message, indent=4), flush=True)
+
+
+# def print_progress_message(LoggedShellCommand, status: str):
+#     message = {
+#         "progress": {
+#             "action": action,
+#             "status": status,
+#         }
+#     }
+#     print(json.dumps(message, indent=4), flush=True)
+
+
 def run_logged(
     command: LoggedShellCommand, json_messages: bool = False
 ) -> subprocess.CompletedProcess:
-    def print_json(data):
-        print(json.dumps(data, indent=4), flush=True)
-
     if json_messages:
         logging.basicConfig(format="%(message)s", level=logging.INFO)
-        print_json(command.before_msg)
+        print_progress_message_json(
+            action=command.action, status="started", sample=command.name
+        )
     process = subprocess.run(
         command.cmd, shell=True, check=True, text=True, capture_output=True
     )
+    logging.info(f"Finished {command.action} for {command.name}")
     if json_messages:
-        print_json(command.after_msg)
+        print_progress_message_json(
+            action=command.action, status="finished", sample=command.name
+        )
     return process
 
 
 def run_parallel_logged(
     commands: list[LoggedShellCommand],
-    processes: int = multiprocessing.cpu_count(),
+    processes: int,
     participle: str = "processing",
     json_messages: bool = False,
 ) -> dict[str, subprocess.CompletedProcess]:
     processes = 1 if sys.platform == "win32" else processes
+    if json_messages:
+        print_progress_message_json(action=commands[0].action, status="started")
     if processes == 1:
-        results = {c.name: run(c.cmd) for c in commands}
+        results = {}
+        # for c in tqdm.tqdm(
+        #     commands,
+        #     total=len(commands),
+        #     desc=f"{participle} {len(commands)} sample(s)",
+        #     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+        #     leave=False,
+        #     disable=json_messages
+        # ):
+        for c in commands:
+            results[c.name] = run_logged(command=c, json_messages=json_messages)
+            logging.debug(f"{c.cmd=}")
+            # logging.info(f"Finished {participle.lower()} {len(cmds)} sample(s)")
     else:
         names = [c.name for c in commands]
         cmds = [c.cmd for c in commands]
         logging.debug(f"Started {participle.lower()} {len(cmds)} sample(s) \n{cmds=}")
-        with multiprocessing.get_context("spawn").Pool(processes) as pool:
+        with Pool(processes) as pool:
             results = {
                 n: c
                 for n, c in zip(
                     names,
-                    tqdm.tqdm(
-                        pool.imap_unordered(
-                            partial(run_logged, json_messages=json_messages),
-                            commands,
-                        ),
-                        total=len(cmds),
-                        desc=f"{participle} {len(cmds)} sample(s)",
-                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-                        leave=False,
+                    # tqdm.tqdm(
+                    pool.imap_unordered(
+                        partial(run_logged, json_messages=json_messages),
+                        commands,
                     ),
+                    #     total=len(cmds),
+                    #     desc=f"{participle} {len(cmds)} sample(s)",
+                    #     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                    #     leave=False,
+                    #     disable=json_messages,
+                    # ),
                 )
             }
-            logging.info(f"Finished {participle.lower()} {len(cmds)} sample(s)")
+    if json_messages:
+        print_progress_message_json(action=commands[0].action, status="finished")
     return results
 
 
@@ -198,10 +242,19 @@ def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_binary_path(filename: str) -> str:
-    if shutil.which(filename):  # In $PATH? Conda etc
-        path = shutil.which(filename)
-    elif os.getenv(f"GPAS_{filename.upper()}_PATH"):  # Check environment variables
-        path = os.environ[f"GPAS_{filename.upper()}_PATH"]
+    env_var = f"GPAS_{filename.upper()}_PATH"
+    if os.getenv(env_var) and Path(os.environ[env_var]).exists():
+        path = Path(os.environ[env_var]).resolve()
+    elif (Path(__file__).parents[0] / filename).exists():
+        path = (Path(__file__).parents[0] / filename).resolve()
+    elif (Path(__file__).parents[1] / filename).exists():
+        path = (Path(__file__).parents[1] / filename).resolve()
+    elif (Path(__file__).parents[2] / filename).exists():
+        path = (Path(__file__).parents[2] / filename).resolve()
+    elif (Path(__file__).parents[3] / filename).exists():
+        path = (Path(__file__).parents[3] / filename).resolve()
+    elif shutil.which(filename):  # Check $PATH
+        path = Path(shutil.which(filename)).resolve()
     else:
         raise FileNotFoundError(f"Could not find {filename} binary")
     return str(path)
@@ -219,7 +272,21 @@ def hash_string(string: str):
     return hashlib.md5(string.encode()).hexdigest()
 
 
+def get_data_path():
+    env_var = "GPAS_DATA_PATH"
+    if os.environ.get(env_var) and Path(os.environ[env_var]).exists():
+        path = Path(os.environ[env_var]).resolve()
+    elif gpas.data_dir.exists():
+        path = gpas.data_dir
+    elif (Path(__file__).parents[1] / "data").exists():
+        path = Path(__file__).parents[1] / "data"
+    else:
+        print(f"{__name__=} {__file__=} {gpas.data_dir=}")
+        raise FileNotFoundError(f"Could not find data directory")
+    return path.resolve()
+
+
 def get_reference_path(organism):
-    prefix = gpas.data_dir / Path("refs")
+    prefix = get_data_path() / "refs"
     organisms_paths = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
     return Path(prefix / organisms_paths[organism]).resolve()

@@ -23,8 +23,12 @@ def test_upload_ont_bam_dry():
     run_cmd = run(
         f"gpas upload --environment dev --token token.json large-nanopore-bam.csv --dry-run"
     )
-    assert "INFO: Finished converting 1 sample(s)" in run_cmd.stderr
-    assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
+    assert (
+        "INFO: Finished bam_conversion for COVID_locost_2_barcode10" in run_cmd.stderr
+    )
+    assert (
+        "INFO: Finished decontamination for COVID_locost_2_barcode10" in run_cmd.stderr
+    )
     batch_guid = run_cmd.stderr.partition(".mapping.csv")[0].rpartition(" ")[2]
     run(f"rm -f {batch_guid}.mapping.csv")
 
@@ -56,3 +60,65 @@ def test_upload_dry_working_dir():
     )
     assert (data_dir / Path("temp") / Path("cDNA-VOC-1-v4-1_2.fastq.gz")).exists()
     run(f"rm -rf temp *.mapping.csv")
+
+
+def test_upload_action_level_messages():
+    run_cmd = run(
+        f"gpas upload --environment dev --token token.json --dry-run --json-messages --processes 1 large-illumina-bam.csv"
+    )
+    assert (
+        """{
+    "progress": {
+        "action": "bam_conversion",
+        "status": "started"
+    }
+}
+{
+    "progress": {
+        "action": "bam_conversion",
+        "status": "started",
+        "sample": "cDNA-VOC-1-v4-1"
+    }
+}
+{
+    "progress": {
+        "action": "bam_conversion",
+        "status": "finished",
+        "sample": "cDNA-VOC-1-v4-1"
+    }
+}
+{
+    "progress": {
+        "action": "bam_conversion",
+        "status": "finished"
+    }
+}
+{
+    "progress": {
+        "action": "decontamination",
+        "status": "started"
+    }
+}
+{
+    "progress": {
+        "action": "decontamination",
+        "status": "started",
+        "sample": "cDNA-VOC-1-v4-1"
+    }
+}
+{
+    "progress": {
+        "action": "decontamination",
+        "status": "finished",
+        "sample": "cDNA-VOC-1-v4-1"
+    }
+}
+{
+    "progress": {
+        "action": "decontamination",
+        "status": "finished"
+    }
+}"""
+        in run_cmd.stdout
+    )
+    run(f"rm -rf *.mapping.csv")
