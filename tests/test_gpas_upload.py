@@ -23,12 +23,8 @@ def test_upload_ont_bam_dry():
     run_cmd = run(
         f"gpas upload --environment dev --token token.json large-nanopore-bam.csv --dry-run"
     )
-    assert (
-        "INFO: Finished bam_conversion for COVID_locost_2_barcode10" in run_cmd.stderr
-    )
-    assert (
-        "INFO: Finished decontamination for COVID_locost_2_barcode10" in run_cmd.stderr
-    )
+    assert "INFO: Finished converting 1 sample(s)" in run_cmd.stderr
+    assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
     batch_guid = run_cmd.stderr.partition(".mapping.csv")[0].rpartition(" ")[2]
     run(f"rm -f {batch_guid}.mapping.csv")
 

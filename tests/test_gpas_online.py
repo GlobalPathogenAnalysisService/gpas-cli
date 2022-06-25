@@ -331,12 +331,8 @@ def test_ont_bam_dry():
     run_cmd = run(
         f"gpas upload --environment dev --token token.json large-nanopore-bam.csv --dry-run"
     )
-    assert (
-        "INFO: Finished bam_conversion for COVID_locost_2_barcode10" in run_cmd.stderr
-    )
-    assert (
-        "INFO: Finished decontamination for COVID_locost_2_barcode10" in run_cmd.stderr
-    )
+    assert "INFO: Finished converting 1 sample(s)" in run_cmd.stderr
+    assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
 
 
 # # def test_validate():

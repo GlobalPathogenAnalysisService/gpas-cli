@@ -1,8 +1,8 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned. Uses Python 3.10+
+A standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned. Supports Python 3.10+.
 
-**Progress**
+![Download CLI demo](banner-download.gif)
 
 | Command line interface | Python API |
 | ----------------- | ------- |
@@ -78,6 +78,8 @@ options:
 
 Validates, decontaminates and upload reads specified in `upload_csv` to the specified GPAS environment
 
+![Upload CLI demo](banner-upload.gif)
+
 ```shell
 gpas upload --environment dev --token token.json large-illumina-bam.csv
 
@@ -125,6 +127,8 @@ options:
 ### `gpas download`
 
 Downloads `json`, `fasta`, `vcf` and `bam` outputs from the GPAS platform by passing either a `mapping_csv` generated during batch upload, or a comma-separated list of sample guids. By passing both `--mapping-csv` and `--rename`, output files are saved using local sample names without the platform's knowledge.
+
+![Download CLI demo](banner-download.gif)
 
 ```shell
 # Download and rename BAMs for a previous upload
@@ -234,7 +238,7 @@ The functionality of `gpas upload` is also distributed as a binary packaged with
 Usage:
 
 ```
-cli-upload --environment dev --token token.json tests/test-data/large-illumina-bam.csv --json-messages
+cli-upload --environment dev --token token.json large-nanopore-bam.csv --json-messages --processes 1
 ```
 
 If you encounter exceptions related to running `samtools` and `readItAndKeep`, set the environment variables `GPAS_READITANDKEEP_PATH` and `GPAS_SAMTOOLS_PATH` to the respective binary paths.

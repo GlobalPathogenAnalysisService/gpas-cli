@@ -725,21 +725,20 @@ class Batch:
         self.batch_url = self.par + self.batch_guid + "/"
 
     def _upload_samples(self):
-        if self.json_messages:
+        if self.json_messages:  # Avoid tqdm completely for PyInstaller's sake
             misc.print_progress_message_json(action="upload", status="started")
-        # for s in tqdm.tqdm(
-        #     self.samples,
-        #     desc=f"Uploading",
-        #     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-        #     leave=False,
-        #     disable=True
-        # ):
-        for s in self.samples:
-            s._upload_reads(self.batch_url, self.headers, self.json_messages)
-            # with logging_redirect_tqdm():
-            logging.info(f"Finished uploading {s.sample_name} ({s.guid})")
-        if self.json_messages:
+            for s in self.samples:
+                s._upload_reads(self.batch_url, self.headers, self.json_messages)
+                logging.info(f"Finished uploading {s.sample_name} ({s.guid})")
             misc.print_progress_message_json(action="upload", status="finished")
+        else:
+            for s in tqdm.tqdm(
+                self.samples,
+                desc=f"Uploading",
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                leave=False,
+            ):
+                s._upload_reads(self.batch_url, self.headers, self.json_messages)
 
     def _finalise_submission(self):
         endpoint = (

@@ -43,9 +43,9 @@ class SubmissionError(Exception):
 ENDPOINTS = {
     "dev": {
         "HOST": "https://portal.dev.gpas.ox.ac.uk/",
-        "API_PATH": "ords/gpasdevpdb1/gpas_pub/gpasapi/",
-        "ORDS_PATH": "ords/gpasdevpdb1/grep/electron/",
-        "DASHBOARD_PATH": "ords/gpasdevpdb1/gpas/r/gpas-portal/lineages-voc/",
+        "API_PATH": "/ords/gpas_pub/gpasapi/",
+        "ORDS_PATH": "/ords/grep/electron/",
+        "DASHBOARD_PATH": "/ords/r/gpas/gpas-portal/lineages-voc/",
         "NAME": "DEV",
     },
     "prod": {
@@ -136,18 +136,21 @@ def run_logged(
     command: LoggedShellCommand, json_messages: bool = False
 ) -> subprocess.CompletedProcess:
     if json_messages:
-        logging.basicConfig(format="%(message)s", level=logging.INFO)
+        # logging.basicConfig(format="%(message)s", level=logging.INFO)
         print_progress_message_json(
             action=command.action, status="started", sample=command.name
         )
     process = subprocess.run(
         command.cmd, shell=True, check=True, text=True, capture_output=True
     )
-    logging.info(f"Finished {command.action} for {command.name}")
     if json_messages:
         print_progress_message_json(
             action=command.action, status="finished", sample=command.name
         )
+    # else:
+    #     with logging_redirect_tqdm():
+    #         logging.info(f"Finished {command.action} for {command.name}")
+
     return process
 
 
@@ -162,14 +165,6 @@ def run_parallel_logged(
         print_progress_message_json(action=commands[0].action, status="started")
     if processes == 1:
         results = {}
-        # for c in tqdm.tqdm(
-        #     commands,
-        #     total=len(commands),
-        #     desc=f"{participle} {len(commands)} sample(s)",
-        #     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-        #     leave=False,
-        #     disable=json_messages
-        # ):
         for c in commands:
             results[c.name] = run_logged(command=c, json_messages=json_messages)
             logging.debug(f"{c.cmd=}")
@@ -183,21 +178,23 @@ def run_parallel_logged(
                 n: c
                 for n, c in zip(
                     names,
-                    # tqdm.tqdm(
-                    pool.imap_unordered(
-                        partial(run_logged, json_messages=json_messages),
-                        commands,
+                    tqdm.tqdm(
+                        pool.imap_unordered(
+                            partial(run_logged, json_messages=json_messages),
+                            commands,
+                        ),
+                        total=len(cmds),
+                        desc=f"{participle} {len(cmds)} sample(s)",
+                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                        leave=False,
                     ),
-                    #     total=len(cmds),
-                    #     desc=f"{participle} {len(cmds)} sample(s)",
-                    #     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-                    #     leave=False,
-                    #     disable=json_messages,
-                    # ),
                 )
             }
     if json_messages:
         print_progress_message_json(action=commands[0].action, status="finished")
+    else:
+        with logging_redirect_tqdm():
+            logging.info(f"Finished {participle.lower()} {len(cmds)} sample(s)")
     return results
 
 
@@ -245,18 +242,20 @@ def get_binary_path(filename: str) -> str:
     env_var = f"GPAS_{filename.upper()}_PATH"
     if os.getenv(env_var) and Path(os.environ[env_var]).exists():
         path = Path(os.environ[env_var]).resolve()
+    elif hasattr(sys, "_MEIPASS"):  # PyInstaller onefile
+        path = Path(sys.executable).parent
+        print("Using", str(path), "!")
     elif (Path(__file__).parents[0] / filename).exists():
         path = (Path(__file__).parents[0] / filename).resolve()
     elif (Path(__file__).parents[1] / filename).exists():
         path = (Path(__file__).parents[1] / filename).resolve()
     elif (Path(__file__).parents[2] / filename).exists():
         path = (Path(__file__).parents[2] / filename).resolve()
-    elif (Path(__file__).parents[3] / filename).exists():
-        path = (Path(__file__).parents[3] / filename).resolve()
-    elif shutil.which(filename):  # Check $PATH
+    elif shutil.which(filename):  # $PATH
         path = Path(shutil.which(filename)).resolve()
     else:
         raise FileNotFoundError(f"Could not find {filename} binary")
+    logging.debug(f"{filename=} {path=}")
     return str(path)
 
 
