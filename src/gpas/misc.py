@@ -168,7 +168,6 @@ def run_parallel_logged(
         for c in commands:
             results[c.name] = run_logged(command=c, json_messages=json_messages)
             logging.debug(f"{c.cmd=}")
-            # logging.info(f"Finished {participle.lower()} {len(cmds)} sample(s)")
     else:
         names = [c.name for c in commands]
         cmds = [c.cmd for c in commands]
@@ -194,7 +193,7 @@ def run_parallel_logged(
         print_progress_message_json(action=commands[0].action, status="finished")
     else:
         with logging_redirect_tqdm():
-            logging.info(f"Finished {participle.lower()} {len(cmds)} sample(s)")
+            logging.info(f"Finished {participle.lower()} {len(commands)} sample(s)")
     return results
 
 
