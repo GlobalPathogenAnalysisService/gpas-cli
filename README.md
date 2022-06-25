@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A standalone command line and Python API client for interacting with the Global Pathogen Analysis Service. Tested on Linux, MacOS, with Windows support planned. Supports Python 3.10+.
+A standalone command line and Python API client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Supports Linux, MacOS, and soon Windows. The client uses parallelisation and asynchronous HTTP requests to improve performance, and automates client-side sample name linkage. Requires Python 3.10+.
 
 ![Download CLI demo](banner-download.gif)
 
@@ -15,7 +15,7 @@ A standalone command line and Python API client for interacting with the Global 
 
 ## Install
 
-###  With `conda` (recommended)
+###  With `conda`
 
 
 ```shell
@@ -27,7 +27,7 @@ pip install gpas==0.5.0  # If you'd like a versioned release
 
 ### With `pip`
 
-Install Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) manually
+Install Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) manually and set environment variables containing their paths
 
 ```shell
 pip install gpas
@@ -39,7 +39,7 @@ export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 
 ## Authentication
 
-Most gpas-cli actions require a valid API token (`token.json`). This can be saved using the 'Get API token' button on the `Upload Client` page of the GPAS portal. If you can't see this button, please ask the team to enable it for you.
+Most gpas-cli actions require a valid API token (`token.json`). This can be saved using the 'Get API token' button on the `Upload Client` page of the GPAS portal. If you can't see this button, please ask the team to enable it for you. If you'd like to try GPAS, please get in touch!
 
 ## Command line usage
 
