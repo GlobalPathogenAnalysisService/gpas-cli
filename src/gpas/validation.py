@@ -194,7 +194,7 @@ class FastqSchema(BaseSchema):
     # validate that the fastq file is alphanumeric and unique
     fastq: Series[str] = pa.Field(
         unique=True,
-        str_matches=r"^[A-Za-z0-9/._-]+$",
+        str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
         coerce=False,
@@ -213,7 +213,7 @@ class PairedFastqSchema(BaseSchema):
     # validate that the fastq1 file is alphanumeric and unique
     fastq1: Series[str] = pa.Field(
         # unique=True,  # Joint uniqueness specified in Config
-        str_matches=r"^[A-Za-z0-9/._-]+$",
+        str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
         coerce=False,
@@ -222,7 +222,7 @@ class PairedFastqSchema(BaseSchema):
     # validate that the fastq2 file is alphanumeric and unique
     fastq2: Series[str] = pa.Field(
         # unique=True,  # Joint uniqueness specified in Config
-        str_matches=r"^[A-Za-z0-9/._-]+$",
+        str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
         coerce=False,
@@ -248,7 +248,7 @@ class BamSchema(BaseSchema):
     # Check filename is alphanumeric and unique
     bam: Series[str] = pa.Field(
         unique=True,
-        str_matches=r"^[A-Za-z0-9/._-]+$",
+        str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".bam",
         nullable=False,
         coerce=False,

@@ -1,10 +1,10 @@
 import asyncio
-from asyncio import subprocess
 import datetime
 import gzip
 import json
 import logging
 import multiprocessing
+from re import S
 import sys
 from pathlib import Path
 from typing import Any
@@ -16,7 +16,7 @@ import requests
 import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import data_dir, misc, validation
+from gpas import data_dir, misc
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     ENDPOINTS,
@@ -139,7 +139,7 @@ async def fetch_status_single_async(
     client, guid, url, headers, warn=False, n_retries=5
 ):
     r = await client.get(url=url, headers=headers)
-    if r.status_code == httpx.codes.ok:
+    if r.status_code == httpx.codes.OK:
         r_json = r.json()[0]
         status = r_json.get("status")
         result = dict(sample=guid, status=status)
@@ -225,7 +225,7 @@ async def download_single_async(
     prefix = name if name else guid
     r = await client.get(url=url, headers=headers)
     Path(out_dir).mkdir(parents=False, exist_ok=True)
-    if r.status_code == httpx.codes.ok:
+    if r.status_code == httpx.codes.OK:
         logging.debug(
             Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}")
         )
@@ -357,21 +357,6 @@ class Sample:
         else:
             raise DecontaminationError("Invalid organism")
 
-        # before_msg = {
-        #     "progress": {
-        #         "action": "decontamination",
-        #         "status": "started",
-        #         "sample": self.sample_name,
-        #     }
-        # }
-        # after_msg = {
-        #     "progress": {
-        #         "action": "decontamination",
-        #         "status": "finished",
-        #         "sample": self.sample_name,
-        #     }
-        # }
-
         command = misc.LoggedShellCommand(
             name=self.sample_name,
             action="decontamination",
@@ -382,32 +367,17 @@ class Sample:
     def _get_convert_bam_cmd(self, paired=False) -> str:
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
-            cmd = f"{self.samtools_path} fastq -0 {prefix.with_suffix('.fastq.gz')} {self.bam}"
+            cmd = f'{self.samtools_path} fastq -0 "{prefix.with_suffix(".fastq.gz")}" "{self.bam}"'
             self.fastq = self.working_dir / Path(self.sample_name + ".fastq.gz")
         else:
             cmd = (
-                f"{self.samtools_path} sort {self.bam} |"
+                f'{self.samtools_path} sort "{self.bam}" |'
                 f" {self.samtools_path} fastq -N"
-                f" -1 {prefix.parent / (prefix.name + '_1.fastq.gz')}"
-                f" -2 {prefix.parent / (prefix.name + '_2.fastq.gz')}"
+                f' -1 "{prefix.parent / (prefix.name + "_1.fastq.gz")}"'
+                f' -2 "{prefix.parent / (prefix.name + "_2.fastq.gz")}"'
             )
             self.fastq1 = self.working_dir / Path(self.sample_name + "_1.fastq.gz")
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")
-
-        # before_msg = {
-        #     "progress": {
-        #         "action": action,
-        #         "status": "started",
-        #         "sample_name": self.sample_name,
-        #     }
-        # }
-        # after_msg = {
-        #     "progress": {
-        #         "action": action,
-        #         "status": "finished",
-        #         "sample_name": self.sample_name,
-        #     }
-        # }
 
         command = misc.LoggedShellCommand(
             name=self.sample_name,
@@ -421,17 +391,17 @@ class Sample:
         if not self.fastq2:
             cmd = (
                 f"{self.decontaminator_path} --tech ont --enumerate_names"
-                f" --ref_fasta {self.decontamination_ref_path}"
-                f" --reads1 {self.fastq}"
-                f" --outprefix {self.working_dir / self.sample_name}"
+                f' --ref_fasta "{self.decontamination_ref_path}"'
+                f' --reads1 "{self.fastq}"'
+                f' --outprefix "{self.working_dir / self.sample_name}"'
             )
         else:
             cmd = (
                 f"{self.decontaminator_path} --tech illumina --enumerate_names"
-                f" --ref_fasta {self.decontamination_ref_path}"
-                f" --reads1 {self.fastq1}"
-                f" --reads2 {self.fastq2}"
-                f" --outprefix {self.working_dir / self.sample_name}"
+                f' --ref_fasta "{self.decontamination_ref_path}"'
+                f' --reads1 "{self.fastq1}"'
+                f' --reads2 "{self.fastq2}"'
+                f' --outprefix "{self.working_dir / self.sample_name}"'
             )
         self.clean_fastq = (
             self.working_dir / Path(self.sample_name + ".reads.fastq.gz")
@@ -597,10 +567,8 @@ class Batch:
         samples_decontamination_stats = {
             s: parse_decontamination_stats(r.stdout) for s, r in samples_runs.items()
         }
-        for sample in self.samples:
-            sample.decontamination_stats = samples_decontamination_stats.get(
-                sample.sample_name
-            )
+        for s in self.samples:
+            s.decontamination_stats = samples_decontamination_stats.get(s.sample_name)
 
     def _hash_fastqs(self):
         if not self.paired:
@@ -766,13 +734,10 @@ class Batch:
             print(json.dumps(success_message, indent=4))
 
     def _submit(self):
-        # try:
         self._fetch_par()
         self._upload_samples()
         self._prepare_submission()
         self._finalise_submission()
-        # except Exception as e:
-        #     raise SubmissionError(e) from None
 
     def _prepare_submission(self):
         """Prepare the JSON payload for the GPAS Upload app

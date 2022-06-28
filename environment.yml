@@ -9,4 +9,4 @@ dependencies:
   - read-it-and-keep=0.3.0
   - samtools=1.15.1
   - pip:
-    - git+https://github.com/GlobalPathogenAnalysisService/gpas-cli.git#egg=gpas
+    - gpas

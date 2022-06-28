@@ -1,3 +1,4 @@
+from logging.config import valid_ident
 import subprocess
 from pathlib import Path
 
@@ -294,3 +295,19 @@ def test_fail_no_header_cli():
     """Generic uncaught exception"""
     run_cmd = run("gpas validate broken/no-header.csv --json-messages")
     assert "unsupported operand type(s) for -: 'str' and 'int'" in run_cmd.stdout
+
+
+def test_space_mapping_csv_reads():
+    """Spaces should be tolerated in mapping CSV and reads filenames"""
+    df, schema_name = validation.validate(
+        Path(data_dir) / Path("large-nanopore-fastq space.csv")
+    )
+
+
+def test_space_mapping_csv_reads():
+    """Spaces should be tolerated in mapping CSV and reads filenames"""
+    df, schema_name = validation.validate(
+        Path(data_dir) / Path("large-nanopore-fastq space.csv")
+    )
+    run_cmd = run('gpas upload "large-nanopore-fastq space.csv"')
+    assert "COVID_locost_2_barcode10.reads.fastq.gz" in run_cmd.stderr
