@@ -16,8 +16,7 @@ import pandas as pd
 import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-import gpas
-from gpas import validation
+from gpas import validation, data_dir
 
 
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
@@ -119,7 +118,7 @@ def print_progress_message_json(action: str, status: str, sample: str = ""):
     }
     if sample:
         message["progress"]["sample"] = sample
-    print(json.dumps(message, indent=4), flush=True)
+    print_json(message)
 
 
 def run_logged(
@@ -254,12 +253,12 @@ def get_data_path():
     env_var = "GPAS_DATA_PATH"
     if os.environ.get(env_var) and Path(os.environ[env_var]).exists():
         path = Path(os.environ[env_var]).resolve()
-    elif gpas.data_dir.exists():
-        path = gpas.data_dir
+    elif data_dir.exists():
+        path = data_dir
     elif (Path(__file__).parents[1] / "data").exists():
         path = Path(__file__).parents[1] / "data"
     else:
-        logging.debug(f"{__name__=} {__file__=} {gpas.data_dir=}")
+        logging.debug(f"{__name__=} {__file__=} {data_dir=}")
         raise FileNotFoundError(f"Could not find data directory")
     return path.resolve()
 

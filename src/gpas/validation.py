@@ -2,7 +2,6 @@ import datetime
 import json
 import logging
 import os
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -423,7 +422,6 @@ def validate_tags(df, permitted_tags):
                     invalid_tags.add(tag)
 
     if invalid_tags:
-        print(invalid_tags)
         raise ValidationError(
             [{"error": f"tag(s) {invalid_tags} are invalid for this organisation"}]
         )

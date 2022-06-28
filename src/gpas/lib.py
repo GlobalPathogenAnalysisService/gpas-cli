@@ -4,7 +4,6 @@ import gzip
 import json
 import logging
 import multiprocessing
-from re import S
 import sys
 from pathlib import Path
 from typing import Any
@@ -16,7 +15,7 @@ import requests
 import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import data_dir, misc
+from gpas import misc
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     ENDPOINTS,
@@ -535,7 +534,7 @@ class Batch:
         self._number_runs()
 
         if self.json_messages:
-            print(json.dumps(self.validation_json, indent=4))
+            misc.print_json(self.validation_json)
 
     def _get_convert_bam_cmds(self) -> list[misc.LoggedShellCommand]:
         return [s._get_convert_bam_cmd() for s in self.samples]
@@ -731,7 +730,7 @@ class Batch:
             }
         }
         if self.json_messages:
-            print(json.dumps(success_message, indent=4))
+            misc.print_json(success_message)
 
     def _submit(self):
         self._fetch_par()
