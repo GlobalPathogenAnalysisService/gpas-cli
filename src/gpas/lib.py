@@ -459,7 +459,7 @@ class Sample:
                     )
             if json_messages:
                 misc.print_progress_message_json(
-                    action="upload", status="started", sample=self.sample_name
+                    action="upload", status="finished", sample=self.sample_name
                 )
         self.uploaded = True
 
