@@ -1,22 +1,23 @@
 import hashlib
 import json
 import logging
-from multiprocessing.dummy import Pool
 import os
 import shutil
 import subprocess
 import sys
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from functools import partial
 from enum import Enum
+from functools import partial
 from pathlib import Path
 
 import pandas as pd
+import requests
 import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import validation, data_dir
+from gpas import data_dir, validation
 
 
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
@@ -69,6 +70,15 @@ class LoggedShellCommand:
     name: str
     action: str
     cmd: str
+
+
+@dataclass
+class SampleUpload:
+    name: str
+    path1: Path
+    path2: str | None
+    url1: str
+    url2: str | None
 
 
 def get_value_traceback(e: Exception) -> tuple[str, str, list]:
@@ -156,13 +166,13 @@ def run_parallel_logged(
         names = [c.name for c in commands]
         cmds = [c.cmd for c in commands]
         logging.debug(f"Started {participle.lower()} {len(cmds)} sample(s) \n{cmds=}")
-        with Pool(processes) as pool:
+        with ThreadPoolExecutor(processes) as pool:
             results = {
                 n: c
                 for n, c in zip(
                     names,
                     tqdm.tqdm(
-                        pool.imap_unordered(
+                        pool.map(
                             partial(run_logged, json_messages=json_messages),
                             commands,
                         ),
@@ -267,3 +277,19 @@ def get_reference_path(organism):
     prefix = get_data_path() / "refs"
     organisms_paths = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
     return Path(prefix / organisms_paths[organism]).resolve()
+
+
+def upload_sample(upload: SampleUpload, headers: dict, json_messages: bool) -> None:
+    if json_messages:
+        print_progress_message_json(
+            action="upload", status="started", sample=upload.name
+        )
+    with open(upload.path1, "rb") as fh:
+        r = requests.put(url=upload.url1, data=fh, headers=headers)
+    if upload.path2 and upload.url2:
+        with open(upload.path2, "rb") as fh:
+            r = requests.put(url=upload.url2, data=fh, headers=headers)
+    if json_messages:
+        print_progress_message_json(
+            action="upload", status="finished", sample=upload.name
+        )

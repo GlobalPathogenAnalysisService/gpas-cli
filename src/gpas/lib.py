@@ -5,14 +5,15 @@ import json
 import logging
 import multiprocessing
 import sys
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pandas as pd
 import requests
-
 import tqdm
+from tqdm.contrib.concurrent import process_map
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 from gpas import misc
@@ -22,9 +23,6 @@ from gpas.misc import (
     ENVIRONMENTS,
     FILE_TYPES,
     GOOD_STATUSES,
-    AuthenticationError,
-    DecontaminationError,
-    SubmissionError,
 )
 from gpas.validation import build_validation_message, validate
 
@@ -68,7 +66,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
     except requests.exceptions.HTTPError as e:
         status_code = e.response.status_code
         if status_code == 401:
-            raise AuthenticationError(
+            raise misc.AuthenticationError(
                 f"Authentication failed, check access token and environment"
             ) from None
         else:
@@ -354,7 +352,7 @@ class Sample:
         if self.specimen_organism == "SARS-CoV-2":
             cmd = self._get_riak_cmd()
         else:
-            raise DecontaminationError("Invalid organism")
+            raise misc.DecontaminationError("Invalid organism")
 
         command = misc.LoggedShellCommand(
             name=self.sample_name,
@@ -434,34 +432,6 @@ class Sample:
             "gpas_run_number": self.gpas_run_number,
             "gpas_sample_name": self.guid,
         }
-
-    def _upload_reads(self, batch_url, headers, json_messages):
-        """Upload an unpaired FASTQ file to the Organisation's input bucket in OCI"""
-        url_prefix = batch_url + self.guid
-        if not self.uploaded:
-            if json_messages:
-                misc.print_progress_message_json(
-                    action="upload", status="started", sample=self.sample_name
-                )
-            if not self.paired:
-                with open(self.clean_fastq, "rb") as fh:
-                    r = requests.put(
-                        url=f"{url_prefix}.reads.fastq.gz", data=fh, headers=headers
-                    )
-            else:
-                with open(self.clean_fastq1, "rb") as fh:
-                    r = requests.put(
-                        f"{url_prefix}.reads_1.fastq.gz", data=fh, headers=headers
-                    )
-                with open(self.clean_fastq2, "rb") as fh:
-                    r = requests.put(
-                        f"{url_prefix}.reads_2.fastq.gz", data=fh, headers=headers
-                    )
-            if json_messages:
-                misc.print_progress_message_json(
-                    action="upload", status="finished", sample=self.sample_name
-                )
-        self.uploaded = True
 
 
 class Batch:
@@ -691,21 +661,62 @@ class Batch:
         self.bucket = self.par.split("/")[-3]
         self.batch_url = self.par + self.batch_guid + "/"
 
+    def _get_uploads(self) -> list[misc.SampleUpload]:
+        """Return local file path and destination URL for the file to be uploaded"""
+        uploads = []
+        for s in self.samples:
+            url_prefix = self.batch_url + s.guid
+            if not s.paired:
+                uploads.append(
+                    misc.SampleUpload(
+                        name=s.sample_name,
+                        path1=s.clean_fastq,
+                        path2=None,
+                        url1=f"{url_prefix}.reads.fastq.gz",
+                        url2=None,
+                    )
+                )
+            else:
+                uploads.append(
+                    misc.SampleUpload(
+                        name=s.sample_name,
+                        path1=s.clean_fastq1,
+                        path2=s.clean_fastq2,
+                        url1=f"{url_prefix}.reads_1.fastq.gz",
+                        url2=f"{url_prefix}.reads_2.fastq.gz",
+                    )
+                )
+        return uploads
+
     def _upload_samples(self):
-        if self.json_messages:  # Avoid tqdm completely for PyInstaller's sake
+        uploads = self._get_uploads()
+        if self.json_messages:
             misc.print_progress_message_json(action="upload", status="started")
-            for s in self.samples:
-                s._upload_reads(self.batch_url, self.headers, self.json_messages)
-                logging.info(f"Finished uploading {s.sample_name} ({s.guid})")
-            misc.print_progress_message_json(action="upload", status="finished")
+        if self.processes == 1:
+            for upload in uploads:
+                misc.upload_sample(
+                    upload=upload,
+                    headers=self.headers,
+                    json_messages=self.json_messages,
+                )
         else:
-            for s in tqdm.tqdm(
-                self.samples,
-                desc=f"Uploading",
+            f = partial(
+                misc.upload_sample,
+                headers=self.headers,
+                json_messages=self.json_messages,
+            )
+            process_map(
+                f,
+                uploads,
+                max_workers=10,
+                desc=f"Uploading {len(uploads)} sample(s) (10 connections)",
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
                 leave=False,
-            ):
-                s._upload_reads(self.batch_url, self.headers, self.json_messages)
+            )
+        if self.json_messages:
+            misc.print_progress_message_json(action="upload", status="finished")
+        else:
+            logging.info(f"Finished uploading {len(uploads)} sample(s)")
 
     def _finalise_submission(self):
         endpoint = (
@@ -717,7 +728,7 @@ class Batch:
         r.raise_for_status()
         logging.debug(f"POSTing JSON {r.text=}")
         if r.json().get("status") != "success":
-            raise SubmissionError(r.json().get("errorMsg"))
+            raise misc.SubmissionError(r.json().get("errorMsg"))
         url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
         r = requests.put(url=url, headers=self.headers)
         r.raise_for_status()
