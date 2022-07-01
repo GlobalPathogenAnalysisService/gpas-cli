@@ -336,7 +336,6 @@ class Sample:
         self.decontamination_ref_path = self.get_decontamination_ref_path()
         self.working_dir = Path(working_dir)
         self.working_dir.mkdir(parents=False, exist_ok=True)
-        self.uploaded = False
         self.guid = None
         self.mapping_path = None
         self.samtools_path = samtools_path
@@ -502,7 +501,7 @@ class Batch:
         )
 
         self._number_runs()
-
+        self.uploaded = False
         if self.json_messages:
             misc.print_json(self.validation_json)
 
@@ -688,10 +687,10 @@ class Batch:
                 )
         return uploads
 
-    def _upload_samples(self):
-        uploads = self._get_uploads()
+    def _upload_samples(self) -> None:
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="started")
+        uploads = self._get_uploads()
         if self.processes == 1:
             for upload in uploads:
                 misc.upload_sample(
@@ -700,25 +699,27 @@ class Batch:
                     json_messages=self.json_messages,
                 )
         else:
-            f = partial(
-                misc.upload_sample,
-                headers=self.headers,
-                json_messages=self.json_messages,
-            )
             process_map(
-                f,
+                partial(
+                    misc.upload_sample,
+                    headers=self.headers,
+                    json_messages=self.json_messages,
+                ),
                 uploads,
                 max_workers=10,
                 desc=f"Uploading {len(uploads)} sample(s) (10 connections)",
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
                 leave=False,
             )
+        self.uploaded = True
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="finished")
         else:
             logging.info(f"Finished uploading {len(uploads)} sample(s)")
 
     def _finalise_submission(self):
+        if not self.uploaded:
+            raise RuntimeError("Files not uploaded")
         endpoint = (
             ENDPOINTS[self.environment.value]["HOST"]
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]

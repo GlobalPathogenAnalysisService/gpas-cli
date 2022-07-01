@@ -231,6 +231,11 @@ def test_validate_empty_region():
     _, message = validation.validate(Path(data_dir) / Path("empty-region.csv"))
 
 
+def test_validate_empty_district():
+    """Empty district should be fine"""
+    _, message = validation.validate(Path(data_dir) / Path("empty-district.csv"))
+
+
 def test_validate_fail_select_schema():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
@@ -253,8 +258,29 @@ def test_validate_fail_wrong_instrument():
     )
 
 
+def test_validate_fail_path_suffix_instrument():
+    """Check that multiple errors are caught in one go (laziness)"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("bad-path-suffix-instrument.csv")
+        )
+    assert e.value.errors[0]["error"].startswith(
+        "instrument_platform value 'Illuminati' is not in set"
+    )
+    assert e.value.errors[1]["error"] == "fastq1 file does not exist"
+    assert (
+        e.value.errors[2]["error"]
+        == "fastq2 must end with .fastq.gz or .bam as appropriate"
+    )
+    assert e.value.errors[3]["error"] == "fastq2 file does not exist"
+
+
 def test_validate_nullable_batch():
     _, message = validation.validate(Path(data_dir) / Path("empty-batch-run.csv"))
+
+
+def test_validate_nullable_run():
+    _, message = validation.validate(Path(data_dir) / Path("empty-run.csv"))
 
 
 def test_decontamination():
