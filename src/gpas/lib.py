@@ -453,9 +453,7 @@ class Batch:
         self.environment = environment
         self.working_dir = working_dir
         self.out_dir = out_dir
-        self.processes = (
-            processes if processes else int(multiprocessing.cpu_count() / 2)
-        )
+        self.processes = processes if processes else int(multiprocessing.cpu_count())
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.json_messages = json_messages
         self.samtools_path = misc.get_binary_path("samtools")
