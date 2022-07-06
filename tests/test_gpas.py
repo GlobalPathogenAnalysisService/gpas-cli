@@ -340,7 +340,6 @@ def test_space_mapping_csv_reads_upload():
 
 
 def test_validate_fail_fastq_empty():
-    """Check that multiple errors are caught in one go (laziness)"""
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("empty-fastq.csv")
@@ -348,8 +347,15 @@ def test_validate_fail_fastq_empty():
     assert e.value.errors[0]["error"] == "fastq cannot be empty"
 
 
+def test_validate_fail_bam_empty():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty-bam.csv")
+        )
+    assert e.value.errors[0]["error"] == "bam cannot be empty"
+
+
 def test_validate_fail_completely_empty():
-    """Check that multiple errors are caught in one go (laziness)"""
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("empty.csv")
