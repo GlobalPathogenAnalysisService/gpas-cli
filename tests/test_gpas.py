@@ -337,3 +337,12 @@ def test_space_mapping_csv_reads_upload():
     )
     run_cmd = run('gpas upload "large-nanopore-fastq space.csv"')
     assert "COVID_locost_2_barcode10.reads.fastq.gz" in run_cmd.stderr
+
+
+def test_validate_fail_fastq_empty():
+    """Check that multiple errors are caught in one go (laziness)"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty-fastq.csv")
+        )
+    assert e.value.errors[0]["error"] == "fastq cannot be empty"

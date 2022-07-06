@@ -200,8 +200,9 @@ class FastqSchema(BaseSchema):
     )
 
     @pa.check(fastq, element_wise=True)
-    def check_path(cls, path: str) -> bool:
-        return Path(path).exists()
+    def check_path_fastq(cls, path: str) -> bool:
+        if path and pd.notna(path):
+            return Path(path).exists()
 
 
 class PairedFastqSchema(BaseSchema):
@@ -229,11 +230,13 @@ class PairedFastqSchema(BaseSchema):
 
     @pa.check(fastq1, element_wise=True)
     def check_path_fastq1(cls, path: str) -> bool:
-        return Path(path).exists()
+        if path and pd.notna(path):
+            return Path(path).exists()
 
     @pa.check(fastq2, element_wise=True)
     def check_path_fastq2(cls, path: str) -> bool:
-        return Path(path).exists()
+        if path and pd.notna(path):
+            return Path(path).exists()
 
     class Config:
         unique = ["fastq1", "fastq2"]
@@ -254,8 +257,9 @@ class BamSchema(BaseSchema):
     )
 
     @pa.check(bam, element_wise=True)
-    def check_path(cls, path: str) -> bool:
-        return Path(path).exists()
+    def check_path_bam(cls, path: str) -> bool:
+        if path and pd.notna(path):
+            return Path(path).exists()
 
 
 class PairedBamSchema(BamSchema):
@@ -440,13 +444,12 @@ def validate(
         index_col="sample_name",
         dtype={"run_number": str},
     )
-    with set_directory(Path(upload_csv).parent):
-        df = resolve_paths(df)
     schema = select_schema(df)
     if permitted_tags:  # Only validate if we have tags
         validate_tags(df, permitted_tags)
     try:
-        df = schema.validate(df, lazy=True)
+        with set_directory(Path(upload_csv).parent):
+            df = resolve_paths(schema.validate(df, lazy=True))
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         raise ValidationError(parse_validation_errors(e)) from None
     logging.info("Validation successful")
