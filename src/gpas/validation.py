@@ -437,13 +437,16 @@ def validate(
     """
     Validate a dataframe. Returns success message or throws ValidationError
     """
+    try:
+        df = pd.read_csv(
+            upload_csv,
+            encoding="utf-8",
+            index_col="sample_name",
+            dtype={"run_number": str},
+        )
+    except Exception as e:
+        raise ValidationError([{"error": f"Failed to parse CSV ({str(e)})"}]) from None
 
-    df = pd.read_csv(
-        upload_csv,
-        encoding="utf-8",
-        index_col="sample_name",
-        dtype={"run_number": str},
-    )
     schema = select_schema(df)
     if permitted_tags:  # Only validate if we have tags
         validate_tags(df, permitted_tags)

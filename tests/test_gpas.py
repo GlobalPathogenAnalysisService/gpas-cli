@@ -346,3 +346,15 @@ def test_validate_fail_fastq_empty():
             Path(data_dir) / Path("broken") / Path("empty-fastq.csv")
         )
     assert e.value.errors[0]["error"] == "fastq cannot be empty"
+
+
+def test_validate_fail_completely_empty():
+    """Check that multiple errors are caught in one go (laziness)"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty.csv")
+        )
+    assert (
+        e.value.errors[0]["error"]
+        == "Failed to parse CSV (No columns to parse from file)"
+    )
