@@ -330,7 +330,7 @@ def test_space_mapping_csv_reads():
     )
 
 
-def test_space_mapping_csv_reads():
+def test_space_mapping_csv_reads_upload():
     """Spaces should be tolerated in mapping CSV and reads filenames"""
     df, schema_name = validation.validate(
         Path(data_dir) / Path("large-nanopore-fastq space.csv")

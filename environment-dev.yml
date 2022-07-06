@@ -13,6 +13,7 @@ dependencies:
   - black
   - pre-commit
   - mypy
+  - python-build
   - pyinstaller
   - pip:
     - git+https://github.com/GlobalPathogenAnalysisService/gpas-cli.git#egg=gpas

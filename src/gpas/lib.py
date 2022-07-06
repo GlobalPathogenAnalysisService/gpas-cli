@@ -16,7 +16,7 @@ import tqdm
 from tqdm.contrib.concurrent import process_map
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import misc
+from gpas import misc, __version__
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     ENDPOINTS,
@@ -71,6 +71,17 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
             ) from None
         else:
             raise e from None
+    try:
+        r = requests.get(
+            "https://api.github.com/repos/GlobalPathogenAnalysisService/gpas-cli/releases/latest"
+        )
+        tag = r.json().get("tag_name")
+        if tag and tag != __version__:
+            logging.warning(
+                f"Installed gpas-cli version ({__version__}) differs from the latest release ({tag})"
+            )
+    except:
+        pass
     return user, organisation, allowed_tags
 
 
