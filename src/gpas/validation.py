@@ -118,8 +118,8 @@ class BaseSchema(pa.SchemaModel):
     )
 
     # validate that the collection is in the ISO format, is no earlier than 01-Jan-2019 and no later than today
-    collection_date: Series[pa.DateTime] = pa.Field(
-        gt="2019-01-01", le=str(datetime.date.today()), nullable=False
+    collection_date: Series[str] = pa.Field(
+        nullable=False,
     )
 
     # insist that the tags is alphanumeric, including : as it is the delimiter
@@ -150,13 +150,20 @@ class BaseSchema(pa.SchemaModel):
     # at present primer_schema can only be auto
     primer_scheme: Series[str] = pa.Field(isin=PRIMER_SCHEMES, nullable=False)
 
-    @pa.check(collection_date)
-    def check_collection_date(cls, a):
-        """
-        Check that collection_date is only the date and does not include time
-        e.g. "2022-03-01" will pass but "2022-03-01 10:20:32" will fail
-        """
-        return (a.dt.floor("d") == a).all()
+    @pa.check(collection_date, element_wise=True)
+    def check_collection_date(cls, value: str) -> bool:
+        """Check the date is parseable and within allowed range"""
+        valid = True
+        date = pd.to_datetime(value, format="%Y-%m-%d")
+        is_parseable = date.strftime("%Y-%m-%d") == value
+        allowed_range_start = datetime.datetime.strptime("2019-01-01", "%Y-%m-%d")
+        allowed_range_end = datetime.datetime.today()
+        is_within_range = allowed_range_start < date < allowed_range_end
+        if not is_parseable:
+            valid = False
+        if not is_within_range:
+            valid = False
+        return valid
 
     @pa.check(instrument_platform)
     def check_unique_instrument_platform(cls, field):
@@ -323,6 +330,12 @@ def parse_validation_error(row):
         return row.column + " must be unique"
     elif row.check == "multiple_fields_uniqueness":
         return "fastq1 and fastq2 must be jointly unique"
+    elif row.check == "check_collection_date":
+        return (
+            row.column
+            + " must be in format YYYY-MM-DD between 2019-01-01 and "
+            + datetime.date.today().isoformat()
+        )
     elif "str_matches" in row.check:
         allowed_chars = row.check.split("[")[1].split("]")[0]
         if row.schema_context == "Column":
@@ -349,15 +362,6 @@ def parse_validation_error(row):
         return f"{row.column} value '{row.failure_case}' is not in set {INSTRUMENTS}"
     elif row.column == "instrument_platform":
         return row.column + " must be the same for all samples in a submission"
-    elif row.column == "collection_date":
-        if row.sample_name is None:
-            return (
-                row.column + " must be in form YYYY-MM-DD and cannot include the time"
-            )
-        if row.check[:4] == "less":
-            return row.column + " cannot be in the future"
-        if row.check[:7] == "greater":
-            return row.column + " cannot be before 2019-01-01"
     elif row.column is None:
         return "problem"
     elif row.check == "tags_are_unique":
@@ -442,7 +446,7 @@ def validate(
             upload_csv,
             encoding="utf-8",
             index_col="sample_name",
-            dtype={"run_number": str},
+            dtype={"run_number": str, "collection_date": str},
         )
     except Exception as e:
         raise ValidationError([{"error": f"Failed to parse CSV ({str(e)})"}]) from None

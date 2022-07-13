@@ -364,3 +364,48 @@ def test_validate_fail_completely_empty():
         e.value.errors[0]["error"]
         == "Failed to parse CSV (No columns to parse from file)"
     )
+
+
+def test_validate_fail_invalid_date():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("invalid-date.csv")
+        )
+    assert (
+        "collection_date must be in format YYYY-MM-DD between 2019-01-01"
+        in e.value.errors[0]["error"]
+    )
+
+
+def test_validate_fail_invalid_date():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("non-iso-date.csv")
+        )
+    assert (
+        "collection_date must be in format YYYY-MM-DD between 2019-01-01"
+        in e.value.errors[0]["error"]
+    )
+
+
+def test_validate_fail_invalid_date():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty-date.csv")
+        )
+    assert e.value.errors[0]["error"] == "collection_date cannot be empty"
+    assert (
+        "collection_date must be in format YYYY-MM-DD between 2019-01-01"
+        in e.value.errors[1]["error"]
+    )
+
+
+def test_validate_fail_invalid_date():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("insane-date.csv")
+        )
+    assert (
+        "collection_date must be in format YYYY-MM-DD between 2019-01-01"
+        in e.value.errors[0]["error"]
+    )
