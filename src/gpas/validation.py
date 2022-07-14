@@ -422,11 +422,11 @@ def validate_tags(df, permitted_tags):
     Validate tags in upload csv
     """
     invalid_tags = set()
-    for value in df["tags"].tolist():
+    for value in df["tags"].tolist():  # Get tags for each record
         if value and not pd.isna(value):
-            tags = set(value.strip(" :").split(":"))
+            tags = set(filter(None, value.strip(" :").split(":")))  # Get non-empty tags
             for tag in tags:
-                if tag and tag not in permitted_tags:
+                if tag not in permitted_tags:
                     invalid_tags.add(tag)
 
     if invalid_tags:

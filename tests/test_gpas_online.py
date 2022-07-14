@@ -305,6 +305,34 @@ def test_validate_fail_no_tags_colon():
     ]
 
 
+def test_validate_fail_valid_and_invalid_tags():
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    _, _, permitted_tags = lib.fetch_user_details(
+        auth["access_token"], ENVIRONMENTS.dev
+    )
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("valid-and-invalid-tags.csv"),
+            permitted_tags=permitted_tags,
+        )
+    assert (
+        "tag(s) {'heffalump'} are invalid for this organisation"
+        in e.value.errors[0]["error"]
+    )
+
+
+def test_validate_valid_and_empty_tags():
+    """Empty tags are trimmed so should work fine"""
+    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+    _, _, permitted_tags = lib.fetch_user_details(
+        auth["access_token"], ENVIRONMENTS.dev
+    )
+    validation.validate(
+        Path(data_dir) / Path("valid-and-empty-tags.csv"),
+        permitted_tags=permitted_tags,
+    )
+
+
 def test_fail_auth():
     with pytest.raises(misc.AuthenticationError):
         auth = lib.parse_token(Path(data_dir) / Path("token.json"))

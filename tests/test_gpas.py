@@ -377,7 +377,7 @@ def test_validate_fail_invalid_date():
     )
 
 
-def test_validate_fail_invalid_date():
+def test_validate_fail_non_iso_date():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("non-iso-date.csv")
@@ -388,7 +388,7 @@ def test_validate_fail_invalid_date():
     )
 
 
-def test_validate_fail_invalid_date():
+def test_validate_fail_empty_date():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("empty-date.csv")
@@ -400,7 +400,7 @@ def test_validate_fail_invalid_date():
     )
 
 
-def test_validate_fail_invalid_date():
+def test_validate_fail_insane_date():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("insane-date.csv")
