@@ -774,7 +774,7 @@ class Batch:
                 "run_number": s.gpas_run_number,
                 "tags": s.tags,
                 "control": s.control,
-                "collection_date": str(s.collection_date.date()),
+                "collection_date": s.collection_date,
                 "country": s.country,
                 "region": s.region,
                 "district": s.district,
