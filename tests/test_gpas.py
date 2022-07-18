@@ -330,15 +330,6 @@ def test_space_mapping_csv_reads():
     )
 
 
-def test_space_mapping_csv_reads_upload():
-    """Spaces should be tolerated in mapping CSV and reads filenames"""
-    df, schema_name = validation.validate(
-        Path(data_dir) / Path("large-nanopore-fastq space.csv")
-    )
-    run_cmd = run('gpas upload "large-nanopore-fastq space.csv"')
-    assert "COVID_locost_2_barcode10.reads.fastq.gz" in run_cmd.stderr
-
-
 def test_validate_fail_fastq_empty():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
@@ -409,3 +400,33 @@ def test_validate_fail_insane_date():
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
         in e.value.errors[0]["error"]
     )
+
+
+def test_validate_fail_dupe_fastqs():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("dupe-fastqs.csv")
+        )
+    assert e.value.errors[0] == {
+        "sample_name": "COVID_locost_2_barcode10_x",
+        "error": "fastq must be unique",
+    }
+
+
+def test_validate_fail_dupe_names():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("dupe-names.csv")
+        )
+    assert e.value.errors[0] == {
+        "sample_name": 1,
+        "error": "sample_name must be unique",
+    }
+
+
+def test_validate_fail_empty_name():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty-name.csv")
+        )
+    assert e.value.errors[0] == {"error": "sample_name cannot be empty"}

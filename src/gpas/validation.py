@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import os
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -308,14 +309,14 @@ def parse_validation_errors(errors):
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
-    return remove_nones_in_ld(failures)
+    return list(filter(None, remove_nones_in_ld(failures)))  # filter empty dicts
 
 
 def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
-    # print(str(row), "\n")
+    print(str(row), "\n")
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":
@@ -325,9 +326,15 @@ def parse_validation_error(row):
     elif row.check == "instrument_is_valid":
         return f"instrument_platform can only contain one of {', '.join(INSTRUMENTS)}"
     elif row.check == "not_nullable":
-        return row.column + " cannot be empty"
+        if row.schema_context == "Index":
+            return "sample_name cannot be empty"
+        else:
+            return row.column + " cannot be empty"
     elif row.check == "field_uniqueness":
-        return row.column + " must be unique"
+        if row.schema_context == "Index":
+            return "sample_name must be unique"
+        else:
+            return row.column + " must be unique"
     elif row.check == "multiple_fields_uniqueness":
         return "fastq1 and fastq2 must be jointly unique"
     elif row.check == "check_collection_date":
@@ -347,10 +354,13 @@ def parse_validation_error(row):
     elif row.column == "region" and row.check[:4] == "isin":
         return row.failure_case + " is not a valid ISO-3166-2 subdivision name"
     elif row.column == "control" and row.check[:4] == "isin":
-        return (
-            row.failure_case
-            + f" in the control field is not valid: field must be either empty or contain the one of the keywords {', '.join(CONTROLS)}"
-        )
+        if row.failure_case == False:  # empty-name.csv causes problems for controls
+            return None
+        else:
+            return (
+                row.failure_case
+                + f" in the control field is not valid; field must be either empty or contain the one of the keywords {', '.join(CONTROLS)}"
+            )
     elif row.column == "host" and row.check[:4] == "isin":
         return row.column + " can only contain the keyword human"
     elif row.column == "specimen_organism" and row.check[:4] == "isin":
@@ -441,6 +451,10 @@ def validate(
     """
     Validate a dataframe. Returns success message or throws ValidationError
     """
+    if not bool(re.match(r"^[A-Za-z0-9\\\s./_-]+$", str(upload_csv))):
+        raise ValidationError(
+            [{"error": "upload csv path contains illegal characters"}]
+        )
     try:
         df = pd.read_csv(
             upload_csv,
