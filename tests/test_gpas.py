@@ -236,6 +236,13 @@ def test_validate_empty_district():
     _, message = validation.validate(Path(data_dir) / Path("empty-district.csv"))
 
 
+def test_validate_empty_district_multiple():
+    """Checking that a numerical district is correctly cast to a string by read_csv dtype"""
+    _, message = validation.validate(
+        Path(data_dir) / Path("empty-district-multiple.csv")
+    )
+
+
 def test_validate_fail_select_schema():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(

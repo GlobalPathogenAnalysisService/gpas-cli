@@ -460,7 +460,7 @@ def validate(
             upload_csv,
             encoding="utf-8",
             index_col="sample_name",
-            dtype={"run_number": str, "collection_date": str},
+            dtype=str,
         )
     except Exception as e:
         raise ValidationError([{"error": f"Failed to parse CSV ({str(e)})"}]) from None
