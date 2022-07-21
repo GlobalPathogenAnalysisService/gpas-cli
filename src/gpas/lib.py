@@ -478,6 +478,7 @@ class Batch:
             self.headers = {
                 "Authorization": f"Bearer {self.token['access_token']}",
                 "Content-Type": "application/json",
+                "charset": "utf-8",
             }
 
         else:
@@ -804,6 +805,7 @@ class Batch:
                 "uploaded_on": str(self.uploaded_on),
                 "uploaded_by": self.user,
                 "organisation": self.organisation,
+                "run_numbers": self.run_numbers,
                 "samples": samples,
             },
         }
@@ -828,13 +830,14 @@ class Batch:
     def _number_runs(self) -> None:
         """Enumerate unique values of run_number for submission"""
         samples_runs = self._get_sample_attrs("run_number")
-        runs = set(samples_runs.values())
-        if list(filter(None, runs)):  # More than just an empty string
-            runs_numbers = {r: str(i) for i, r in enumerate(runs, start=1)}
+        runs = set(list(filter(None, samples_runs.values())))
+        if runs:  # More than just an empty string
+            runs_numbers = {r: i for i, r in enumerate(runs, start=1)}
         else:
-            runs_numbers = {"": ""}
+            runs_numbers = {"": None}
         for s in self.samples:
             s.gpas_run_number = runs_numbers[s.run_number]
+        self.run_numbers = list(filter(None, runs_numbers.values()))
 
 
 def parse_decontamination_stats(stdout: str) -> dict:
