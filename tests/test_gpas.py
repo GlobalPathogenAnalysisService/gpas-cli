@@ -437,3 +437,7 @@ def test_validate_fail_empty_name():
             Path(data_dir) / Path("broken") / Path("empty-name.csv")
         )
     assert e.value.errors[0] == {"error": "sample_name cannot be empty"}
+
+
+def test_cayman():
+    _, message = validation.validate(Path(data_dir) / Path("cayman.csv"))

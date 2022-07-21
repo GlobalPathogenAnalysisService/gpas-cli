@@ -290,9 +290,9 @@ def get_valid_samples(df: pd.DataFrame, schema_name: str) -> list[dict]:
     return samples
 
 
-def remove_nones_in_ld(ld: list[dict]) -> list[dict]:
-    """Remove None-valued keys from a list of dicts"""
-    return [{k: v for k, v in d.items() if v} for d in ld]
+def remove_nones_and_empties_in_ld(ld: list[dict]) -> list[dict]:
+    """Remove None-valued keys and empty dicts from a list of dicts"""
+    return list(filter(None, [{k: v for k, v in d.items() if v} for d in ld]))
 
 
 def parse_validation_errors(errors):
@@ -309,7 +309,7 @@ def parse_validation_errors(errors):
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
-    return list(filter(None, remove_nones_in_ld(failures)))  # filter empty dicts
+    return remove_nones_and_empties_in_ld(failures)
 
 
 def parse_validation_error(row):
