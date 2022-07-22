@@ -378,7 +378,7 @@ class Sample:
             self.fastq = self.working_dir / Path(self.sample_name + ".fastq.gz")
         else:
             cmd = (
-                f'{self.samtools_path} sort "{self.bam}" |'
+                f'{self.samtools_path} sort -n "{self.bam}" |'
                 f" {self.samtools_path} fastq -N"
                 f' -1 "{prefix.parent / (prefix.name + "_1.fastq.gz")}"'
                 f' -2 "{prefix.parent / (prefix.name + "_2.fastq.gz")}"'
