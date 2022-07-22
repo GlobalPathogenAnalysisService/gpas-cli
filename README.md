@@ -2,7 +2,7 @@
 
 A standalone command line and Python API client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Supports Linux, MacOS, and soon Windows. The client uses parallelisation and asynchronous requests to improve performance, and automates client-side sample name linkage. Requires Python 3.10+.
 
-![Download CLI demo](banner-download.gif)
+![Upload CLI demo](banner-upload.gif)
 
 | Command line interface | Python API |
 | ----------------- | ------- |
@@ -15,23 +15,36 @@ A standalone command line and Python API client for interacting with the [Global
 
 ## Install
 
-###  With `conda`
+###  With `conda` (recommended)
+
+[Miniconda installation instructions](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
 
 
 ```shell
+# Install inside a new Conda environment
 curl https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml --output environment.yml
 conda env create -f environment.yml
+
+# Activate and use
 conda activate gpas-cli
+gpas --version
 ```
 
 ### With `pip`
 
-Requires separate installation of Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep)
+Requires separate installation of Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep). Requires that Python 3.10+ be installed
 
 ```shell
+# Install inside a new Python environment
+python3 -m venv gpas-cli
+source gpas-cli/bin/activate
 pip install gpas
 
-# If samtools and read-it-and-keep are not in $PATH, tell gpas-cli where to find them:
+# Activate and use
+source gpas-cli/bin/activate
+gpas --version
+
+# If samtools and read-it-and-keep are not in $PATH, tell gpas-cli where to find them
 export GPAS_SAMTOOLS_PATH=path/to/samtools
 export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 ```
