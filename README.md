@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-A standalone command line and Python API client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Supports Linux, MacOS, and soon Windows. The client uses parallelisation and asynchronous requests to improve performance, and automates client-side sample name linkage. Requires Python 3.10+.
+The new command line and Python API client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Supports Linux, MacOS, and Windows via WSL2. The client uses parallelisation and asynchronous requests for rapid client-side decontamination and upload, and automates client-side sample name linkage when downloading output files.
 
 ![Upload CLI demo](banner-upload.gif)
 
@@ -17,7 +17,7 @@ A standalone command line and Python API client for interacting with the [Global
 
 ###  With `conda` (recommended)
 
-[Miniconda installation instructions](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
+[How to install Miniconda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
 
 
 ```shell
@@ -30,9 +30,11 @@ conda activate gpas-cli
 gpas --version
 ```
 
+*If using a Mac with Apple silicon, you will need to [install conda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon)*
+
 ### With `pip`
 
-Requires separate installation of Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep). Requires that Python 3.10+ be installed
+This requires separate installation of Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep). Requires Python 3.10+
 
 ```shell
 # Install inside a new Python environment
