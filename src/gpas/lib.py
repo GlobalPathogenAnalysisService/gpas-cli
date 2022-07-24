@@ -62,6 +62,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         logging.debug(f"{result=}")
         user = result.get("userName")
         organisation = result.get("organisation")
+        date_mask = result.get("maskCollectionDate")
         allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
     except requests.exceptions.HTTPError as e:
         status_code = e.response.status_code
@@ -82,7 +83,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
     #         )
     # except:
     #     pass
-    return user, organisation, allowed_tags
+    return user, organisation, allowed_tags, date_mask
 
 
 def update_fasta_header(path: Path, guid: str, name: str):
@@ -474,6 +475,7 @@ class Batch:
                 self.user,
                 self.organisation,
                 self.permitted_tags,
+                self.date_mask,
             ) = fetch_user_details(self.token["access_token"], self.environment)
             self.headers = {
                 "Authorization": f"Bearer {self.token['access_token']}",
@@ -486,6 +488,7 @@ class Batch:
             self.organisation = None
             self.permitted_tags = []
             self.headers = None
+            self.date_mask = None
         self.df, self.schema_name = validate(self.upload_csv, self.permitted_tags)
         self.validation_json = build_validation_message(self.df, self.schema_name)
         batch_attrs = {
@@ -770,6 +773,15 @@ class Batch:
 
         samples = []
         for s in self.samples:
+            if self.date_mask == "MONTH":
+                dt = datetime.datetime.strptime(s.collection_date, "%Y-%m-%d")
+                s.collection_date = dt.replace(day=1).strftime("%Y-%m-%d")
+                logging.info("Masking collection dates to start of month")
+            elif self.date_mask == "WEEK":
+                dt = datetime.datetime.strptime(s.collection_date, "%Y-%m-%d")
+                td = datetime.timedelta(days=dt.weekday())
+                logging.info("Masking collection dates to start of week")
+                s.collection_date = (dt - td).strftime("%Y-%m-%d")
             sample = {
                 "name": s.guid,
                 "run_number": s.gpas_run_number,
