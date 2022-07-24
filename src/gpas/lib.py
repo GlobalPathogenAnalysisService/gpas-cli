@@ -62,7 +62,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         logging.debug(f"{result=}")
         user = result.get("userName")
         organisation = result.get("organisation")
-        date_mask = result.get("maskCollectionDate")
+        date_mask = result.get("maskCollectionDate")  # Expects {"N", "MONTH", "WEEK"}
         allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
     except requests.exceptions.HTTPError as e:
         status_code = e.response.status_code
@@ -773,15 +773,16 @@ class Batch:
 
         samples = []
         for s in self.samples:
-            if self.date_mask == "MONTH":
+            if self.date_mask in {"WEEK", "MONTH"}:
                 dt = datetime.datetime.strptime(s.collection_date, "%Y-%m-%d")
-                s.collection_date = dt.replace(day=1).strftime("%Y-%m-%d")
-                logging.info("Masking collection dates to start of month")
-            elif self.date_mask == "WEEK":
-                dt = datetime.datetime.strptime(s.collection_date, "%Y-%m-%d")
-                td = datetime.timedelta(days=dt.weekday())
-                logging.info("Masking collection dates to start of week")
-                s.collection_date = (dt - td).strftime("%Y-%m-%d")
+                if self.date_mask == "MONTH":
+                    s.collection_date = dt.replace(day=1).strftime("%Y-%m-%d")
+                elif self.date_mask == "WEEK":
+                    td = datetime.timedelta(days=dt.weekday())
+                    s.collection_date = (dt - td).strftime("%Y-%m-%d")
+                logging.info(
+                    f"Masked collection dates to start of {self.date_mask.lower()}"
+                )
             sample = {
                 "name": s.guid,
                 "run_number": s.gpas_run_number,
