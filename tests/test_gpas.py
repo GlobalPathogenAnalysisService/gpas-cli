@@ -439,9 +439,30 @@ def test_validate_vietnam():
     _, message = validation.validate(Path(data_dir) / Path("vietnam.csv"))
 
 
+def test_validate_vietnam():
+    _, message = validation.validate(
+        Path(data_dir) / Path("large-nanopore-fastq-no-run-batch.csv")
+    )
+
+
+def test_validate_negative():
+    _, message = validation.validate(Path(data_dir) / Path("negative-control.csv"))
+
+
 def test_validate_fail_not_unicode():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("not-unicode.csv")
         )
     assert "Failed to parse CSV" in e.value.errors[0]["error"]
+
+
+def test_paired_bam_first_read_not_equal():
+    """Ensure that R1 is not the same as R2"""
+    run_cmd = run("gpas upload large-illumina-bam.csv --working-dir ./")
+    r1_str = run("zcat < cDNA-VOC-1-v4-1_1.fastq.gz | head -n 2 | tail -n 1").stdout
+    r2_str = run("zcat < cDNA-VOC-1-v4-1_2.fastq.gz | head -n 2 | tail -n 1").stdout
+    assert r1_str != r2_str
+    run(
+        "rm cDNA-VOC-1-v4-1_1.fastq.gz cDNA-VOC-1-v4-1_2.fastq.gz cDNA-VOC-1-v4-1.reads_1.fastq.gz cDNA-VOC-1-v4-1.reads_2.fastq.gz"
+    )
