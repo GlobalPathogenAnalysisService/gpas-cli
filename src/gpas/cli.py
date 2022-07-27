@@ -29,7 +29,9 @@ def validate(
 ):
     if token:
         auth = lib.parse_token(token)
-        _, _, allowed_tags = lib.fetch_user_details(auth["access_token"], environment)
+        _, _, allowed_tags, _ = lib.fetch_user_details(
+            auth["access_token"], environment
+        )
     else:
         allowed_tags = []
     df, schema_name = validation.validate(upload_csv, allowed_tags)

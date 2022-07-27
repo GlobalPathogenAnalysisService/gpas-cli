@@ -12,7 +12,7 @@ data_dir = "tests/test-data"
 
 
 auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-_, _, permitted_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+_, _, permitted_tags, _ = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
 
 
 def run(cmd, cwd="./"):  # Helper for CLI testing
@@ -255,7 +255,7 @@ def test_gpas_validate_message():
 
 def test_validate_fail_wrong_tags():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags = lib.fetch_user_details(
+    _, _, permitted_tags, _ = lib.fetch_user_details(
         auth["access_token"], ENVIRONMENTS.dev
     )
     with pytest.raises(validation.ValidationError) as e:
@@ -277,7 +277,7 @@ def test_validate_fail_wrong_tags_cli():
 
 def test_validate_fail_no_tags():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags = lib.fetch_user_details(
+    _, _, permitted_tags, _ = lib.fetch_user_details(
         auth["access_token"], ENVIRONMENTS.dev
     )
     with pytest.raises(validation.ValidationError) as e:
@@ -292,7 +292,7 @@ def test_validate_fail_no_tags():
 
 def test_validate_fail_no_tags_colon():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags = lib.fetch_user_details(
+    _, _, permitted_tags, _ = lib.fetch_user_details(
         auth["access_token"], ENVIRONMENTS.dev
     )
     with pytest.raises(validation.ValidationError) as e:
@@ -307,7 +307,7 @@ def test_validate_fail_no_tags_colon():
 
 def test_validate_fail_valid_and_invalid_tags():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags = lib.fetch_user_details(
+    _, _, permitted_tags, _ = lib.fetch_user_details(
         auth["access_token"], ENVIRONMENTS.dev
     )
     with pytest.raises(validation.ValidationError) as e:
@@ -324,7 +324,7 @@ def test_validate_fail_valid_and_invalid_tags():
 def test_validate_valid_and_empty_tags():
     """Empty tags are trimmed so should work fine"""
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags = lib.fetch_user_details(
+    _, _, permitted_tags, _ = lib.fetch_user_details(
         auth["access_token"], ENVIRONMENTS.dev
     )
     validation.validate(
@@ -336,21 +336,21 @@ def test_validate_valid_and_empty_tags():
 def test_fail_auth():
     with pytest.raises(misc.AuthenticationError):
         auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-        _, _, permitted_tags = lib.fetch_user_details(
+        _, _, permitted_tags, _ = lib.fetch_user_details(
             auth["access_token"], ENVIRONMENTS.prod
         )
 
 
 def test_auth_broken_token():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags = lib.fetch_user_details(
+    _, _, permitted_tags, _ = lib.fetch_user_details(
         auth["access_token"], ENVIRONMENTS.dev
     )
     with pytest.raises(misc.AuthenticationError):
         broken_auth = lib.parse_token(
             Path(data_dir) / Path("broken") / Path("broken-token.json")
         )
-        _, _, permitted_tags = lib.fetch_user_details(
+        _, _, permitted_tags, _ = lib.fetch_user_details(
             broken_auth["access_token"], ENVIRONMENTS.dev
         )
 

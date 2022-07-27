@@ -10,7 +10,7 @@ data_dir = "tests/test-data"
 
 
 auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-_, _, allowed_tags = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+_, _, allowed_tags, _ = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
 
 
 def run(cmd, cwd="./"):  # Helper for CLI testing

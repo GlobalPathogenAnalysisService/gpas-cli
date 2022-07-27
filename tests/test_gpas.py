@@ -8,14 +8,6 @@ from gpas import data_dir, lib, misc, validation
 data_dir = "tests/test-data"
 
 
-# def test_gpas_uploader_validate():
-#     run_cmd = run(f"gpas-upload --environment dev --json validate nanopore-fastq.csv")
-#     assert (
-#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-#         in run_cmd.stdout
-#     )
-
-
 def run(cmd, cwd="./"):  # Helper for CLI testing
     return subprocess.run(
         cmd, cwd=data_dir, shell=True, check=True, text=True, capture_output=True
@@ -439,5 +431,17 @@ def test_validate_fail_empty_name():
     assert e.value.errors[0] == {"error": "sample_name cannot be empty"}
 
 
-def test_cayman():
+def test_validate_cayman():
     _, message = validation.validate(Path(data_dir) / Path("cayman.csv"))
+
+
+def test_validate_vietnam():
+    _, message = validation.validate(Path(data_dir) / Path("vietnam.csv"))
+
+
+def test_validate_fail_not_unicode():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("not-unicode.csv")
+        )
+    assert "Failed to parse CSV" in e.value.errors[0]["error"]

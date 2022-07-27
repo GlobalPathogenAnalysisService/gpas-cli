@@ -197,14 +197,6 @@ def run_parallel_logged(
     return results
 
 
-def check_unicode(data):
-    """Returns a Unicode object on success or None on failure"""
-    try:
-        return data.decode("utf-8")
-    except UnicodeDecodeError:
-        return None
-
-
 class set_directory(object):
     """
     Context manager for temporarily changing the current working directory
