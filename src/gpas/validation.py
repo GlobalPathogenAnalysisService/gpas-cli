@@ -463,7 +463,7 @@ def validate(
             dtype=str,
         )
     except Exception as e:
-        raise ValidationError([{"error": f"Failed to parse CSV ({str(e)})"}]) from None
+        raise ValidationError([{"error": f"failed to parse CSV ({str(e)})"}]) from None
 
     schema = select_schema(df)
     if permitted_tags:  # Only validate if we have tags

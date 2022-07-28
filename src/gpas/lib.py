@@ -489,6 +489,7 @@ class Batch:
             self.permitted_tags = []
             self.headers = None
             self.date_mask = None
+        logging.debug(f"{self.upload_csv=}")
         self.df, self.schema_name = validate(self.upload_csv, self.permitted_tags)
         self.validation_json = build_validation_message(self.df, self.schema_name)
         batch_attrs = {

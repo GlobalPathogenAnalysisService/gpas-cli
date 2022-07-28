@@ -352,7 +352,7 @@ def test_validate_fail_completely_empty():
         )
     assert (
         e.value.errors[0]["error"]
-        == "Failed to parse CSV (No columns to parse from file)"
+        == "failed to parse CSV (No columns to parse from file)"
     )
 
 
@@ -454,7 +454,7 @@ def test_validate_fail_not_unicode():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("not-unicode.csv")
         )
-    assert "Failed to parse CSV" in e.value.errors[0]["error"]
+    assert "failed to parse CSV" in e.value.errors[0]["error"]
 
 
 def test_paired_bam_first_read_not_equal():
