@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -235,7 +236,10 @@ def get_binary_path(filename: str) -> str:
         path = Path(os.environ[env_var]).resolve()
         logging.debug(f"get_binary_path(): Environment variable mode {path=}")
     elif hasattr(sys, "_MEIPASS"):  # PyInstaller onefile
-        path = (Path(sys.executable).parent / filename).resolve()
+        if platform.system() == "Windows":
+            path = (Path(sys.executable).parent / (filename + ".exe")).resolve()
+        else:
+            path = (Path(sys.executable).parent / filename).resolve()
         logging.debug(f"get_binary_path(): PyInstaller mode {path=}")
     elif shutil.which(filename):  # $PATH
         path = Path(shutil.which(filename)).resolve()
