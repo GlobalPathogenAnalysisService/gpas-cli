@@ -738,7 +738,11 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
-        r = requests.post(url=endpoint, json=self.submission, headers=self.headers)
+        r = requests.post(
+            url=endpoint,
+            data=json.dumps(self.submission, ensure_ascii=False).encode("utf-8"),
+            headers=self.headers,
+        )
         r.raise_for_status()
         logging.debug(f"POSTing JSON {r.text=}")
         if r.json().get("status") != "success":
