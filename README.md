@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-The new command line and Python API client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Supports Linux, MacOS, and Windows via WSL2. The client uses parallelisation and asynchronous requests for rapid client-side decontamination and upload, and automates client-side sample name linkage when downloading output files.
+The command line and Python API client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Tested with Ubuntu Linux (20.04, 22.04), MacOS (11, 12), and Windows (10+) via WSL2. The client uses parallelisation and asynchronous requests for rapid client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience and privacy.
 
 ![Upload CLI demo](banner-upload.gif)
 
