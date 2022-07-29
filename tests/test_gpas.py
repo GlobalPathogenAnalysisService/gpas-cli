@@ -439,7 +439,12 @@ def test_validate_vietnam():
     _, message = validation.validate(Path(data_dir) / Path("vietnam.csv"))
 
 
-def test_validate_vietnam():
+def test_validate_guyana():
+    """Contains a space in the region field"""
+    _, message = validation.validate(Path(data_dir) / Path("guyana.csv"))
+
+
+def test_validate_no_run_batch():
     _, message = validation.validate(
         Path(data_dir) / Path("large-nanopore-fastq-no-run-batch.csv")
     )
