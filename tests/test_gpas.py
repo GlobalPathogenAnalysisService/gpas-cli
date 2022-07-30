@@ -303,10 +303,16 @@ Kept reads 2	5006
     }
 
 
-def test_upload_no_token():
-    """When run without a token, upload should quit (exit code 0) after decontamination"""
-    run_cmd = run("gpas upload large-nanopore-fastq.csv")
-    assert "COVID_locost_2_barcode10.reads.fastq.gz" in run_cmd.stderr
+def test_upload_no_token_save_reads():
+    """When run without a token, upload should quit after decontamination"""
+    run_cmd = run("gpas upload large-nanopore-fastq.csv --save-reads")
+    assert "Saved decontaminated reads" in run_cmd.stderr
+    assert (
+        data_dir
+        / Path("decontaminated-reads")
+        / Path("COVID_locost_2_barcode10.reads.fastq.gz")
+    ).exists()
+    run("rm -rf decontaminated-reads")
 
 
 def test_weird_illumina_suffix():

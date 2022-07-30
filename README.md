@@ -150,7 +150,7 @@ Downloads `json`, `fasta`, `vcf` and `bam` outputs from the GPAS platform by pas
 
 ```shell
 # Download and rename BAMs for a previous upload
-gpas download --rename --mapping-csv example_mapping.csv --file-types bam token.json
+gpas download --rename --mapping-csv C-a06cbab8.mapping.csv --file-types bam token.json
 
 # Download all outputs for a single guid
 gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types json,vcf,bam,fasta token.json

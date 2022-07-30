@@ -4,6 +4,7 @@ import gzip
 import json
 import logging
 import multiprocessing
+import shutil
 import sys
 from functools import partial
 from pathlib import Path
@@ -348,6 +349,7 @@ class Sample:
         self.decontamination_ref_path = self.get_decontamination_ref_path()
         self.working_dir = Path(working_dir)
         self.working_dir.mkdir(parents=False, exist_ok=True)
+        logging.debug(f"{working_dir=}")
         self.guid = None
         self.mapping_path = None
         self.samtools_path = samtools_path
@@ -459,17 +461,20 @@ class Batch:
         processes: int = 0,
         environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
         json_messages: bool = False,
+        save_reads: bool = False,
     ):
         self.upload_csv = upload_csv
         self.token = parse_token(token) if token else None
         self.environment = environment
         self.working_dir = working_dir
         self.out_dir = out_dir
+        out_dir.mkdir(parents=False, exist_ok=True)
         self.processes = processes if processes else int(multiprocessing.cpu_count())
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.json_messages = json_messages
         self.samtools_path = misc.get_binary_path("samtools")
         self.decontaminator_path = misc.get_binary_path("readItAndKeep")
+        self.save_reads = save_reads
         if self.token:
             (
                 self.user,
@@ -525,6 +530,18 @@ class Batch:
     def _get_decontaminate_cmds(self) -> list[misc.LoggedShellCommand]:
         return [s._get_decontaminate_cmd() for s in self.samples]
 
+    def _save_reads(self) -> None:
+        save_dir = self.out_dir / "decontaminated-reads"
+        save_dir.mkdir(parents=False, exist_ok=True)
+        for s in self.samples:
+            if s.clean_fastq:
+                shutil.copy2(s.clean_fastq, save_dir)
+            if s.clean_fastq1:
+                shutil.copy2(s.clean_fastq1, save_dir)
+            if s.clean_fastq2:
+                shutil.copy2(s.clean_fastq2, save_dir)
+        logging.info(f"Saved decontaminated reads to {save_dir.resolve()}")
+
     def _decontaminate(self) -> None:
         """
         Convert BAM files to FASTQ files, if necessary, and then decontaminate
@@ -536,7 +553,6 @@ class Batch:
                 json_messages=self.json_messages,
                 processes=self.processes,
             )
-
         samples_runs = misc.run_parallel_logged(
             self._get_decontaminate_cmds(),
             participle="Decontaminating",
@@ -544,6 +560,8 @@ class Batch:
             processes=self.processes,
         )
         self._parse_decontamination_stats(samples_runs)
+        if self.save_reads:
+            self._save_reads()
 
     def _parse_decontamination_stats(self, samples_runs) -> None:
         samples_decontamination_stats = {
@@ -566,16 +584,6 @@ class Batch:
             setattr(s, name, value)
 
     def _fetch_guids(self):
-        if not self.headers:
-            logging.warning("No token provided, quitting after decontamination")
-            for s in self.samples:
-                logging.info(
-                    f"{s.sample_name}: {s.clean_fastq}"
-                ) if s.clean_fastq else None
-                logging.info(
-                    f"{s.sample_name}: {s.clean_fastq1} {s.clean_fastq2}"
-                ) if s.clean_fastq1 else None
-            sys.exit()
         md5_attr = "md5" if not self.paired else "md5_1"
         checksums = list(self._get_sample_attrs(md5_attr).values())
         payload = {
@@ -641,7 +649,6 @@ class Batch:
                 "gpas_sample_name",
             ],
         )
-        Path(self.out_dir).mkdir(parents=False, exist_ok=True)
         target_path = self.out_dir / Path(self.batch_guid + ".mapping.csv")
         df.to_csv(target_path, index=False)
         self.mapping_path = target_path
@@ -829,10 +836,13 @@ class Batch:
         }
         logging.debug(json.dumps(self.submission, indent=4))
 
-    def upload(self, dry_run: bool = False):
+    def upload(self, dry_run: bool = False, save_reads: bool = False) -> None:
         if self.processes > 1:
             logging.info(f"Using {self.processes} processes")
         self._decontaminate()
+        if not self.headers:
+            logging.warning("No token provided, quitting")
+            sys.exit()
         self._hash_fastqs()
         self._fetch_guids()
         self._build_mapping_csv()

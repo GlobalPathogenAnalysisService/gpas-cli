@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -68,38 +69,42 @@ def upload(
     upload_csv: Path,
     *,
     token: Path | None = None,
-    working_dir: Path = Path("/tmp"),
+    working_dir: Path | None = None,
     out_dir: Path = Path(),
     processes: int = 0,
     dry_run: bool = False,
     debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     json_messages: bool = False,
+    save_reads: bool = False,
 ):
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
-    batch = lib.Batch(
-        upload_csv,
-        token=token,
-        working_dir=working_dir,
-        out_dir=out_dir,
-        processes=processes,
-        environment=environment,
-        json_messages=json_messages,
-    )
-    batch.upload(dry_run=dry_run)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        batch = lib.Batch(
+            upload_csv,
+            token=token,
+            working_dir=working_dir if working_dir else Path(tmp_dir),
+            out_dir=out_dir,
+            processes=processes,
+            environment=environment,
+            json_messages=json_messages,
+            save_reads=save_reads,
+        )
+        batch.upload(dry_run=dry_run)
 
 
 def upload_wrapper(
     upload_csv: Path,
     token: Path | None = None,
-    working_dir: Path = Path("/tmp"),
+    working_dir: Path | None = None,
     out_dir: Path = Path(),
     processes: int = 0,
     dry_run: bool = False,
     debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     json_messages: bool = False,
+    save_reads: bool = False,
 ):
     """
     Validate, decontaminate and upload reads to the GPAS platform
@@ -113,6 +118,7 @@ def upload_wrapper(
     :arg debug: Emit verbose debug messages
     :arg environment: GPAS environment to use
     :arg json_messages: Emit JSON to stdout
+    :arg save_reads: Save decontaminated reads in out_dir
     """
     jsonify_exceptions(
         upload,
@@ -125,6 +131,7 @@ def upload_wrapper(
         debug=debug,
         environment=environment,
         json_messages=json_messages,
+        save_reads=save_reads,
     )
 
 
