@@ -13,8 +13,8 @@ from functools import partial
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
+import httpx
 import pandas as pd
-import requests
 import tqdm
 from tenacity import (
     retry,
@@ -171,7 +171,7 @@ def run_parallel_logged(
     participle: str = "processing",
     json_messages: bool = False,
 ) -> dict[str, subprocess.CompletedProcess]:
-    processes = 1 if sys.platform == "win32" else processes
+    processes = 1 if platform.system() == "Windows" else processes
     if json_messages:
         print_progress_message_json(action=commands[0].action, status="started")
     if processes == 1:
@@ -291,7 +291,7 @@ def get_reference_path(organism):
 
 
 @retry(
-    retry=retry_if_exception_type(requests.exceptions.ConnectionError),
+    retry=retry_if_exception_type(httpx.TransportError),
     wait=wait_exponential(multiplier=1, min=1, max=5),
     stop=stop_after_attempt(5),
 )
@@ -301,11 +301,11 @@ def upload_sample(upload: SampleUpload, headers: dict, json_messages: bool) -> N
             action="upload", status="started", sample=upload.name
         )
     with open(upload.path1, "rb") as fh:
-        r = requests.put(url=upload.url1, data=fh, headers=headers)
+        r = httpx.put(url=upload.url1, data=fh, headers=headers)
         r.raise_for_status()
     if upload.path2 and upload.url2:
         with open(upload.path2, "rb") as fh:
-            r = requests.put(url=upload.url2, data=fh, headers=headers)
+            r = httpx.put(url=upload.url2, data=fh, headers=headers)
             r.raise_for_status()
     logging.debug(f"Uploaded sample {upload.name}")
     if json_messages:

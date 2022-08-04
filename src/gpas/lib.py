@@ -12,7 +12,6 @@ from typing import Any
 
 import httpx
 import pandas as pd
-import requests
 import tqdm
 from tqdm.contrib.concurrent import process_map
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -56,8 +55,8 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
     )
     try:
         logging.debug(f"Fetching user details {endpoint=}")
-        r = requests.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
-        if not r.ok:
+        r = httpx.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
+        if not r.is_success:
             r.raise_for_status()
         result = r.json().get("userOrgDtl", {})[0]
         logging.debug(f"{result=}")
@@ -65,7 +64,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         organisation = result.get("organisation")
         date_mask = result.get("maskCollectionDate")  # Expects {"N", "MONTH", "WEEK"}
         allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
-    except requests.exceptions.HTTPError as e:
+    except httpx.HTTPStatusError as e:
         status_code = e.response.status_code
         if status_code == 401:
             raise misc.AuthenticationError(
@@ -74,7 +73,7 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         else:
             raise e from None
     # try:
-    #     r = requests.get(
+    #     r = httpx.get(
     #         "https://api.github.com/repos/GlobalPathogenAnalysisService/gpas-cli/releases/latest"
     #     )
     #     tag = r.json().get("tag_name")
@@ -273,8 +272,8 @@ def fetch_status(
     )
     records = []
     for guid in tqdm.tqdm(guids):
-        r = requests.get(url=endpoint + guid, headers=headers)
-        if r.ok:
+        r = httpx.get(url=endpoint + guid, headers=headers)
+        if r.is_success:
             if raw:
                 records.append(r.json())
             else:
@@ -600,8 +599,8 @@ class Batch:
             + "createSampleGuids"
         )
         logging.debug(f"Fetching guids; {endpoint=}")
-        r = requests.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
-        if not r.ok:
+        r = httpx.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
+        if not r.is_success:
             r.raise_for_status()
         result = r.json()
         logging.debug(f"{result=}")
@@ -669,8 +668,8 @@ class Batch:
             + "pars"
         )
         logging.debug(f"Fetching PAR; {endpoint=} {self.headers=}")
-        r = requests.get(url=endpoint, headers=self.headers)
-        if not r.ok:
+        r = httpx.get(url=endpoint, headers=self.headers)
+        if not r.is_success:
             r.raise_for_status()
         result = json.loads(r.content)
         logging.debug(f"{result=}")
@@ -746,7 +745,7 @@ class Batch:
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
-        r = requests.post(
+        r = httpx.post(
             url=endpoint,
             data=json.dumps(self.submission, ensure_ascii=False).encode("utf-8"),
             headers=self.headers,
@@ -756,7 +755,7 @@ class Batch:
         if r.json().get("status") != "success":
             raise misc.SubmissionError(r.json().get("errorMsg"))
         url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
-        r = requests.put(url=url, headers=self.headers)
+        r = httpx.put(url=url, headers=self.headers)
         r.raise_for_status()
         logging.info(f"Finished uploading batch {self.batch_guid}")
         success_message = {
