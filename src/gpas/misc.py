@@ -7,10 +7,10 @@ import shutil
 import subprocess
 import sys
 import traceback
-from multiprocessing.pool import ThreadPool
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
 import pandas as pd
@@ -19,13 +19,12 @@ import tqdm
 from tenacity import (
     retry,
     retry_if_exception_type,
-    wait_exponential,
     stop_after_attempt,
+    wait_exponential,
 )
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 from gpas import data_dir, validation
-
 
 FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
 DEFAULT_FORMAT = FORMATS.table
@@ -44,6 +43,10 @@ class DecontaminationError(Exception):
 
 
 class SubmissionError(Exception):
+    pass
+
+
+class SubprocessError(Exception):
     pass
 
 
@@ -145,9 +148,16 @@ def run_logged(
         print_progress_message_json(
             action=command.action, status="started", sample=command.name
         )
-    process = subprocess.run(
-        command.cmd, shell=True, check=True, text=True, capture_output=True
+    process = subprocess.run(command.cmd, shell=True, text=True, capture_output=True)
+    logging.debug(
+        f"Executed command {process.args} {process.stderr=}"
+        f" {process.stdout=} {process.returncode=}"
     )
+    if process.returncode != 0:
+        raise SubprocessError(
+            f"Failed to execute command {process.args} {process.stderr=}"
+            f" {process.stdout=} {process.returncode=}"
+        )
     if json_messages:
         print_progress_message_json(
             action=command.action, status="finished", sample=command.name
