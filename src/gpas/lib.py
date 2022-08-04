@@ -400,14 +400,14 @@ class Sample:
     def _get_riak_cmd(self) -> str:
         if not self.fastq2:
             cmd = (
-                f"{self.decontaminator_path} --tech ont --enumerate_names"
+                f'"{self.decontaminator_path}" --tech ont --enumerate_names'
                 f' --ref_fasta "{self.decontamination_ref_path}"'
                 f' --reads1 "{self.fastq}"'
                 f' --outprefix "{self.working_dir / self.sample_name}"'
             )
         else:
             cmd = (
-                f"{self.decontaminator_path} --tech illumina --enumerate_names"
+                f'"{self.decontaminator_path}" --tech illumina --enumerate_names'
                 f' --ref_fasta "{self.decontamination_ref_path}"'
                 f' --reads1 "{self.fastq1}"'
                 f' --reads2 "{self.fastq2}"'
