@@ -358,7 +358,7 @@ def test_validate_fail_completely_empty():
         )
     assert (
         e.value.errors[0]["error"]
-        == "failed to parse CSV (No columns to parse from file)"
+        == "failed to parse upload CSV (No columns to parse from file)"
     )
 
 
@@ -465,7 +465,7 @@ def test_validate_fail_not_unicode():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("not-unicode.csv")
         )
-    assert "failed to parse CSV" in e.value.errors[0]["error"]
+    assert "failed to parse upload CSV" in e.value.errors[0]["error"]
 
 
 def test_paired_bam_first_read_not_equal():
@@ -477,3 +477,38 @@ def test_paired_bam_first_read_not_equal():
     run(
         "rm cDNA-VOC-1-v4-1_1.fastq.gz cDNA-VOC-1-v4-1_2.fastq.gz cDNA-VOC-1-v4-1.reads_1.fastq.gz cDNA-VOC-1-v4-1.reads_2.fastq.gz"
     )
+
+
+def test_validate_fail_illegal_chars():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("illegal-chârs.csv")
+        )
+    assert e.value.errors[0] == {
+        "error": "upload csv path contains illegal characters",
+    }
+
+
+def test_validate_fail_dupe_fastqs_illumina():
+    """Two records, one with duplicate fastq1"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("dupe-fastqs-illumina.csv")
+        )
+    assert e.value.errors[0] == {
+        "sample_name": "cDNA-VOC-1-v4-2",
+        "error": "fastq1 must be unique",
+    }
+
+
+# This is a valid test that is currently failing
+# def test_validate_fail_dupe_fastq1_fastq2_illumina():
+#     """Two records, one with duplicate fastq1"""
+#     with pytest.raises(validation.ValidationError) as e:
+#         _, message = validation.validate(
+#             Path(data_dir) / Path("broken") / Path("dupe-fastq1-fastq2.csv")
+#         )
+#     assert e.value.errors[0] == {
+#         "sample_name": "cDNA-VOC-1-v4-2",
+#         "error": "fastq1 must be unique",
+#     }

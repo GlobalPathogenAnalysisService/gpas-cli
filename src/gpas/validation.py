@@ -220,7 +220,7 @@ class PairedFastqSchema(BaseSchema):
 
     # validate that the fastq1 file is alphanumeric and unique
     fastq1: Series[str] = pa.Field(
-        # unique=True,  # Joint uniqueness specified in Config
+        unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
@@ -229,7 +229,7 @@ class PairedFastqSchema(BaseSchema):
 
     # validate that the fastq2 file is alphanumeric and unique
     fastq2: Series[str] = pa.Field(
-        # unique=True,  # Joint uniqueness specified in Config
+        unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
@@ -463,7 +463,9 @@ def validate(
             dtype=str,
         )
     except Exception as e:
-        raise ValidationError([{"error": f"failed to parse CSV ({str(e)})"}]) from None
+        raise ValidationError(
+            [{"error": f"failed to parse upload CSV ({str(e)})"}]
+        ) from None
 
     schema = select_schema(df)
     if permitted_tags:  # Only validate if we have tags
