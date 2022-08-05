@@ -189,7 +189,6 @@ class BaseSchema(pa.SchemaModel):
 
     class Config:
         strict = True
-        coerce = True
         region_is_valid = ()
 
 
@@ -218,16 +217,13 @@ class PairedFastqSchema(BaseSchema):
     Validate GPAS upload CSVs specifying paired reads (e.g Illumina).
     """
 
-    # validate that the fastq1 file is alphanumeric and unique
     fastq1: Series[str] = pa.Field(
         unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
-        coerce=False,
     )
 
-    # validate that the fastq2 file is alphanumeric and unique
     fastq2: Series[str] = pa.Field(
         unique=True,  # Joint uniqueness specified in Config
         str_matches=r"^[A-Za-z0-9 /._-]+$",
@@ -236,15 +232,20 @@ class PairedFastqSchema(BaseSchema):
         coerce=False,
     )
 
-    @pa.check(fastq1, element_wise=True)
+    @pa.check(fastq1, element_wise=True)  # Check that fastq1 exists
     def check_path_fastq1(cls, path: str) -> bool:
         if path and pd.notna(path):
             return Path(path).exists()
 
-    @pa.check(fastq2, element_wise=True)
+    @pa.check(fastq2, element_wise=True)  # Check that fastq2 exists
     def check_path_fastq2(cls, path: str) -> bool:
         if path and pd.notna(path):
             return Path(path).exists()
+
+    @pa.dataframe_check()  # Check that fastq1 and fastq2 are not the same file
+    def fastq1_does_not_equal_fastq2(cls, df: pd.DataFrame) -> Series[bool]:
+        # print(df["fastq1"] != df["fastq2"])
+        return df["fastq1"] != df["fastq2"]
 
     class Config:
         unique = ["fastq1", "fastq2"]
@@ -255,7 +256,6 @@ class BamSchema(BaseSchema):
     Validate GPAS upload CSVs specifying BAM files.
     """
 
-    # Check filename is alphanumeric and unique
     bam: Series[str] = pa.Field(
         unique=True,
         str_matches=r"^[A-Za-z0-9 /._-]+$",
@@ -264,7 +264,7 @@ class BamSchema(BaseSchema):
         coerce=False,
     )
 
-    @pa.check(bam, element_wise=True)
+    @pa.check(bam, element_wise=True)  # Check that bam exists
     def check_path_bam(cls, path: str) -> bool:
         if path and pd.notna(path):
             return Path(path).exists()

@@ -502,13 +502,13 @@ def test_validate_fail_dupe_fastqs_illumina():
 
 
 # This is a valid test that is currently failing
-# def test_validate_fail_dupe_fastq1_fastq2_illumina():
-#     """Two records, one with duplicate fastq1"""
-#     with pytest.raises(validation.ValidationError) as e:
-#         _, message = validation.validate(
-#             Path(data_dir) / Path("broken") / Path("dupe-fastq1-fastq2.csv")
-#         )
-#     assert e.value.errors[0] == {
-#         "sample_name": "cDNA-VOC-1-v4-2",
-#         "error": "fastq1 must be unique",
-#     }
+def test_validate_fail_dupe_fastq1_fastq2_illumina():
+    """Two records, one with duplicate fastq1"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("dupe-fastq1-fastq2.csv")
+        )
+    assert e.value.errors[0] == {
+        "sample_name": "cDNA-VOC-1-v4-2",
+        "error": "fastq1 must be unique",
+    }
