@@ -93,22 +93,6 @@ def region_is_valid(df):
     return df.apply(validate_region, axis=1).all()
 
 
-@extensions.register_check_method()
-def fastq1_does_not_equal_fastq2(df):
-    """
-    Throw a ValidationError if fastq1 == fastq2
-    """
-
-    def validate_fastq1_fastq2(row):
-        if row["fastq1"] == row["fastq2"]:
-            valid = False
-        else:
-            valid = True
-        return valid
-
-    return df.apply(validate_fastq1_fastq2, axis=1).all()
-
-
 class BaseSchema(pa.SchemaModel):
     """
     Validate generic GPAS upload CSVs
@@ -258,14 +242,14 @@ class PairedFastqSchema(BaseSchema):
         if path and pd.notna(path):
             return Path(path).exists()
 
-    # @pa.dataframe_check()  # Check that fastq1 and fastq2 are not the same file
-    # def fastq1_does_not_equal_fastq2(cls, df: pd.DataFrame) -> Series[bool]:
-    #     # print(df["fastq1"] != df["fastq2"])
-    #     return df["fastq1"] != df["fastq2"]
+    @pa.dataframe_check(
+        ignore_na=False
+    )  # Check that fastq1 and fastq2 are not the same file
+    def fastq1_does_not_equal_fastq2(cls, df: pd.DataFrame) -> Series[bool]:
+        return df["fastq1"] != df["fastq2"]
 
     class Config:
         unique = ["fastq1", "fastq2"]
-        fastq1_does_not_equal_fastq2 = ()
 
 
 class BamSchema(BaseSchema):
@@ -371,7 +355,7 @@ def parse_validation_error(row):
             + datetime.date.today().isoformat()
         )
     elif row.check == "fastq1_does_not_equal_fastq2":
-        return "fastq1 and fastq2 must be different files"
+        return "fastq1 and fastq2 cannot be the same"
     elif "str_matches" in row.check:
         allowed_chars = row.check.split("[")[1].split("]")[0]
         if row.schema_context == "Column":

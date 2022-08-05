@@ -532,5 +532,6 @@ def test_validate_fail_dupe_fastq1_fastq2_illumina():
             Path(data_dir) / Path("broken") / Path("dupe-fastq1-fastq2.csv")
         )
     assert e.value.errors[0] == {
-        "error": "fastq1 and fastq2 must be different files",
+        "sample_name": "cDNA-VOC-1-v4-1",
+        "error": "fastq1 and fastq2 cannot be the same",
     }
