@@ -180,40 +180,21 @@ def test_validate_fail_different_platforms():
 
 
 def test_validate_fail_country_region():
-    # valid, schema, message = validation.validate(
-    #     Path(data_dir) / Path("broken") / Path("invalid-country-region.csv")
-    # )
-    # assert not valid and message == {
-    #     "validation": {
-    #         "status": "failure",
-    #         "schema": "PairedFastqSchema",
-    #         "errors": [
-    #             {
-    #                 "sample_name": "cDNA-VOC-1-v4-1",
-    #                 "error": "US is not a valid ISO-3166-1 country",
-    #             },
-    #             {
-    #                 "sample_name": "cDNA-VOC-1-v4-1",
-    #                 "error": "Bretagn is not a valid ISO-3166-2 region",
-    #             },
-    #         ],
-    #     }
-    # }
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("invalid-country-region.csv")
         )
     assert e.value.errors == [
         {
-            "error": "One or more regions are not valid ISO-3166-2 subdivisions for the specified country"
+            "sample_name": "cDNA-VOC-1-v4-1",
+            "error": "Bretagn is not a valid ISO-3166-2 subdivision name",
         },
         {
             "sample_name": "cDNA-VOC-1-v4-1",
             "error": "US is not a valid ISO-3166-1 alpha-3 country code",
         },
         {
-            "sample_name": "cDNA-VOC-1-v4-1",
-            "error": "Bretagn is not a valid ISO-3166-2 subdivision name",
+            "error": "One or more regions are not valid ISO-3166-2 subdivisions for the specified country"
         },
     ]
 
@@ -252,8 +233,9 @@ def test_validate_fail_wrong_instrument():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("wrong-instrument.csv")
         )
-    assert e.value.errors[0]["error"].startswith(
-        "instrument_platform value 'Illuminati' is not in set"
+    assert (
+        e.value.errors[0]["error"]
+        == "instrument_platform can only contain one of ['Illumina', 'Nanopore']"
     )
 
 
@@ -263,15 +245,36 @@ def test_validate_fail_path_suffix_instrument():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("bad-path-suffix-instrument.csv")
         )
-    assert e.value.errors[0]["error"].startswith(
-        "instrument_platform value 'Illuminati' is not in set"
-    )
-    assert e.value.errors[1]["error"] == "fastq1 file does not exist"
-    assert (
-        e.value.errors[2]["error"]
-        == "fastq2 must end with .fastq.gz or .bam as appropriate"
-    )
-    assert e.value.errors[3]["error"] == "fastq2 file does not exist"
+    # assert e.value.errors[0]["error"].startswith(
+    #     "instrument_platform value 'Illuminati' is not in set"
+    # )
+    # assert e.value.errors[1]["error"] == "fastq1 file does not exist"
+    # assert (
+    #     e.value.errors[2]["error"]
+    #     == "fastq2 must end with .fastq.gz or .bam as appropriate"
+    # )
+    # assert e.value.errors[3]["error"] == "fastq2 file does not exist"
+
+    print(e.value.errors)
+
+    assert e.value.errors == [
+        {
+            "sample_name": "cDNA-VOC-1-v4-1",
+            "error": "fastq1 file does not exist",
+        },
+        {
+            "sample_name": "cDNA-VOC-1-v4-1",
+            "error": "fastq2 file does not exist",
+        },
+        {
+            "sample_name": "cDNA-VOC-1-v4-1",
+            "error": "fastq2 must end with .fastq.gz or .bam as appropriate",
+        },
+        {
+            "sample_name": "cDNA-VOC-1-v4-1",
+            "error": "instrument_platform can only contain one of ['Illumina', 'Nanopore']",
+        },
+    ]
 
 
 def test_validate_nullable_batch():
@@ -367,9 +370,12 @@ def test_validate_fail_invalid_date():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("invalid-date.csv")
         )
-    assert (
+    assert e.value.errors[0] == {
+        "sample_name": "COVID_locost_2_barcode10",
+        "error": "fastq file does not exist",
+    }
+    assert e.value.errors[1]["error"].startswith(
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
-        in e.value.errors[0]["error"]
     )
 
 
@@ -389,10 +395,15 @@ def test_validate_fail_empty_date():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("empty-date.csv")
         )
+
     assert e.value.errors[0]["error"] == "collection_date cannot be empty"
+    assert e.value.errors[1] == {
+        "sample_name": "COVID_locost_2_barcode10",
+        "error": "fastq file does not exist",
+    }
     assert (
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
-        in e.value.errors[1]["error"]
+        in e.value.errors[2]["error"]
     )
 
 
@@ -401,9 +412,13 @@ def test_validate_fail_insane_date():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("insane-date.csv")
         )
+    assert e.value.errors[0] == {
+        "sample_name": "COVID_locost_2_barcode10",
+        "error": "fastq file does not exist",
+    }
     assert (
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
-        in e.value.errors[0]["error"]
+        in e.value.errors[1]["error"]
     )
 
 
@@ -495,10 +510,18 @@ def test_validate_fail_dupe_fastqs_illumina():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("dupe-fastqs-illumina.csv")
         )
-    assert e.value.errors[0] == {
-        "sample_name": "cDNA-VOC-1-v4-2",
-        "error": "fastq1 must be unique",
-    }
+    assert e.value.errors == [
+        {
+            "sample_name": "cDNA-VOC-1-v4-1",
+            "error": "fastq1 and fastq2 must be jointly unique",
+        },
+        {
+            "sample_name": "cDNA-VOC-1-v4-2",
+            "error": "fastq1 and fastq2 must be jointly unique",
+        },
+        {"sample_name": "cDNA-VOC-1-v4-2", "error": "fastq1 must be unique"},
+        {"sample_name": "cDNA-VOC-1-v4-2", "error": "fastq2 must be unique"},
+    ]
 
 
 # This is a valid test that is currently failing

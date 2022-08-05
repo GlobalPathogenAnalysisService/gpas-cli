@@ -290,9 +290,17 @@ def get_valid_samples(df: pd.DataFrame, schema_name: str) -> list[dict]:
     return samples
 
 
-def remove_nones_and_empties_in_ld(ld: list[dict]) -> list[dict]:
-    """Remove None-valued keys and empty dicts from a list of dicts"""
-    return list(filter(None, [{k: v for k, v in d.items() if v} for d in ld]))
+def remove_nones_duplicates_empties_from_ld(ld: list[dict]) -> list[dict]:
+    """Remove None-valued keys, duplicated, and empty dicts from a list of dicts"""
+    ld = (
+        pd.DataFrame(ld)
+        .sort_values(["sample_name", "error"])
+        .drop_duplicates()
+        .to_dict("records")
+    )
+    ld = list(filter(None, [{k: v for k, v in d.items() if v} for d in ld]))
+    return ld
+    # return list(filter(None, [{k: v for k, v in d.items() if v} for d in ld]))
 
 
 def parse_validation_errors(errors):
@@ -309,7 +317,7 @@ def parse_validation_errors(errors):
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
-    return remove_nones_and_empties_in_ld(failures)
+    return remove_nones_duplicates_empties_from_ld(failures)
 
 
 def parse_validation_error(row):
@@ -323,8 +331,12 @@ def parse_validation_error(row):
         return "column " + row.failure_case
     elif row.check == "region_is_valid":
         return "One or more regions are not valid ISO-3166-2 subdivisions for the specified country"
-    elif row.check == "instrument_is_valid":
-        return f"instrument_platform can only contain one of {', '.join(INSTRUMENTS)}"
+    elif row.check == "instrument_is_valid" or (
+        row.column == "instrument_platform" and "isin" in row.check
+    ):
+        return (
+            f"instrument_platform can only contain one of {list(sorted(INSTRUMENTS))}"
+        )
     elif row.check == "not_nullable":
         if row.schema_context == "Index":
             return "sample_name cannot be empty"
@@ -367,9 +379,6 @@ def parse_validation_error(row):
         return row.column + " can only contain the keyword SARS-CoV-2"
     elif row.column == "primer_scheme" and row.check[:4] == "isin":
         return row.column + " can only contain the keyword auto"
-
-    elif row.column == "instrument_platform" and "isin" in row.check:
-        return f"{row.column} value '{row.failure_case}' is not in set {INSTRUMENTS}"
     elif row.column == "instrument_platform":
         return row.column + " must be the same for all samples in a submission"
     elif row.column is None:
