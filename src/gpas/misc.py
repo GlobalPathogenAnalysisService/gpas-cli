@@ -67,9 +67,9 @@ ENDPOINTS = {
     },
     "staging": {
         "HOST": "https://portal.staging.gpas.ox.ac.uk/",
-        "API_PATH": "ords/gpasuat/gpas_pub/gpasapi/",
-        "ORDS_PATH": "ords/gpasuat/grep/electron/",
-        "DASHBOARD_PATH": "ords/gpas/r/gpas-portal/lineages-voc/",
+        "API_PATH": "ords/gpas_pub/gpasapi/",
+        "ORDS_PATH": "ords/grep/electron/",
+        "DASHBOARD_PATH": "",
         "NAME": "STAGE",
     },
 }
