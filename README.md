@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-The command line and Python API client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Tested with Ubuntu Linux (20.04, 22.04), MacOS (11, 12), and Windows (10+) via WSL2. The client uses parallelisation and asynchronous requests for rapid client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience and privacy.
+The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Tested with Ubuntu Linux, MacOS, and Windows via Windows Subsystem for Linux (WSL2). The client uses parallelisation and asynchronous requests for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy.
 
 ![Upload CLI demo](banner-upload.gif)
 
@@ -15,9 +15,11 @@ The command line and Python API client for interacting with the [Global Pathogen
 
 ## Install
 
-###  With `conda` (recommended)
+Installation using Conda or Miniconda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a modern Mac with Apple silicon, one will need to [install conda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon). One can alternatively `pip install` the PyPI package and manually install the `samtools` and `readItAndKeep` binary dependencies.
 
-[How to install Miniconda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)
+Upload functionality (mirroring `gpas upload`) is also available as a [static binary for each release](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/runs/2833301316), but offers slower performance than the Python package.
+
+####  With `conda` (recommended)
 
 
 ```shell
@@ -30,9 +32,9 @@ conda activate gpas-cli
 gpas --version
 ```
 
-*If using a Mac with Apple silicon, you will need to [install conda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon)*
 
-### With `pip`
+
+#### With `pip`
 
 This requires separate installation of Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep). Requires Python 3.10+
 
@@ -243,7 +245,7 @@ pip install --upgrade --force-reinstall --editable ./
 # Offline unit tests
 pytest tests/test_gpas.py
 
-# Online and upload tests require a valid token insides tests/test-data
+# The full test suite require a valid token for dev inside tests/test-data
 pytest --cov=gpas
 ```
 
