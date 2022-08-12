@@ -1,4 +1,3 @@
-from logging.config import valid_ident
 import subprocess
 from pathlib import Path
 
