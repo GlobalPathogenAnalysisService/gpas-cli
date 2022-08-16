@@ -455,13 +455,17 @@ def validate_tags(df, permitted_tags):
         )
 
 
+def validate_upload_csv_path(upload_csv) -> bool:
+    return bool(re.match(r"^[A-Za-z0-9\\\s:./_-]+$", str(upload_csv)))
+
+
 def validate(
     upload_csv: Path, permitted_tags: list[str] = []
 ) -> tuple[pd.DataFrame, str]:
     """
     Validate a dataframe. Returns success message or throws ValidationError
     """
-    if not bool(re.match(r"^[A-Za-z0-9\\\s:./_-]+$", str(upload_csv))):
+    if not validate_upload_csv_path(upload_csv):
         raise ValidationError(
             [{"error": "upload csv path contains illegal characters"}]
         )

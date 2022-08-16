@@ -534,3 +534,8 @@ def test_validate_fail_dupe_fastq1_fastq2_illumina():
         "sample_name": "cDNA-VOC-1-v4-1",
         "error": "fastq1 and fastq2 cannot be the same",
     }
+
+
+def test_validate_upload_path_windows():
+    """Test that Windows paths are valid"""
+    assert validation.validate_upload_csv_path(Path("C:\\test\\file\\path.jpg"))
