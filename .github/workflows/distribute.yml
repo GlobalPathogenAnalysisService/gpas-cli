@@ -64,3 +64,51 @@ jobs:
       with:
         name: cli-upload-${{ matrix.os }}
         path: dist/*
+
+  windows-build:
+    name: (Windows) Python ${{ matrix.python-version }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+        fail-fast: false
+        matrix:
+            os: [windows-2019]
+            python-version: ['3.10']
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+    - name: Install Python dependencies
+      run: |
+        pip install pytest pytest-cov pyinstaller
+        pip install .\
+    - name: Install Samtools
+      shell: pwsh
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/GlobalPathogenAnalysisService/gpas-cli/raw/main/lib/win/samtools.zip" -OutFile samtools.zip
+        Expand-Archive -LiteralPath "samtools.zip" -DestinationPath .\
+    - name: Install readItAndKeep
+      shell: pwsh
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/GlobalPathogenAnalysisService/gpas-cli/raw/main/lib/win/readItAndKeep.zip" -OutFile readItAndKeep.zip
+        Expand-Archive -LiteralPath "readItAndKeep.zip" -DestinationPath .\
+    - name: Build PyInstaller binary
+      shell: cmd
+      run: |
+        pyinstaller --onefile --name cli-upload --add-data src/gpas/data;data --noconfirm src/gpas/cli-upload.py
+    - name: Copy files into dist/
+      shell: pwsh
+      run: |
+        Copy-Item "readItAndKeep.exe" -Destination "dist\"
+        Copy-Item "samtools.exe" -Destination "dist\"
+        Copy-Item "*.dll" -Destination "dist\"
+    - name: Test binary
+      shell: cmd
+      run: |
+        dist\cli-upload tests\test-data\large-illumina-bam.csv --processes 1
+    - name: Store dist
+      uses: actions/upload-artifact@v2
+      with:
+        name: cli-upload-${{ matrix.os }}
+        path: dist\*
