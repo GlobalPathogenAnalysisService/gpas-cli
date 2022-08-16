@@ -461,7 +461,7 @@ def validate(
     """
     Validate a dataframe. Returns success message or throws ValidationError
     """
-    if not bool(re.match(r"^[A-Za-z0-9\\\s./_-]+$", str(upload_csv))):
+    if not bool(re.match(r"^[A-Za-z0-9\\\s:./_-]+$", str(upload_csv))):
         raise ValidationError(
             [{"error": "upload csv path contains illegal characters"}]
         )
