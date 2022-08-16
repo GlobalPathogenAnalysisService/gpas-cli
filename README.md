@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Tested with Ubuntu Linux, MacOS, and Windows via Windows Subsystem for Linux (WSL2). The client uses parallelisation and asynchronous requests for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy.
+The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Works with Ubuntu Linux, MacOS, and Windows via WSL2. The client uses parallelisation and asynchronous requests for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. This client also forms the foundation of the GPAS GUI client.
 
 ![Upload CLI demo](banner-upload.gif)
 
@@ -15,11 +15,9 @@ The command line client for interacting with the [Global Pathogen Analysis Servi
 
 ## Install
 
-Installation using Conda or Miniconda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a modern Mac with Apple silicon, one will need to [install conda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon). One can alternatively `pip install` the PyPI package and manually install the `samtools` and `readItAndKeep` binary dependencies.
-
-Upload functionality (mirroring `gpas upload`) is also available as a [static binary for each release](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/runs/2833301316), but offers slower performance than the Python package.
-
 ####  With `conda` (recommended)
+
+Installation using (Mini)conda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a Mac with Apple silicon, follow instructions to [install Miniconda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon).
 
 
 ```shell
@@ -36,7 +34,7 @@ gpas --version
 
 #### With `pip`
 
-This requires separate installation of Samtools and [read-it-and-keep](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep). Requires Python 3.10+
+One can alternatively `pip install` the PyPI package in a Python 3.10+ environment, and manually install the [`samtools`](http://www.htslib.org/) and [`readItAndKeep`](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) binary dependencies. These must be inside a directory included in `$PATH`.
 
 ```shell
 # Install inside a new Python environment
@@ -52,6 +50,12 @@ gpas --version
 export GPAS_SAMTOOLS_PATH=path/to/samtools
 export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 ```
+
+
+
+#### Single executable (upload functionality only)
+
+Upload functionality mirroring `gpas upload` is also available as [single file Linux, MacOS and Windows executables for each release](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/runs/2869965907), but offers slower performance than the Python package. These executables are used by the GUI client.
 
 
 
