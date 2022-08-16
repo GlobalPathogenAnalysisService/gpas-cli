@@ -1,6 +1,6 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Works with Ubuntu Linux, MacOS, and Windows via WSL2. The client uses parallelisation and asynchronous requests for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. This client also forms the foundation of the GPAS GUI client.
+The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Works with Ubuntu Linux, MacOS, and Windows via WSL2. The client uses parallelisation and asynchronous requests for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy.
 
 ![Upload CLI demo](banner-upload.gif)
 
@@ -34,7 +34,7 @@ gpas --version
 
 #### With `pip`
 
-One can alternatively `pip install` the PyPI package in a Python 3.10+ environment, and manually install the [`samtools`](http://www.htslib.org/) and [`readItAndKeep`](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) binary dependencies. These must be inside a directory included in `$PATH`.
+One can alternatively `pip install` the PyPI package in a Python 3.10+ environment, and manually install [`samtools`](http://www.htslib.org/) and [`readItAndKeep`](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) binary dependencies. These must be inside a directory included in `$PATH`.
 
 ```shell
 # Install inside a new Python environment
@@ -53,15 +53,15 @@ export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 
 
 
-#### Single executable (upload functionality only)
+#### With a single executable (upload functionality only)
 
-Upload functionality mirroring `gpas upload` is also available as [single file Linux, MacOS and Windows executables for each release](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/runs/2869965907), but offers slower performance than the Python package. These executables are used by the GUI client.
+Upload functionality mirroring `gpas upload` is also available as single file Linux, MacOS and Windows executables for each release. These are intended for distribution with the GUI client but may be used independently. These can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
 
 
 
 ## Authentication
 
-Most `gpas-cli` actions require a valid API token (`token.json`). This can be saved using the 'Get API token' button on the 'Upload Client' page of the GPAS portal. If you can't see this button, please ask the team to enable it for you. If you'd like to try GPAS, please get in touch!
+Most `gpas-cli` actions require a valid API token (`token.json`). This can be saved using the 'Get API token' button on the 'Upload Client' page of the GPAS portal. If you can't see this button, please ask the GPAS team to enable it for you. And if you'd like to try GPAS, please get in touch!
 
 
 
@@ -239,7 +239,7 @@ options:
 
 Use pre-commit to apply black style at commit time (should happen automatically)
 
-```
+```shell
 git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
 conda env create -f environment-dev.yml
 conda activate gpas-cli-dev
@@ -249,32 +249,9 @@ pip install --upgrade --force-reinstall --editable ./
 # Offline unit tests
 pytest tests/test_gpas.py
 
-# The full test suite require a valid token for dev inside tests/test-data
+# The full test suite requires a valid token for dev inside tests/test-data
 pytest --cov=gpas
 ```
-
-
-
-## Binary distribution
-
-The functionality of `gpas upload` is also distributed as a binary packaged with PyInstaller. This is a portable, standalone executable. These binaries can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
-
-### Usage
-
-```
-cli-upload --environment dev --token token.json large-nanopore-bam.csv --json-messages --processes 1
-```
-
-If you encounter exceptions related to running `samtools` and `readItAndKeep`, set the environment variables `GPAS_READITANDKEEP_PATH` and `GPAS_SAMTOOLS_PATH` to the respective binary paths. Note that unlike the Python distribution, the PyInstaller binary currently only supports serial decontamination and bam conversion (`--processes 1`).
-
-### Creation
-
-```
-conda env create -f environment-dev.yml
-conda activate gpas-cli-dev
-pyinstaller --onefile --name cli-upload --add-data src/gpas/data:data --noconfirm src/gpas/cli-upload.py
-```
-
 
 
 *Authors: Bede Constantinides and Philip Fowler*
