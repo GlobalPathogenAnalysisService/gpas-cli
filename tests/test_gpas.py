@@ -117,25 +117,6 @@ def test_validate_wrong_tags():
 
 
 def test_validate_fail_missing_files():
-    # valid, schema, message = validation.validate(
-    #     Path(data_dir) / Path("broken") / Path("broken-path.csv")
-    # )
-    # assert not valid and message == {
-    #     "validation": {
-    #         "status": "failure",
-    #         "schema": "PairedFastqSchema",
-    #         "errors": [
-    #             {
-    #                 "sample_name": "cDNA-VOC-1-v4-1",
-    #                 "error": "fastq1 file does not exist",
-    #             },
-    #             {
-    #                 "sample_name": "cDNA-VOC-1-v4-1",
-    #                 "error": "fastq2 file does not exist",
-    #             },
-    #         ],
-    #     }
-    # }
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("broken-path.csv")
@@ -153,20 +134,6 @@ def test_validate_fail_missing_files():
 
 
 def test_validate_fail_different_platforms():
-    # valid, schema, message = validation.validate(
-    #     Path(data_dir) / Path("broken") / Path("different-platforms.csv")
-    # )
-    # assert not valid and message == {
-    #     "validation": {
-    #         "status": "failure",
-    #         "schema": "PairedFastqSchema",
-    #         "errors": [
-    #             {
-    #                 "error": "instrument_platform must be the same for all samples in a submission"
-    #             }
-    #         ],
-    #     }
-    # }
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("different-platforms.csv")
@@ -222,7 +189,7 @@ def test_validate_fail_select_schema():
         )
     assert e.value.errors == [
         {
-            "error": "could not infer schema from available columns. For FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' and 'fastq2', and for BAM use 'bam'"
+            "error": "could not infer upload CSV schema. For Nanopore samples, column 'instrument_platform' must be 'Nanopore', and either column 'fastq' or column 'bam' must be valid paths. For Illumina samples, column 'instrument_platform' must be 'Illumina' and either columns 'bam' or 'fastq1' and 'fastq2' must be valid paths."
         }
     ]
 
@@ -232,30 +199,33 @@ def test_validate_fail_wrong_instrument():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("wrong-instrument.csv")
         )
-    assert (
-        e.value.errors[0]["error"]
-        == "instrument_platform can only contain one of ['Illumina', 'Nanopore']"
-    )
+    assert e.value.errors == [
+        {
+            "error": "could not infer upload CSV schema. For Nanopore samples, column 'instrument_platform' must be 'Nanopore', and either column 'fastq' or column 'bam' must be valid paths. For Illumina samples, column 'instrument_platform' must be 'Illumina' and either columns 'bam' or 'fastq1' and 'fastq2' must be valid paths."
+        }
+    ]
 
 
-def test_validate_fail_path_suffix_instrument():
+def test_validate_illumina_fastq_wrong_platform():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir)
+            / Path("broken")
+            / Path("large-illumina-fastq-wrong-platform.csv")
+        )
+    assert e.value.errors == [
+        {
+            "error": "could not infer upload CSV schema. For Nanopore samples, column 'instrument_platform' must be 'Nanopore', and either column 'fastq' or column 'bam' must be valid paths. For Illumina samples, column 'instrument_platform' must be 'Illumina' and either columns 'bam' or 'fastq1' and 'fastq2' must be valid paths."
+        }
+    ]
+
+
+def test_validate_fail_path_suffix():
     """Check that multiple errors are caught in one go (laziness)"""
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
-            Path(data_dir) / Path("broken") / Path("bad-path-suffix-instrument.csv")
+            Path(data_dir) / Path("broken") / Path("bad-path-suffix.csv")
         )
-    # assert e.value.errors[0]["error"].startswith(
-    #     "instrument_platform value 'Illuminati' is not in set"
-    # )
-    # assert e.value.errors[1]["error"] == "fastq1 file does not exist"
-    # assert (
-    #     e.value.errors[2]["error"]
-    #     == "fastq2 must end with .fastq.gz or .bam as appropriate"
-    # )
-    # assert e.value.errors[3]["error"] == "fastq2 file does not exist"
-
-    print(e.value.errors)
-
     assert e.value.errors == [
         {
             "sample_name": "cDNA-VOC-1-v4-1",
@@ -268,10 +238,6 @@ def test_validate_fail_path_suffix_instrument():
         {
             "sample_name": "cDNA-VOC-1-v4-1",
             "error": "fastq2 must end with .fastq.gz or .bam as appropriate",
-        },
-        {
-            "sample_name": "cDNA-VOC-1-v4-1",
-            "error": "instrument_platform can only contain one of ['Illumina', 'Nanopore']",
         },
     ]
 
@@ -523,7 +489,6 @@ def test_validate_fail_dupe_fastqs_illumina():
     ]
 
 
-# This is a valid test that is currently failing
 def test_validate_fail_dupe_fastq1_fastq2_illumina():
     """Two records, one with duplicate fastq1"""
     with pytest.raises(validation.ValidationError) as e:

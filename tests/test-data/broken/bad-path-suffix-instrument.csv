@@ -1,2 +1,0 @@
-batch,run_number,sample_name,fastq1,fastq2,control,collection_date,tags,country,region,district,specimen_organism,host,instrument_platform,primer_scheme
-run1,run1.1,cDNA-VOC-1-v4-1,xxx/reads/large-illumina-fastq_1.fastq.gz,xxx/reads/large-illumina-fastq_2.fastq,,2022-01-01,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,Illuminati,auto

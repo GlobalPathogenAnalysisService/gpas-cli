@@ -34,7 +34,7 @@ gpas --version
 
 #### With `pip`
 
-One can alternatively `pip install` the PyPI package in a Python 3.10+ environment, and manually install [`samtools`](http://www.htslib.org/) and [`readItAndKeep`](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) binary dependencies. These must be inside a directory included in `$PATH`.
+One can alternatively `pip install` the PyPI package in a Python 3.10+ environment, and manually install [`samtools`](http://www.htslib.org/) and [`readItAndKeep`](https://github.com/GlobalPathogenAnalysisService/read-it-and-keep) binary dependencies.
 
 ```shell
 # Install inside a new Python environment

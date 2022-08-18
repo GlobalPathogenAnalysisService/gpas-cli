@@ -229,23 +229,23 @@ class PairedFastqSchema(BaseSchema):
         str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
-        coerce=False,
     )
 
-    @pa.check(fastq1, element_wise=True)  # Check that fastq1 exists
+    @pa.check(fastq1, element_wise=True)
     def check_path_fastq1(cls, path: str) -> bool:
+        """Check that fastq1 exists"""
         if path and pd.notna(path):
             return Path(path).exists()
 
-    @pa.check(fastq2, element_wise=True)  # Check that fastq2 exists
+    @pa.check(fastq2, element_wise=True)
     def check_path_fastq2(cls, path: str) -> bool:
+        """Check that fastq2 exists"""
         if path and pd.notna(path):
             return Path(path).exists()
 
-    @pa.dataframe_check(
-        ignore_na=False
-    )  # Check that fastq1 and fastq2 are not the same file
+    @pa.dataframe_check(ignore_na=False)
     def fastq1_does_not_equal_fastq2(cls, df: pd.DataFrame) -> Series[bool]:
+        """Check that fastq1 and fastq2 are not the same file"""
         return df["fastq1"] != df["fastq2"]
 
     class Config:
@@ -404,17 +404,29 @@ def select_schema(df: pd.DataFrame) -> pa.SchemaModel:
             schema = PairedBamSchema
         else:
             schema = BamSchema
-    elif "fastq" in columns and not {"fastq1", "fastq2", "bam"} & columns:
+    elif (
+        "fastq" in columns
+        and not {"fastq1", "fastq2", "bam"} & columns
+        and "Nanopore" in df["instrument_platform"].tolist()
+    ):
         schema = FastqSchema
-    elif {"fastq1", "fastq2"} < columns and not {"fastq", "bam"} & columns:
+    elif (
+        {"fastq1", "fastq2"} < columns
+        and not {"fastq", "bam"} & columns
+        and "Illumina" in df["instrument_platform"].tolist()
+    ):
         schema = PairedFastqSchema
     else:
         raise ValidationError(
             [
                 {
-                    "error": "could not infer schema from available columns. For "
-                    "FASTQ use 'fastq', for paired-end FASTQ use 'fastq1' and "
-                    "'fastq2', and for BAM use 'bam'"
+                    "error": "could not infer upload CSV schema."
+                    " For Nanopore samples, column 'instrument_platform' must be"
+                    " 'Nanopore', and either column 'fastq' or column 'bam' must be"
+                    " valid paths."
+                    " For Illumina samples, column 'instrument_platform' must be"
+                    " 'Illumina' and either columns 'bam' or 'fastq1' and 'fastq2' must"
+                    " be valid paths."
                 }
             ]
         )
