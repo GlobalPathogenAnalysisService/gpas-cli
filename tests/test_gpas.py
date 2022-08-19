@@ -504,3 +504,10 @@ def test_validate_fail_dupe_fastq1_fastq2_illumina():
 def test_validate_upload_path_windows():
     """Test that Windows paths are valid"""
     assert validation.validate_upload_csv_path(Path("C:\\test\\file\\path.jpg"))
+
+
+def test_upload_no_token_user_agent():
+    """Check that user agent name and version can be specified"""
+    run_cmd = run(
+        "gpas upload large-nanopore-fastq.csv --user-agent-name ClientyMcClientFace --user-agent-version 0.1.2"
+    )

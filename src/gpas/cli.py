@@ -77,6 +77,8 @@ def upload(
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     json_messages: bool = False,
     save_reads: bool = False,
+    user_agent_name: str = "",
+    user_agent_version: str = "",
 ):
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -90,6 +92,8 @@ def upload(
             environment=environment,
             json_messages=json_messages,
             save_reads=save_reads,
+            user_agent_name=user_agent_name,
+            user_agent_version=user_agent_version,
         )
         batch.upload(dry_run=dry_run)
 
@@ -105,6 +109,8 @@ def upload_wrapper(
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     json_messages: bool = False,
     save_reads: bool = False,
+    user_agent_name: str = "",
+    user_agent_version: str = "",
 ):
     """
     Validate, decontaminate and upload reads to the GPAS platform
@@ -132,6 +138,8 @@ def upload_wrapper(
         environment=environment,
         json_messages=json_messages,
         save_reads=save_reads,
+        user_agent_name=user_agent_name,
+        user_agent_version=user_agent_version,
     )
 
 

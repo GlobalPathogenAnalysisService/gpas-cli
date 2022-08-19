@@ -4,6 +4,7 @@ import gzip
 import json
 import logging
 import multiprocessing
+import platform
 import shutil
 import sys
 from functools import partial
@@ -461,6 +462,8 @@ class Batch:
         environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
         json_messages: bool = False,
         save_reads: bool = False,
+        user_agent_name: str = "",
+        user_agent_version: str = "",
     ):
         self.upload_csv = upload_csv
         self.token = parse_token(token) if token else None
@@ -474,6 +477,8 @@ class Batch:
         self.samtools_path = misc.get_binary_path("samtools")
         self.decontaminator_path = misc.get_binary_path("readItAndKeep")
         self.save_reads = save_reads
+        self.user_agent_name = user_agent_name
+        self.user_agent_version = user_agent_version
         if self.token:
             (
                 self.user,
@@ -508,15 +513,7 @@ class Batch:
         ]
         self.paired = self.samples[0].paired
 
-        current_time = (
-            datetime.datetime.now(datetime.timezone.utc)
-            .astimezone()
-            .isoformat(timespec="milliseconds")
-        )
-        tz_start_index = len(current_time) - 6
-        self.uploaded_on = (
-            current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]
-        )
+        self.uploaded_on = misc.oracle_timestamp()
 
         self._number_runs()
         self.uploaded = False
@@ -739,17 +736,23 @@ class Batch:
 
     def _finalise_submission(self):
         if not self.uploaded:
-            raise RuntimeError("Files not uploaded")
+            raise RuntimeError("Reads not uploaded")
         endpoint = (
             ENDPOINTS[self.environment.value]["HOST"]
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
             + "batches"
         )
+
+        self.submission["batch"]["uploader"][
+            "upload_finish_time"
+        ] = misc.oracle_timestamp()
+        logging.debug(json.dumps(self.submission, indent=4))
         r = httpx.post(
             url=endpoint,
             data=json.dumps(self.submission, ensure_ascii=False).encode("utf-8"),
             headers=self.headers,
         )
+
         r.raise_for_status()
         logging.debug(f"POSTing JSON {r.text=}")
         if r.json().get("status") != "success":
@@ -826,14 +829,26 @@ class Batch:
             "batch": {
                 "file_name": self.batch_guid,
                 "bucket_name": self.bucket,
-                "uploaded_on": str(self.uploaded_on),
+                "uploaded_on": self.uploaded_on,
                 "uploaded_by": self.user,
                 "organisation": self.organisation,
                 "run_numbers": self.run_numbers,
                 "samples": samples,
+                "uploader": {
+                    "name": "gpas-cli",
+                    "version": __version__,
+                    "platform": platform.system(),
+                    "python_version": platform.python_version(),
+                    "upload_start": self.uploaded_on,
+                    "upload_finish": None,  # Set in _finalise_submission()
+                },
             },
         }
-        logging.debug(json.dumps(self.submission, indent=4))
+        if self.user_agent_name or self.user_agent_version:
+            self.submission["batch"]["uploader"]["user_agent"] = {
+                "name": self.user_agent_name,
+                "version": self.user_agent_version,
+            }
 
     def upload(self, dry_run: bool = False, save_reads: bool = False) -> None:
         if self.processes > 1:

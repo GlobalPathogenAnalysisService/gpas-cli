@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import json
 import logging
@@ -312,3 +313,13 @@ def upload_sample(upload: SampleUpload, headers: dict, json_messages: bool) -> N
         print_progress_message_json(
             action="upload", status="finished", sample=upload.name
         )
+
+
+def oracle_timestamp() -> str:
+    current_time = (
+        datetime.datetime.now(datetime.timezone.utc)
+        .astimezone()
+        .isoformat(timespec="milliseconds")
+    )
+    tz_start_index = len(current_time) - 6
+    return current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]

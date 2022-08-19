@@ -21,6 +21,8 @@ def upload(
     debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     json_messages: bool = False,
+    user_agent_name: str = "",
+    user_agent_version: str = "",
 ):
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -32,6 +34,8 @@ def upload(
         processes=processes,
         environment=environment,
         json_messages=json_messages,
+        user_agent_name=user_agent_name,
+        user_agent_version=user_agent_version,
     )
     batch.upload(dry_run=dry_run)
 
@@ -46,6 +50,8 @@ def upload_wrapper(
     debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
     json_messages: bool = False,
+    user_agent_name: str = "",
+    user_agent_version: str = "",
 ):
     """
     Validate, decontaminate and upload reads to the GPAS platform
@@ -71,6 +77,8 @@ def upload_wrapper(
         debug=debug,
         environment=environment,
         json_messages=json_messages,
+        user_agent_name=user_agent_name,
+        user_agent_version=user_agent_version,
     )
 
 
@@ -113,6 +121,12 @@ def main():
     parser.add_argument(
         "--json-messages", action="store_true", help="emit JSON to stdout"
     )
+    parser.add_argument(
+        "--user-agent-name", type=str, default="", help="user agent name"
+    )
+    parser.add_argument(
+        "--user-agent-version", type=str, default="", help="user agent version"
+    )
     args, _ = parser.parse_known_args()
     environment = getattr(ENVIRONMENTS, args.environment)
 
@@ -126,6 +140,8 @@ def main():
         debug=args.debug,
         environment=environment,
         json_messages=args.json_messages,
+        user_agent_name=args.user_agent_name,
+        user_agent_version=args.user_agent_version,
     )
 
 
