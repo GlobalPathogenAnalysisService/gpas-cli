@@ -1,0 +1,3 @@
+batch,run_number,sample_name,fastq1,fastq2,control,collection_date,tags,country,region,district,specimen_organism,host,instrument_platform,primer_scheme
+run1,run1.1, ,../reads/large-illumina-fastq_1.fastq.gz,../reads/large-illumina-fastq_2.fastq.gz,negative,2022-02-01,Oracle_Site:OCI,USA,Texas,1124,SARS-CoV-2,human,Illumina,auto
+run1,run1.2,  ,../reads/another-large-illumina-fastq_1.fastq.gz,../reads/another-large-illumina-fastq_2.fastq.gz,,2022-03-01,Oracle_Site:OCI,FRA,Finistère,,SARS-CoV-2,human,Illumina,auto
