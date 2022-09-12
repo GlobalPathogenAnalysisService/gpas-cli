@@ -511,3 +511,11 @@ def test_upload_no_token_user_agent():
     run_cmd = run(
         "gpas upload large-nanopore-fastq.csv --user-agent-name ClientyMcClientFace --user-agent-version 0.1.2"
     )
+
+
+def test_validate_fail_epochalypse():
+    """Check that user agent name and version can be specified"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("epochalypse.csv")
+        )
