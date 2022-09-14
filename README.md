@@ -2,7 +2,11 @@
 
 The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Works with Ubuntu Linux, MacOS, and Windows via WSL2. The client uses parallelisation and asynchronous requests for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy.
 
+
+
 ![Upload CLI demo](banner-upload.gif)
+
+
 
 | Command line interface | Python API |
 | ----------------- | ------- |
@@ -14,6 +18,8 @@ The command line client for interacting with the [Global Pathogen Analysis Servi
 
 
 ## Install
+
+
 
 ####  With `conda` (recommended)
 
@@ -34,8 +40,6 @@ conda remove -n gpas-cli --all
 ```
 
 
-
-If updating gpas-cli, first remove the old environment
 
 #### With `pip`
 
