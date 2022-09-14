@@ -514,7 +514,7 @@ def test_upload_no_token_user_agent():
 
 
 def test_validate_fail_epochalypse():
-    """Check that user agent name and version can be specified"""
+    """Test future date after UNIX epochalypse"""
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("epochalypse.csv")
