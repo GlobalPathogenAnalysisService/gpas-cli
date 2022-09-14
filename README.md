@@ -21,16 +21,21 @@ Installation using (Mini)conda is recommended ([Miniconda installation guide](ht
 
 
 ```shell
-# Install inside a new Conda environment
+# Create the conda environment
 curl https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml --output environment.yml
 conda env create -f environment.yml
 
-# Activate and use
+# Activate the environment and show the installed gpas-cli version
 conda activate gpas-cli
 gpas --version
+
+# Updating? Run this before creating the conda environment
+conda remove -n gpas-cli --all
 ```
 
 
+
+If updating gpas-cli, first remove the old environment
 
 #### With `pip`
 
