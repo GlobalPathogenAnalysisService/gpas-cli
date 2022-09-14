@@ -385,6 +385,7 @@ class Sample:
                 f' "{self.samtools_path}" fastq -N'
                 f' -1 "{prefix.parent / (prefix.name + "_1.fastq.gz")}"'
                 f' -2 "{prefix.parent / (prefix.name + "_2.fastq.gz")}"'
+                f' -s "{prefix.parent / (prefix.name + "_s.fastq.gz")}"'
             )
             self.fastq1 = self.working_dir / Path(self.sample_name + "_1.fastq.gz")
             self.fastq2 = self.working_dir / Path(self.sample_name + "_2.fastq.gz")

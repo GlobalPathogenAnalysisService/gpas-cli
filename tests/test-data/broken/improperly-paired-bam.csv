@@ -1,0 +1,2 @@
+batch,run_number,sample_name,bam,control,collection_date,tags,country,region,district,specimen_organism,host,instrument_platform,primer_scheme
+,,improperly-paired,../reads/improperly-paired-bam.bam,,2022-09-10,test,GBR,,,SARS-CoV-2,human,Illumina,auto

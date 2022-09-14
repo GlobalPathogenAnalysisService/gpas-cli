@@ -519,3 +519,8 @@ def test_validate_fail_epochalypse():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("epochalypse.csv")
         )
+
+
+def test_upload_improperly_paired():
+    """Check that improperly paired bams including properly paired reads do not trigger a crash"""
+    run_cmd = run("gpas upload broken/improperly-paired-bam.csv")
