@@ -10,9 +10,9 @@ from gpas.misc import ENVIRONMENTS
 
 data_dir = "tests/test-data"
 
-
 auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-_, _, permitted_tags, _ = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+auth_result = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+_, _, permitted_tags, _ = lib.parse_user_details(auth_result)
 
 
 def run(cmd, cwd="./"):  # Helper for CLI testing
@@ -231,9 +231,8 @@ def test_gpas_uploader_download_mapping_rename_fasta():
 
 def test_check_auth_success():
     auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    lib.fetch_user_details(
-        access_token=auth["access_token"], environment=ENVIRONMENTS.dev
-    )
+    auth_result = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+    lib.parse_user_details(auth_result)
 
 
 def test_gpas_validate():
@@ -254,10 +253,6 @@ def test_gpas_validate_message():
 
 
 def test_validate_fail_wrong_tags():
-    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags, _ = lib.fetch_user_details(
-        auth["access_token"], ENVIRONMENTS.dev
-    )
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             upload_csv=Path(data_dir) / Path("broken") / Path("wrong-tags.csv"),
@@ -276,10 +271,6 @@ def test_validate_fail_wrong_tags_cli():
 
 
 def test_validate_fail_no_tags():
-    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags, _ = lib.fetch_user_details(
-        auth["access_token"], ENVIRONMENTS.dev
-    )
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("no-tags.csv"),
@@ -291,10 +282,6 @@ def test_validate_fail_no_tags():
 
 
 def test_validate_fail_no_tags_colon():
-    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags, _ = lib.fetch_user_details(
-        auth["access_token"], ENVIRONMENTS.dev
-    )
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("no-tags-colon.csv"),
@@ -306,10 +293,6 @@ def test_validate_fail_no_tags_colon():
 
 
 def test_validate_fail_valid_and_invalid_tags():
-    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags, _ = lib.fetch_user_details(
-        auth["access_token"], ENVIRONMENTS.dev
-    )
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("valid-and-invalid-tags.csv"),
@@ -323,29 +306,20 @@ def test_validate_fail_valid_and_invalid_tags():
 
 def test_validate_valid_and_empty_tags():
     """Empty tags are trimmed so should work fine"""
-    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags, _ = lib.fetch_user_details(
-        auth["access_token"], ENVIRONMENTS.dev
-    )
     validation.validate(
         Path(data_dir) / Path("valid-and-empty-tags.csv"),
         permitted_tags=permitted_tags,
     )
 
 
-def test_fail_auth():
+def test_fail_auth_wrong_token():
     with pytest.raises(misc.AuthenticationError):
         auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-        _, _, permitted_tags, _ = lib.fetch_user_details(
-            auth["access_token"], ENVIRONMENTS.prod
-        )
+        result = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.prod)
+        _, _, permitted_tags, _ = lib.parse_user_details(result)
 
 
 def test_auth_broken_token():
-    auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-    _, _, permitted_tags, _ = lib.fetch_user_details(
-        auth["access_token"], ENVIRONMENTS.dev
-    )
     with pytest.raises(misc.AuthenticationError):
         broken_auth = lib.parse_token(
             Path(data_dir) / Path("broken") / Path("broken-token.json")

@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -524,3 +525,39 @@ def test_validate_fail_epochalypse():
 def test_upload_improperly_paired():
     """Check that improperly paired bams including properly paired reads do not trigger a crash"""
     run_cmd = run("gpas upload broken/improperly-paired-bam.csv")
+
+
+def test_auth_response_parsing():
+    json_payload = """{
+	"userOrgDtl": [{
+		"userName": "BEDE.CONSTANTINIDES@NDM.OX.AC.UK",
+		"orgGUID": 261299400571842546812760352566796398698,
+		"organisation": "University of Oxford",
+		"maskCollectionDate": "N",
+		"autoReleasedYN": "N",
+		"autoApproveYN": "N",
+		"tags": [{
+			"tagName": "Positive_control",
+			"tagDescription": "Fictitious tag for positive control samples.   This tag does not grant access or share to FN4.",
+			"tagAccessYN": "N",
+			"tagRelatednessYN": "N"
+		}, {
+			"tagName": "test",
+			"tagDescription": "This tag is for data pushed through as part of validation or other tests.",
+			"tagAccessYN": "N",
+			"tagRelatednessYN": "Y"
+		}, {
+			"tagName": "University_of_Oxford",
+			"tagDescription": "Shares data to FN4 Shared Pool, does not grant external access",
+			"tagAccessYN": "N",
+			"tagRelatednessYN": "Y"
+
+		}, {
+			"tagName": "jpbarryustesting2022",
+			"tagDescription": "jpbarryustesting2022",
+			"tagAccessYN": "Y",
+			"tagRelatednessYN": "Y"
+		}]
+	}]
+}"""
+    lib.parse_user_details(json.loads(json_payload))

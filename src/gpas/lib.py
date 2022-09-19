@@ -47,8 +47,8 @@ def parse_mapping_csv(mapping_csv: Path) -> dict:
     return df.set_index("gpas_sample_name")["local_sample_name"].to_dict()
 
 
-def fetch_user_details(access_token, environment: ENVIRONMENTS):
-    """Test API authentication and return user details, otherwise exit"""
+def fetch_user_details(access_token, environment: ENVIRONMENTS) -> dict:
+    """Test API authentication and fetch response from userOrgDtls endpoint"""
     endpoint = (
         ENDPOINTS[environment.value]["HOST"]
         + ENDPOINTS[environment.value]["ORDS_PATH"]
@@ -59,20 +59,16 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
         r = httpx.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
         if not r.is_success:
             r.raise_for_status()
-        result = r.json().get("userOrgDtl", {})[0]
+        result = r.json()
         logging.debug(f"{result=}")
-        user = result.get("userName")
-        organisation = result.get("organisation")
-        date_mask = result.get("maskCollectionDate")  # Expects {"N", "MONTH", "WEEK"}
-        allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
     except httpx.HTTPStatusError as e:
-        status_code = e.response.status_code
-        if status_code == 401:
+        if e.response.status_code == 401:
             raise misc.AuthenticationError(
                 f"Authentication failed, check access token and environment"
             ) from None
         else:
             raise e from None
+    # Query PyPI instead of GitHub? GitHub has hopelessly low unauthenticated rate limits
     # try:
     #     r = httpx.get(
     #         "https://api.github.com/repos/GlobalPathogenAnalysisService/gpas-cli/releases/latest"
@@ -84,6 +80,16 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS):
     #         )
     # except:
     #     pass
+    return result
+
+
+def parse_user_details(result: dict) -> tuple:
+    """Parse response from userOrgDtls endpoint"""
+    result = result.get("userOrgDtl", {})[0]
+    user = result.get("userName")
+    organisation = result.get("organisation")
+    allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
+    date_mask = result.get("maskCollectionDate")  # Expects {"N", "MONTH", "WEEK"}
     return user, organisation, allowed_tags, date_mask
 
 
@@ -481,12 +487,15 @@ class Batch:
         self.user_agent_name = user_agent_name
         self.user_agent_version = user_agent_version
         if self.token:
+            auth_result = fetch_user_details(
+                self.token["access_token"], self.environment
+            )
             (
                 self.user,
                 self.organisation,
                 self.permitted_tags,
                 self.date_mask,
-            ) = fetch_user_details(self.token["access_token"], self.environment)
+            ) = parse_user_details(auth_result)
             self.headers = {
                 "Authorization": f"Bearer {self.token['access_token']}",
                 "Content-Type": "application/json",
