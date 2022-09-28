@@ -1,14 +1,10 @@
  ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Works with Ubuntu Linux, MacOS, and Windows via WSL2. The client uses parallelisation and asynchronous requests for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy.
-
-
+The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Uses parallelisation for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. Supports Ubuntu Linux, MacOS and Windows, and installs easily with Conda or Docker.
 
 ![Upload CLI demo](banner-upload.gif)
 
-
-
-| Command line interface | Python API |
+| Command line interface | Python API (work in progress) |
 | ----------------- | ------- |
 | ✅ `gpas upload` | ✅ `lib.Batch(upload_csv, token).upload()` |
 | ✅ `gpas download` | ✅ `lib.download_async()` |
@@ -19,27 +15,35 @@ The command line client for interacting with the [Global Pathogen Analysis Servi
 
 ## Install
 
-
-
-####  With `conda` (recommended)
+####  With `conda`
 
 Installation using (Mini)conda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a Mac with Apple silicon, follow instructions to [install Miniconda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon).
 
 
 ```shell
-# Create the conda environment
-curl https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml --output environment.yml
+# Create and activate the conda environment
+curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml
 conda env create -f environment.yml
-
-# Activate the environment and show the installed gpas-cli version
 conda activate gpas-cli
+
+# Show installed gpas-cli version
 gpas --version
 
 # Updating? Run this before creating the conda environment
 conda remove -n gpas-cli --all
 ```
 
+#### With `docker`
 
+```shell
+curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/Dockerfile
+
+# Show installed gpas-cli version
+docker run --rm $(docker build -q .) gpas --version
+
+# Upload example data (mounting tests/test-data/ to /test-data in container)
+docker run -v /test-data:/test-data $(docker build -q .) gpas upload --environment dev --token /test-data/token.json test-data/large-nanopore-bam.csv --out-dir /test-data/output
+```
 
 #### With `pip`
 
@@ -59,8 +63,6 @@ gpas --version
 export GPAS_SAMTOOLS_PATH=path/to/samtools
 export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 ```
-
-
 
 #### With a single executable (upload functionality only)
 
@@ -261,6 +263,3 @@ pytest tests/test_gpas.py
 # The full test suite requires a valid token for dev inside tests/test-data
 pytest --cov=gpas
 ```
-
-
-*Authors: Bede Constantinides and Philip Fowler*
