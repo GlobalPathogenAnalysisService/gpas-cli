@@ -561,3 +561,30 @@ def test_auth_response_parsing():
 	}]
 }"""
     lib.parse_user_details(json.loads(json_payload))
+
+
+def test_validate_fail_empty_country():
+    """Empty country should fail"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty-country.csv")
+        )
+    assert e.value.errors[0] == {
+        "sample_name": "COVID_locost_2_barcode10",
+        "error": "country cannot be empty",
+    }
+    assert e.value.errors[1] == {
+        "error": "One or more regions are not valid ISO-3166-2 subdivisions for the specified country",
+    }
+
+
+def test_validate_fail_empty_country_region():
+    """Empty country should fail"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty-country-region.csv")
+        )
+    assert e.value.errors[0] == {
+        "sample_name": "COVID_locost_2_barcode10",
+        "error": "country cannot be empty",
+    }
