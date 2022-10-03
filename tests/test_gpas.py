@@ -56,20 +56,11 @@ def test_validate_ok():
 
 def test_validate_new_cli():
     run_cmd = run("gpas validate broken/impossible-country-region.csv --json-messages")
+    assert "cDNA-VOC-1-v4-1" in run_cmd.stdout
     assert (
-        """{
-    "validation": {
-        "status": "failure",
-        "errors": [
-            {
-                "error": "One or more regions are not valid ISO-3166-2 subdivisions for the specified country"
-            }
-        ]
-    }
-}"""
+        "invalid region (ISO 3166-2 subdivision) for specified country"
         in run_cmd.stdout
     )
-    assert run_cmd.stdout != 0
 
 
 def test_validate_fail_no_tags():
@@ -154,14 +145,15 @@ def test_validate_fail_country_region():
     assert e.value.errors == [
         {
             "sample_name": "cDNA-VOC-1-v4-1",
-            "error": "Bretagn is not a valid ISO-3166-2 subdivision name",
+            "error": "Bretagn is not a valid ISO 3166-2 subdivision name",
         },
         {
             "sample_name": "cDNA-VOC-1-v4-1",
-            "error": "US is not a valid ISO-3166-1 alpha-3 country code",
+            "error": "US is not a valid ISO 3166-1 alpha-3 country code",
         },
         {
-            "error": "One or more regions are not valid ISO-3166-2 subdivisions for the specified country"
+            "sample_name": "cDNA-VOC-1-v4-1",
+            "error": "invalid region (ISO 3166-2 subdivision) for specified country",
         },
     ]
 
@@ -572,9 +564,6 @@ def test_validate_fail_empty_country():
     assert e.value.errors[0] == {
         "sample_name": "COVID_locost_2_barcode10",
         "error": "country cannot be empty",
-    }
-    assert e.value.errors[1] == {
-        "error": "One or more regions are not valid ISO-3166-2 subdivisions for the specified country",
     }
 
 

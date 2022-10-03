@@ -73,10 +73,9 @@ class set_directory(object):
         os.chdir(self.origin)
 
 
-@extensions.register_check_method()
 def region_is_valid(df):
     """
-    Validate the region field using ISO-3166
+    Validate the region field using ISO 3166-2
     """
 
     def validate_region(row):
@@ -187,9 +186,27 @@ class BaseSchema(pa.SchemaModel):
         """Catch colon-only case"""
         return bool(str(value).strip(":"))
 
+    @pa.dataframe_check(ignore_na=False)
+    def region_is_valid(cls, df: pd.DataFrame) -> Series[bool]:
+        """
+        Validate the region field using ISO 3166-2
+        """
+
+        def validate_region(row):
+            if (
+                row["region"]
+                and not pd.isna(row["region"])
+                and row["region"] not in COUNTRIES_SUBDIVISIONS.get(row["country"], {})
+            ):
+                valid = False
+            else:
+                valid = True
+            return valid
+
+        return df.apply(validate_region, axis=1)
+
     class Config:
         strict = True
-        region_is_valid = ()
 
 
 class FastqSchema(BaseSchema):
@@ -323,13 +340,13 @@ def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
-    # print(str(row), "\n")
+    print(str(row), "\n")
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":
         return "column " + row.failure_case
     elif row.check == "region_is_valid":
-        return "One or more regions are not valid ISO-3166-2 subdivisions for the specified country"
+        return "invalid region (ISO 3166-2 subdivision) for specified country"
     elif row.check == "instrument_is_valid" or (
         row.column == "instrument_platform" and "isin" in row.check
     ):
@@ -363,9 +380,9 @@ def parse_validation_error(row):
         elif row.schema_context == "Index":
             return "sample_name can only contain characters (" + allowed_chars + ")"
     elif row.column == "country" and row.check[:4] == "isin":
-        return row.failure_case + " is not a valid ISO-3166-1 alpha-3 country code"
+        return row.failure_case + " is not a valid ISO 3166-1 alpha-3 country code"
     elif row.column == "region" and row.check[:4] == "isin":
-        return row.failure_case + " is not a valid ISO-3166-2 subdivision name"
+        return row.failure_case + " is not a valid ISO 3166-2 subdivision name"
     elif row.column == "control" and row.check[:4] == "isin":
         if row.failure_case == False:  # empty-name.csv causes problems for controls
             return None
