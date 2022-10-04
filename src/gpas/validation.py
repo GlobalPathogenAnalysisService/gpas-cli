@@ -217,8 +217,7 @@ class FastqSchema(BaseSchema):
     # validate that the fastq file is alphanumeric and unique
     fastq: Series[str] = pa.Field(
         unique=True,
-        str_matches=r"^[A-Za-z0-9 /._-]+$",
-        str_endswith=".fastq.gz",
+        str_matches=r"^([A-Za-z0-9 \/._-]+).fastq.gz|^([A-Za-z0-9 \/._-]+).fq.gz",
         nullable=False,
         coerce=False,
     )
@@ -236,15 +235,13 @@ class PairedFastqSchema(BaseSchema):
 
     fastq1: Series[str] = pa.Field(
         unique=True,  # Joint uniqueness specified in Config
-        str_matches=r"^[A-Za-z0-9 /._-]+$",
-        str_endswith=".fastq.gz",
+        str_matches=r"^([A-Za-z0-9 \/._-]+).fastq.gz|^([A-Za-z0-9 \/._-]+).fq.gz",
         nullable=False,
     )
 
     fastq2: Series[str] = pa.Field(
         unique=True,  # Joint uniqueness specified in Config
-        str_matches=r"^[A-Za-z0-9 /._-]+$",
-        str_endswith=".fastq.gz",
+        str_matches=r"^([A-Za-z0-9 \/._-]+).fastq.gz|^([A-Za-z0-9 \/._-]+).fq.gz",
         nullable=False,
     )
 
@@ -340,7 +337,7 @@ def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
-    print(str(row), "\n")
+    # print(str(row), "\n")
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":

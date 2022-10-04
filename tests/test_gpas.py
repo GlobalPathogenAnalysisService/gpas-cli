@@ -577,3 +577,10 @@ def test_validate_fail_empty_country_region():
         "sample_name": "COVID_locost_2_barcode10",
         "error": "country cannot be empty",
     }
+
+
+def test_validate_fq_extension():
+    """Test alternate fq.gz fastq extension"""
+    df, schema_name = validation.validate(
+        Path(data_dir) / Path("large-nanopore-fq.csv")
+    )
