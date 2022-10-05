@@ -54,7 +54,7 @@ jobs:
     - name: Store dist
       uses: actions/upload-artifact@v2
       with:
-        name: gpas-${{ matrix.os }}
+        name: gpas-${{ github.event.release.tag_name }}-${{ matrix.os }}
         path: dist/*
 
   windows-build:
@@ -103,5 +103,5 @@ jobs:
     - name: Store dist
       uses: actions/upload-artifact@v2
       with:
-        name: gpas-${{ matrix.os }}
+        name: gpas-${{ github.event.release.tag_name }}-${{ matrix.os }}
         path: dist\*

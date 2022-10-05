@@ -70,7 +70,7 @@ export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 
 #### With PyInstaller
 
-Single file Linux, MacOS and Windows executables are generated for each release. These are intended for distribution with the GUI client but may be used independently. These can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
+Static Linux, MacOS and Windows executables are generated for each release. These are intended for distribution with the GUI client but may also be used independently. These can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
 
 
 
