@@ -50,7 +50,7 @@ jobs:
         cp samtools dist/
     - name: Test binary
       run: |
-        dist/gpas tests/test-data/large-illumina-bam.csv --processes 1
+        dist/gpas upload tests/test-data/large-illumina-bam.csv --processes 1
     - name: Store dist
       uses: actions/upload-artifact@v2
       with:
@@ -99,7 +99,7 @@ jobs:
     - name: Test binary
       shell: cmd
       run: |
-        dist\gpas tests\test-data\large-illumina-bam.csv --processes 1
+        dist\gpas upload tests\test-data\large-illumina-bam.csv --processes 1
     - name: Store dist
       uses: actions/upload-artifact@v2
       with:
