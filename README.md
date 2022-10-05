@@ -36,6 +36,10 @@ conda remove -n gpas-cli --all
 #### With `docker`
 
 ```shell
+# Coming soon
+docker run oxfordmmm/gpas-cli gpas --version
+
+# For now
 curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/Dockerfile
 
 # Show installed gpas-cli version
@@ -64,9 +68,9 @@ export GPAS_SAMTOOLS_PATH=path/to/samtools
 export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 ```
 
-#### With a single executable (upload functionality only)
+#### With PyInstaller
 
-Upload functionality mirroring `gpas upload` is also available as single file Linux, MacOS and Windows executables for each release. These are intended for distribution with the GUI client but may be used independently. These can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
+Single file Linux, MacOS and Windows executables are generated for each release. These are intended for distribution with the GUI client but may be used independently. These can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
 
 
 

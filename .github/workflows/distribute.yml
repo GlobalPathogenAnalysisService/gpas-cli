@@ -17,7 +17,7 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
-        python-version: '3.10'
+        python-version: '${{ matrix.python-version }}'
     - name: Install Python dependencies
       run: |
         pip install pytest pytest-cov pyinstaller
@@ -40,29 +40,21 @@ jobs:
         mv readItAndKeep ../..
         cd ../..
         rm -r read-it-and-keep
-    # - name: Test with pytest
-    #   env:
-    #     GPAS_SAMTOOLS_PATH: ./samtools
-    #     GPAS_READITANDKEEP_PATH: ./readItAndKeep
-    #   run: |
-    #     pytest --exitfirst --verbose --failed-first \
-    #     --cov=. --cov-report html tests/test_gpas.py
     - name: Build PyInstaller binary
-      # run: |
-      #  pyinstaller --onefile --name cli-upload --add-data src/gpas/data:data --noconfirm src/gpas/cli-upload.py
       run: |
-        pyinstaller cli-upload.spec
+        # pyinstaller --onefile --name gpas --add-data src/gpas/data:data --noconfirm src/gpas/gpas.py
+        pyinstaller gpas.spec
     - name: Copy files into dist/
       run: |
         cp readItAndKeep dist/
         cp samtools dist/
     - name: Test binary
       run: |
-        dist/cli-upload tests/test-data/large-illumina-bam.csv --processes 1
+        dist/gpas tests/test-data/large-illumina-bam.csv --processes 1
     - name: Store dist
       uses: actions/upload-artifact@v2
       with:
-        name: cli-upload-${{ matrix.os }}
+        name: gpas-${{ matrix.os }}
         path: dist/*
 
   windows-build:
@@ -78,7 +70,7 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
-        python-version: '3.10'
+        python-version: '${{ matrix.python-version }}'
     - name: Install Python dependencies
       run: |
         pip install pytest pytest-cov pyinstaller
@@ -96,7 +88,8 @@ jobs:
     - name: Build PyInstaller binary
       shell: cmd
       run: |
-        pyinstaller --onefile --name cli-upload --add-data src/gpas/data;data --noconfirm src/gpas/cli-upload.py
+        # pyinstaller --onefile --name gpas --add-data src/gpas/data;data --noconfirm src/gpas/cli.py
+        pyinstaller gpas.spec
     - name: Copy files into dist/
       shell: pwsh
       run: |
@@ -106,9 +99,9 @@ jobs:
     - name: Test binary
       shell: cmd
       run: |
-        dist\cli-upload tests\test-data\large-illumina-bam.csv --processes 1
+        dist\gpas tests\test-data\large-illumina-bam.csv --processes 1
     - name: Store dist
       uses: actions/upload-artifact@v2
       with:
-        name: cli-upload-${{ matrix.os }}
+        name: gpas-${{ matrix.os }}
         path: dist\*

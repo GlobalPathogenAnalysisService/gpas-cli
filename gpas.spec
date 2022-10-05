@@ -1,15 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_submodules
+
+hiddenimports = []
+hiddenimports += collect_submodules('pockets')
 
 
 block_cipher = None
 
 
 a = Analysis(
-    ['src/gpas/cli-upload.py'],
+    ['src/gpas/cli.py'],
     pathex=[],
     binaries=[],
     datas=[('src/gpas/data', 'data')],
-    hiddenimports=[],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -38,7 +42,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='cli-upload',
+    name='gpas',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
