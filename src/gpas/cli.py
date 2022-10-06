@@ -4,6 +4,7 @@ import logging
 import tempfile
 from pathlib import Path
 
+import defopt
 import pandas as pd
 
 from gpas.misc import jsonify_exceptions
@@ -260,8 +261,6 @@ def download(
 
 
 def main():
-    import defopt
-
     defopt.run(
         {
             "validate": validate_wrapper,

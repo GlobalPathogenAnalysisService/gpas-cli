@@ -38,7 +38,7 @@ conda remove -n gpas-cli --all
 https://hub.docker.com/repository/docker/oxfordmmm/gpas-cli
 
 ```shell
-# Pull build from Docker Hub and show version
+# Pull from Docker Hub and show version
 docker run oxfordmmm/gpas-cli:0.5.1 gpas --version
 
 # Upload using mounted volume with Docker Hub build
@@ -48,8 +48,8 @@ docker run \
     gpas upload \
         --environment dev \
         --token /test-data/token.json \
-        --out-dir /test-data/output \
-        test-data/large-nanopore-bam.csv
+        --out-dir /test-data/output \  # Mapping CSV is written here
+        /test-data/large-nanopore-bam.csv
 
 # Build from Dockerfile and show version
 curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/Dockerfile
@@ -63,7 +63,7 @@ docker run \
         --environment dev \
         --token /test-data/token.json \
         --out-dir /test-data/output \  # Mapping CSV is written here
-        test-data/large-nanopore-bam.csv
+        /test-data/large-nanopore-bam.csv
 ```
 
 #### With `pip`
@@ -273,9 +273,9 @@ Use pre-commit to apply black style at commit time (should happen automatically)
 
 ```shell
 git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
+cd gpas-cli
 conda env create -f environment-dev.yml
 conda activate gpas-cli-dev
-cd gpas-cli
 pip install --upgrade --force-reinstall --editable ./
 
 # Offline unit tests
