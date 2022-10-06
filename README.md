@@ -35,18 +35,35 @@ conda remove -n gpas-cli --all
 
 #### With `docker`
 
+https://hub.docker.com/repository/docker/oxfordmmm/gpas-cli
+
 ```shell
-# Coming soon
-docker run oxfordmmm/gpas-cli gpas --version
+# Pull build from Docker Hub and show version
+docker run oxfordmmm/gpas-cli:0.5.1 gpas --version
 
-# For now
+# Upload using mounted volume with Docker Hub build
+docker run \
+    -v /Users/bede/Research/Git/gpas-cli/tests/test-data:/test-data \
+    oxfordmmm/gpas-cli:0.5.1 \
+    gpas upload \
+        --environment dev \
+        --token /test-data/token.json \
+        --out-dir /test-data/output \
+        test-data/large-nanopore-bam.csv
+
+# Build from Dockerfile and show version
 curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/Dockerfile
-
-# Show installed gpas-cli version
 docker run --rm $(docker build -q .) gpas --version
 
-# Upload example data (mounting tests/test-data/ to /test-data in container)
-docker run -v /test-data:/test-data $(docker build -q .) gpas upload --environment dev --token /test-data/token.json test-data/large-nanopore-bam.csv --out-dir /test-data/output
+# Upload using mounted volume with Dockerfile build
+docker run \
+    -v /Users/bede/Research/Git/gpas-cli/tests/test-data:/test-data \
+    $(docker build -q .) \
+    gpas upload \
+        --environment dev \
+        --token /test-data/token.json \
+        --out-dir /test-data/output \  # Mapping CSV is written here
+        test-data/large-nanopore-bam.csv
 ```
 
 #### With `pip`
@@ -68,7 +85,7 @@ export GPAS_SAMTOOLS_PATH=path/to/samtools
 export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 ```
 
-#### With PyInstaller
+#### With PyInstaller (not recommended)
 
 Static Linux, MacOS and Windows executables are generated for each release. These are intended for distribution with the GUI client but may also be used independently. These can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
 
