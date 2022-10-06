@@ -89,7 +89,6 @@ jobs:
       shell: cmd
       run: |
         pyinstaller --onefile --name gpas --add-data src/gpas/data;data --noconfirm src/gpas/cli.py
-        # pyinstaller gpas.spec
     - name: Copy files into dist/
       shell: pwsh
       run: |
