@@ -753,9 +753,7 @@ class Batch:
             + "batches"
         )
 
-        self.submission["batch"]["uploader"][
-            "upload_finish_time"
-        ] = misc.oracle_timestamp()
+        self.submission["batch"]["uploader"]["upload_finish"] = misc.oracle_timestamp()
         logging.debug(json.dumps(self.submission, indent=4))
         r = httpx.post(
             url=endpoint,
