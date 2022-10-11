@@ -15,9 +15,9 @@ The command line client for interacting with the [Global Pathogen Analysis Servi
 
 ## Install
 
-####  With `conda`
+####  With `conda` (recommended)
 
-Installation using (Mini)conda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a Mac with Apple silicon, follow instructions to [install Miniconda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon).
+Installation using (Mini)conda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a recent Mac with `arm64` architecture, you'll need to [install Miniconda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon).
 
 
 ```shell
@@ -26,44 +26,44 @@ curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cl
 conda env create -f environment.yml
 conda activate gpas-cli
 
-# Show installed gpas-cli version
+# Show gpas-cli version
 gpas --version
 
 # Updating? Run this before creating the conda environment
 conda remove -n gpas-cli --all
 ```
 
-#### With `docker`
+#### With `docker` (recommended)
 
-https://hub.docker.com/repository/docker/oxfordmmm/gpas-cli
+gpas-cli releases are pushed to [Docker Hub](hub.docker.com) for easy installation on most platforms and architectures (including `arm64` Macs).
 
 ```shell
-# Pull from Docker Hub and show version
+# Fetch image, show gpas-cli version
 docker run oxfordmmm/gpas-cli:0.5.1 gpas --version
 
-# Upload using mounted volume with Docker Hub build
+# Fetch image, upload example data using a bound volume
 docker run \
-    -v /Users/bede/Research/Git/gpas-cli/tests/test-data:/test-data \
-    oxfordmmm/gpas-cli:0.5.1 \
-    gpas upload \
-        --environment dev \
-        --token /test-data/token.json \
-        --out-dir /test-data/output \  # Mapping CSV is written here
-        /test-data/large-nanopore-bam.csv
+-v /Users/bede/Research/Git/gpas-cli/tests/test-data:/test-data \
+oxfordmmm/gpas-cli:0.5.1 \
+gpas upload \
+--environment dev \
+--token /test-data/token.json \
+--out-dir /test-data/output \
+/test-data/large-nanopore-bam.csv
 
-# Build from Dockerfile and show version
+# Build image from scratch, show gpas-cli version
 curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/Dockerfile
 docker run --rm $(docker build -q .) gpas --version
 
-# Upload using mounted volume with Dockerfile build
+# Build image from scratch, upload example data
 docker run \
-    -v /Users/bede/Research/Git/gpas-cli/tests/test-data:/test-data \
-    $(docker build -q .) \
-    gpas upload \
-        --environment dev \
-        --token /test-data/token.json \
-        --out-dir /test-data/output \  # Mapping CSV is written here
-        /test-data/large-nanopore-bam.csv
+-v /Users/bede/Research/Git/gpas-cli/tests/test-data:/test-data \
+$(docker build -q .) \
+gpas upload \
+--environment dev \
+--token /test-data/token.json \
+--out-dir /test-data/output \
+/test-data/large-nanopore-bam.csv
 ```
 
 #### With `pip`
@@ -85,7 +85,7 @@ export GPAS_SAMTOOLS_PATH=path/to/samtools
 export GPAS_READITANDKEEP_PATH=path/to/readItAndKeep
 ```
 
-#### With PyInstaller (not recommended)
+#### With PyInstaller
 
 Static Linux, MacOS and Windows executables are generated for each release. These are intended for distribution with the GUI client but may also be used independently. These can be downloaded from the 'Artifacts' section of each workflow run listed here: https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/distribute.yml
 
