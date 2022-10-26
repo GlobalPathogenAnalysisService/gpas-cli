@@ -88,9 +88,11 @@ def parse_user_details(result: dict) -> tuple:
     result = result.get("userOrgDtl", {})[0]
     user = result.get("userName")
     organisation = result.get("organisation")
-    allowed_tags = [d.get("tagName") for d in result.get("tags", {})]
+    permitted_tags = [
+        d.get("tagName") for d in result.get("tags", {}) if d.get("tagAccessYN") == "Y"
+    ]
     date_mask = result.get("maskCollectionDate")  # Expects {"N", "MONTH", "WEEK"}
-    return user, organisation, allowed_tags, date_mask
+    return user, organisation, permitted_tags, date_mask
 
 
 def update_fasta_header(path: Path, guid: str, name: str):
