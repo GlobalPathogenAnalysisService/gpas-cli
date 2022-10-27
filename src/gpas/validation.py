@@ -481,7 +481,7 @@ def validate_tags(df, permitted_tags):
 
     if invalid_tags:
         raise ValidationError(
-            [{"error": f"tag(s) {invalid_tags} are invalid for this organisation"}]
+            [{"error": f"tag(s) {invalid_tags} are unauthorised for this user"}]
         )
 
 

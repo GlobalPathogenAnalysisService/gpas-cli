@@ -7,6 +7,7 @@ import multiprocessing
 import platform
 import shutil
 import sys
+from collections import defaultdict
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -91,6 +92,7 @@ def parse_user_details(result: dict) -> tuple:
     permitted_tags = [
         d.get("tagName") for d in result.get("tags", {}) if d.get("tagAccessYN") == "Y"
     ]
+    logging.debug(f"{permitted_tags=}")
     date_mask = result.get("maskCollectionDate")  # Expects {"N", "MONTH", "WEEK"}
     return user, organisation, permitted_tags, date_mask
 
@@ -614,9 +616,17 @@ class Batch:
         result = r.json()
         logging.debug(f"{result=}")
         self.batch_guid = result["batch"]["guid"]
-        hashes_guids = {s["hash"]: s["guid"] for s in result["batch"]["samples"]}
+        guids_hashes = {s["guid"]: s["hash"] for s in result["batch"]["samples"]}
+        logging.debug(f"{guids_hashes=}")
+
+        # Used hash-keyed dict of lists to tolerate samples with same hash
+        hashes_guids = defaultdict(list)
+        for g, h in guids_hashes.items():
+            hashes_guids[h].append(g)
+
+        # Assign each sample a guid from the pool associated with each hash
         for sample in self.samples:
-            sample.guid = hashes_guids[getattr(sample, md5_attr)]
+            sample.guid = hashes_guids[getattr(sample, md5_attr)].pop()
 
     def _rename_fastqs(self):
         """Rename decontaminated fastqs using server-side guids"""
