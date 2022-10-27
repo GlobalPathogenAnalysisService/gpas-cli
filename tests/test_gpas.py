@@ -577,3 +577,10 @@ def test_validate_fail_empty_country_region():
         "sample_name": "COVID_locost_2_barcode10",
         "error": "country cannot be empty",
     }
+
+
+def test_numeric_sample_name():
+    """Pandera type coercion should mean that integer names are cast into strings"""
+    df, schema_name = validation.validate(
+        Path(data_dir) / Path("numeric-sample-name.csv")
+    )

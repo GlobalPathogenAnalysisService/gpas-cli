@@ -108,7 +108,9 @@ class BaseSchema(pa.SchemaModel):
 
     # validate sample name is alphanumeric and insist it is unique
     sample_name: Index[str] = pa.Field(
-        str_matches=r"^[A-Za-z0-9._-]+$", unique=True, nullable=False
+        str_matches=r"^[A-Za-z0-9._-]+$",
+        unique=True,
+        nullable=False,
     )
 
     # insist that control is one of positive, negative or null
@@ -207,6 +209,7 @@ class BaseSchema(pa.SchemaModel):
 
     class Config:
         strict = True
+        coerce = True
 
 
 class FastqSchema(BaseSchema):
@@ -220,7 +223,6 @@ class FastqSchema(BaseSchema):
         str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".fastq.gz",
         nullable=False,
-        coerce=False,
     )
 
     @pa.check(fastq, element_wise=True)
@@ -279,7 +281,6 @@ class BamSchema(BaseSchema):
         str_matches=r"^[A-Za-z0-9 /._-]+$",
         str_endswith=".bam",
         nullable=False,
-        coerce=False,
     )
 
     @pa.check(bam, element_wise=True)  # Check that bam exists
@@ -340,7 +341,7 @@ def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
-    print(str(row), "\n")
+    # print(str(row), "\n")
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":
