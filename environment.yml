@@ -4,7 +4,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - pip
   - python=3.10
   - read-it-and-keep=0.3.0
   - samtools=1.15.1
