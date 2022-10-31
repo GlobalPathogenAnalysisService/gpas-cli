@@ -5,14 +5,14 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  - read-it-and-keep=0.3.0
-  - samtools=1.15.1
+  - read-it-and-keep>=0.3.0
+  - samtools>=1.15.1
   - pytest
   - pytest-cov
   - black
   - pre-commit
   - mypy
   - python-build
-  - pyinstaller
   - pip:
+    - pyinstaller
     - git+https://github.com/GlobalPathogenAnalysisService/gpas-cli.git#egg=gpas
