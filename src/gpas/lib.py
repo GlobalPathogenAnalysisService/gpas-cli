@@ -28,8 +28,6 @@ from gpas.misc import (
 )
 from gpas.validation import build_validation_message, validate
 
-multiprocessing.freeze_support()
-
 
 def parse_token(token: Path) -> dict:
     return json.loads(Path(token).read_text())

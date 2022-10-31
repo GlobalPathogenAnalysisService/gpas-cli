@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import multiprocessing
 import tempfile
 from pathlib import Path
 
@@ -275,4 +276,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
