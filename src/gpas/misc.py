@@ -315,5 +315,4 @@ def oracle_timestamp() -> str:
         .isoformat(timespec="milliseconds")
     )
     tz_start_index = len(current_time) - 6
-    x = current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]
-    logging.warning(x)
+    return current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]
