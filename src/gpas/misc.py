@@ -172,35 +172,28 @@ def run_parallel_logged(
     participle: str = "processing",
     json_messages: bool = False,
 ) -> dict[str, subprocess.CompletedProcess]:
-    processes = 1 if platform.system() == "Windows" else processes
     if json_messages:
         print_progress_message_json(action=commands[0].action, status="started")
-    if processes == 1:
-        results = {}
-        for c in commands:
-            results[c.name] = run_logged(command=c, json_messages=json_messages)
-            logging.debug(f"{c.cmd=}")
-    else:
-        names = [c.name for c in commands]
-        cmds = [c.cmd for c in commands]
-        logging.debug(f"Started {participle.lower()} {len(cmds)} sample(s) \n{cmds=}")
-        with ThreadPool(10) as pool:
-            results = {
-                n: c
-                for n, c in zip(
-                    names,
-                    tqdm.tqdm(
-                        pool.imap_unordered(
-                            partial(run_logged, json_messages=json_messages),
-                            commands,
-                        ),
-                        total=len(cmds),
-                        desc=f"{participle} {len(cmds)} sample(s)",
-                        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-                        leave=False,
+    names = [c.name for c in commands]
+    cmds = [c.cmd for c in commands]
+    logging.debug(f"Started {participle.lower()} {len(cmds)} sample(s) \n{cmds=}")
+    with ThreadPool(processes) as pool:
+        results = {
+            n: c
+            for n, c in zip(
+                names,
+                tqdm.tqdm(
+                    pool.imap_unordered(
+                        partial(run_logged, json_messages=json_messages),
+                        commands,
                     ),
-                )
-            }
+                    total=len(cmds),
+                    desc=f"{participle} {len(cmds)} sample(s)",
+                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                    leave=False,
+                ),
+            )
+        }
     if json_messages:
         print_progress_message_json(action=commands[0].action, status="finished")
     else:
@@ -322,4 +315,5 @@ def oracle_timestamp() -> str:
         .isoformat(timespec="milliseconds")
     )
     tz_start_index = len(current_time) - 6
-    return current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]
+    x = current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]
+    logging.warning(x)

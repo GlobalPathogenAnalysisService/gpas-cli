@@ -604,6 +604,7 @@ class Batch:
                 "samples": checksums,
             }
         }
+        logging.debug(f"_fetch_guids(): {payload=}")
         endpoint = (
             ENDPOINTS[self.environment.value]["HOST"]
             + ENDPOINTS[self.environment.value]["ORDS_PATH"]
@@ -730,26 +731,18 @@ class Batch:
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="started")
         uploads = self._get_uploads()
-        if self.processes == 1:
-            for upload in uploads:
-                misc.upload_sample(
-                    upload=upload,
-                    headers=self.headers,
-                    json_messages=self.json_messages,
-                )
-        else:
-            process_map(
-                partial(
-                    misc.upload_sample,
-                    headers=self.headers,
-                    json_messages=self.json_messages,
-                ),
-                uploads,
-                max_workers=10,
-                desc=f"Uploading {len(uploads)} sample(s) (10 connections)",
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-                leave=False,
-            )
+        process_map(
+            partial(
+                misc.upload_sample,
+                headers=self.headers,
+                json_messages=self.json_messages,
+            ),
+            uploads,
+            max_workers=10,
+            desc=f"Uploading {len(uploads)} sample(s) (10 connections)",
+            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+            leave=False,
+        )
         self.uploaded = True
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="finished")

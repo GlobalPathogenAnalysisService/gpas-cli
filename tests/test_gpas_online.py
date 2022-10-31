@@ -259,7 +259,7 @@ def test_validate_fail_wrong_tags():
             permitted_tags=permitted_tags,
         )
     assert e.value.errors == [
-        {"error": "tag(s) {'heffalump'} are invalid for this organisation"}
+        {"error": "tag(s) {'heffalump'} are unauthorised for this user"}
     ]
 
 
@@ -299,7 +299,7 @@ def test_validate_fail_valid_and_invalid_tags():
             permitted_tags=permitted_tags,
         )
     assert (
-        "tag(s) {'heffalump'} are invalid for this organisation"
+        "tag(s) {'heffalump'} are unauthorised for this user"
         in e.value.errors[0]["error"]
     )
 
