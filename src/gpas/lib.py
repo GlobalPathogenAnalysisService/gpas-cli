@@ -671,7 +671,6 @@ class Batch:
         target_path = self.out_dir / Path(self.batch_guid + ".mapping.csv")
         df.to_csv(target_path, index=False)
         self.mapping_path = target_path
-        logging.info(f"Saved mapping CSV to {self.mapping_path}")
 
     def _fetch_par(self):
         """Private method that calls ORDS to get a Pre-Authenticated Request.
@@ -773,7 +772,9 @@ class Batch:
         url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
         r = httpx.put(url=url, headers=self.headers)
         r.raise_for_status()
-        logging.info(f"Finished uploading batch {self.batch_guid}")
+        logging.info(
+            f"Submitted batch {self.batch_guid}, mapping CSV saved to {self.mapping_path}"
+        )
         success_message = {
             "submission": {
                 "status": "success",
@@ -885,7 +886,7 @@ class Batch:
     def _number_runs(self) -> None:
         """Enumerate unique values of run_number for submission"""
         samples_runs = self._get_sample_attrs("run_number")
-        runs = list(sorted(filter(None, samples_runs.values())))
+        runs = list(sorted(samples_runs.values()))
         if runs:  # More than just an empty string
             runs_numbers = {r: i for i, r in enumerate(runs, start=1)}
         else:

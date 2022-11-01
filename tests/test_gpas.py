@@ -455,7 +455,7 @@ def test_paired_bam_first_read_not_equal():
     r2_str = run("zcat < cDNA-VOC-1-v4-1_2.fastq.gz | head -n 2 | tail -n 1").stdout
     assert r1_str != r2_str
     run(
-        "rm cDNA-VOC-1-v4-1_1.fastq.gz cDNA-VOC-1-v4-1_2.fastq.gz cDNA-VOC-1-v4-1.reads_1.fastq.gz cDNA-VOC-1-v4-1.reads_2.fastq.gz"
+        "rm cDNA-VOC-1-v4-1_1.fastq.gz cDNA-VOC-1-v4-1_2.fastq.gz cDNA-VOC-1-v4-1.reads_1.fastq.gz cDNA-VOC-1-v4-1.reads_2.fastq.gz cDNA-VOC-1-v4-1_s.fastq.gz"
     )
 
 
@@ -591,3 +591,8 @@ def test_numeric_sample_name():
     df, schema_name = validation.validate(
         Path(data_dir) / Path("numeric-sample-name.csv")
     )
+
+
+def test_populated_unpopulated_run_numbers():
+    """Pandera type coercion should mean that integer names are cast into strings"""
+    run_cmd = run("gpas upload populated-unpopulated-run-numbers.csv")
