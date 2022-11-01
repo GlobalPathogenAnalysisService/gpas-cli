@@ -296,6 +296,13 @@ def test_space_mapping_csv_reads():
     )
 
 
+def test_leading_space_mapping_csv_reads():
+    """Leading spaces should be tolerated in mapping CSV and reads filenames"""
+    df, schema_name = validation.validate(
+        Path(data_dir) / Path(" leading-space-large-nanopore-fastq.csv")
+    )
+
+
 def test_validate_fail_fastq_empty():
     with pytest.raises(validation.ValidationError) as e:
         _, message = validation.validate(

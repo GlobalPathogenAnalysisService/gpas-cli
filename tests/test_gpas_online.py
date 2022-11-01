@@ -21,35 +21,6 @@ def run(cmd, cwd="./"):  # Helper for CLI testing
     )
 
 
-# Requires a valid 'token.json' inside test-data. Runs on dev
-
-
-# def test_gpas_uploader_validate():
-#     run_cmd = run(
-#         f"gpas-upload --environment dev --token token.json --json validate nanopore-fastq.csv"
-#     )
-#     assert (
-#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-#         in run_cmd.stdout
-#     )
-
-
-# def test_dry_run():
-#     run_cmd = run(
-#         f"gpas upload-old nanopore-fastq.csv --environment dev token.json --dry-run"
-#     )
-#     assert "successfully decontaminated" in run_cmd.stdout
-#     run("rm -f sample_names* mapping*")
-
-
-# def test_dry_run_json():
-#     run_cmd = run(
-#         f"gpas upload-old --dry-run --json nanopore-fastq.csv  --environment dev token.json"
-#     )
-#     assert '"file": "reads/nanopore-fastq/unpaired5.fastq.gz"' in run_cmd.stdout
-#     run("rm -f sample_names* mapping*")
-
-
 def test_status_guids_csv():
     run_cmd = run(
         f"gpas status --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f,2ddbd7d4-9979-4960-8c17-e7b92f0bf413,8daadc7d-8d58-46a6-efb4-9ddefc1e4669 --format csv --environment dev token.json"
@@ -136,7 +107,6 @@ def test_download_guid_api():
     run("rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.vcf")
 
 
-# Run with pytest --online tests/test_gpas_online.py::test_status_mapping_api_online
 def test_status_mapping_api():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
     guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example_mapping.csv"))
@@ -159,7 +129,6 @@ def test_status_mapping_api():
         raise RuntimeError("Expected dict not found")
 
 
-# pytest -s --online tests/test_gpas_online.py::test_status_sync_mapping
 def test_status_sync_mapping():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
     guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example_mapping.csv"))
@@ -200,7 +169,6 @@ def test_status_sync_mapping_rename():
         raise RuntimeError("Expected dict not found")
 
 
-# Run with pytest --online tests/test_gpas_online.py::test_status_mapping_rename_api_online
 def test_status_mapping_rename_api():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
     guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example_mapping.csv"))
@@ -335,29 +303,3 @@ def test_ont_bam_dry():
     )
     assert "INFO: Finished converting 1 sample(s)" in run_cmd.stderr
     assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
-
-
-# # def test_validate():
-#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
-#     assert (
-#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-#         in run_cmd.stdout
-#     )
-
-
-# # def test_validate_token():
-#     run_cmd = run(f"gpas validate-old --json --token token.json nanopore-fastq.csv")
-#     assert (
-#         '{"sample": "unpaired6", "files": ["reads/nanopore-fastq/unpaired6.fastq.gz'
-#         in run_cmd.stdout
-#     )
-
-
-# # def test_gpas_uploader_download_mapping_csv_online_fasta():
-#     run_cmd = run(
-#         f"gpas-upload --json --token token.json --environment dev download example_mapping.csv --file_types fasta"
-#     )
-#     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
-#     run(
-#         "rm -f 6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz 657a8b5a-652f-f07c-bd39-287279306a75.fasta.gz cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839.fasta.gz"
-#     )
