@@ -285,7 +285,7 @@ def get_reference_path(organism):
 
 
 @retry(
-    retry=retry_if_exception_type(httpx.RequestError),
+    retry=retry_if_exception_type(httpx.HTTPError),
     wait=wait_exponential(multiplier=1, min=1, max=5),
     stop=stop_after_attempt(5),
 )

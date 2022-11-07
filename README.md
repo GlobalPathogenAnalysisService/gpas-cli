@@ -1,4 +1,4 @@
- ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
+![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
 The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Uses parallelisation for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. Supports Ubuntu Linux, MacOS and Windows, and installs easily with Conda or Docker.
 

@@ -15,10 +15,11 @@ from typing import Any
 import httpx
 import pandas as pd
 import tqdm
+from tenacity import before_sleep, retry, retry_if_exception_type, wait_exponential
 from tqdm.contrib.concurrent import process_map
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from gpas import misc, __version__
+from gpas import __version__, misc
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
     ENDPOINTS,
@@ -27,6 +28,9 @@ from gpas.misc import (
     GOOD_STATUSES,
 )
 from gpas.validation import build_validation_message, validate
+
+
+logger = logging.getLogger(__name__)
 
 
 def parse_token(token: Path) -> dict:
@@ -155,6 +159,11 @@ async def fetch_status_async(
     return records
 
 
+@retry(
+    retry=retry_if_exception_type(httpx.HTTPError),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    before_sleep=before_sleep.before_sleep_log(logger, 10),
+)
 async def fetch_status_single_async(
     client, guid, url, headers, warn=False, n_retries=5
 ):
@@ -165,15 +174,16 @@ async def fetch_status_single_async(
         result = dict(sample=guid, status=status)
         if warn and status not in GOOD_STATUSES:
             with logging_redirect_tqdm():
-                logging.warning(f"Skipping {guid} (status {status})")
+                logging.info(f"Skipping {guid} with status {status}")
     else:
         result = dict(sample=guid, status="Unknown")
-        with logging_redirect_tqdm():
-            logging.warning(f"HTTP {r.status_code} ({guid})")
         if r.status_code == 401:
             raise RuntimeError(
                 f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
             )
+        else:
+            r.raise_for_status()  # Raises retryable httpx.HTTPError
+
     return result
 
 
@@ -202,7 +212,10 @@ async def download_async(
         logging.info(f"Fetching file types {file_types}")
 
     limits = httpx.Limits(
-        max_keepalive_connections=8, max_connections=16, keepalive_expiry=100
+        max_keepalive_connections=8,
+        max_connections=16,
+        keepalive_expiry=100
+        # max_keepalive_connections=50, max_connections=100, keepalive_expiry=100
     )
     transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
     async with httpx.AsyncClient(transport=transport, timeout=120) as client:
@@ -233,6 +246,11 @@ async def download_async(
         ]
 
 
+@retry(
+    retry=retry_if_exception_type(httpx.HTTPError),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    before_sleep=before_sleep.before_sleep_log(logger, 10),
+)
 async def download_single_async(
     client, guid, file_type, url, headers, out_dir, name=None, retries=5
 ):
@@ -258,9 +276,7 @@ async def download_single_async(
                 Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
             )
     else:
-        result = dict(sample=guid, status="Unknown")
-        with logging_redirect_tqdm():
-            logging.warning(f"Skipping {guid}.{file_type} (HTTP {r.status_code})")
+        r.raise_for_status()  # Raises retryable httpx.HTTPError
 
 
 def fetch_status(
