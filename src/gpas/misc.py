@@ -27,11 +27,13 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 
 from gpas import data_dir, validation
 
-FORMATS = Enum("Formats", dict(table="table", csv="csv", json="json"))
+FORMATS = Enum("Formats", {"table": "table", "csv": "csv", "json": "json"})
 DEFAULT_FORMAT = FORMATS.table
-ENVIRONMENTS = Enum("Environment", dict(dev="dev", staging="staging", prod="prod"))
+ENVIRONMENTS = Enum("Environment", {"dev": "dev", "staging": "staging", "prod": "prod"})
 DEFAULT_ENVIRONMENT = ENVIRONMENTS.prod
-FILE_TYPES = Enum("FileType", dict(json="json", fasta="fasta", bam="bam", vcf="vcf"))
+FILE_TYPES = Enum(
+    "FileType", {"json": "json", "fasta": "fasta", "bam": "bam", "vcf": "vcf"}
+)
 GOOD_STATUSES = {"Unreleased", "Released"}
 
 
@@ -51,27 +53,21 @@ class SubprocessError(Exception):
     pass
 
 
-ENDPOINTS = {
+ENVIRONMENTS_URLS = {
     "dev": {
         "HOST": "https://portal.dev.gpas.ox.ac.uk/",
-        "API_PATH": "/ords/gpas_pub/gpasapi/",
-        "ORDS_PATH": "/ords/grep/electron/",
-        "DASHBOARD_PATH": "/ords/r/gpas/gpas-portal/lineages-voc/",
-        "NAME": "DEV",
-    },
-    "prod": {
-        "HOST": "https://portal.gpas.ox.ac.uk/",
-        "API_PATH": "ords/gpas_pub/gpasapi/",
-        "ORDS_PATH": "ords/grep/electron/",
-        "DASHBOARD_PATH": "ords/gpas/r/gpas-portal/lineages-voc/",
-        "NAME": "PROD",
+        "API": "https://portal.dev.gpas.ox.ac.uk/ords/gpas_pub/gpasapi/",
+        "ORDS": "https://portal.dev.gpas.ox.ac.uk/ords/grep/electron/",
     },
     "staging": {
         "HOST": "https://portal.staging.gpas.ox.ac.uk/",
-        "API_PATH": "ords/gpas_pub/gpasapi/",
-        "ORDS_PATH": "ords/grep/electron/",
-        "DASHBOARD_PATH": "",
-        "NAME": "STAGE",
+        "API": "https://portal.staging.gpas.ox.ac.uk/ords/gpas_pub/gpasapi/",
+        "ORDS": "https://portal.staging.gpas.ox.ac.uk/ords/grep/electron/",
+    },
+    "prod": {
+        "HOST": "https://portal.gpas.ox.ac.uk/",
+        "API": "https://portal.gpas.ox.ac.uk/ords/gpas_pub/gpasapi/",
+        "ORDS": "https://portal.gpas.ox.ac.uk/ords/grep/electron/",
     },
 }
 
@@ -235,7 +231,7 @@ def resolve_paths(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_binary_path(filename: str) -> str:
     env_var = f"GPAS_{filename.upper()}_PATH"
-    if os.getenv(env_var) and Path(os.environ[env_var]).exists():
+    if os.getenv(env_var) and Path(os.environ[env_var]).exists():  # Environment var
         path = Path(os.environ[env_var]).resolve()
         logging.debug(f"get_binary_path(): Environment variable mode {path=}")
     elif hasattr(sys, "_MEIPASS"):  # PyInstaller onefile
@@ -295,11 +291,11 @@ def upload_sample(upload: SampleUpload, headers: dict, json_messages: bool) -> N
             action="upload", status="started", sample=upload.name
         )
     with open(upload.path1, "rb") as fh:
-        r = httpx.put(url=upload.url1, data=fh, headers=headers)
+        r = httpx.put(url=upload.url1, content=fh, headers=headers)
         r.raise_for_status()
     if upload.path2 and upload.url2:
         with open(upload.path2, "rb") as fh:
-            r = httpx.put(url=upload.url2, data=fh, headers=headers)
+            r = httpx.put(url=upload.url2, content=fh, headers=headers)
             r.raise_for_status()
     logging.debug(f"Uploaded sample {upload.name}")
     if json_messages:

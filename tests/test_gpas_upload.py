@@ -9,15 +9,15 @@ from gpas.misc import ENVIRONMENTS
 data_dir = "tests/test-data"
 
 
-auth = lib.parse_token(Path(data_dir) / Path("token.json"))
-auth_result = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
-_, _, permitted_tags, _ = lib.parse_user_details(auth_result)
-
-
 def run(cmd, cwd="./"):  # Helper for CLI testing
     return subprocess.run(
         cmd, cwd=data_dir, shell=True, check=True, text=True, capture_output=True
     )
+
+
+auth = lib.parse_token(Path(data_dir) / Path("token.json"))
+auth_result = lib.fetch_user_details(auth["access_token"], ENVIRONMENTS.dev)
+_, _, permitted_tags, _ = lib.parse_user_details(auth_result)
 
 
 def test_upload_ont_bam_dry():
@@ -26,7 +26,7 @@ def test_upload_ont_bam_dry():
     )
     assert "INFO: Finished converting 1 sample(s)" in run_cmd.stderr
     assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
-    batch_guid = run_cmd.stderr.partition(".mapping.csv")[0].rpartition(" ")[2]
+    batch_guid = str(next(Path(data_dir).glob("*.mapping.csv"))).partition(".")[0]
     run(f"rm -f {batch_guid}.mapping.csv")
 
 
@@ -40,10 +40,10 @@ def test_upload_ont_bam_dry_json_and_mapping_csv():
     assert "decontamination" in run_cmd.stdout
 
     # Check all mapping CSV fields except for server side names
-    batch_guid = run_cmd.stderr.partition(".mapping.csv")[0].rpartition(" ")[2]
-    records = pd.read_csv(
-        Path(data_dir) / Path(f"{batch_guid}.mapping.csv"), dtype=str
-    ).to_dict("records")
+    batch_guid = str(next(Path(data_dir).glob("*.mapping.csv"))).partition(".")[0]
+    records = pd.read_csv(Path(f"{batch_guid}.mapping.csv"), dtype=str).to_dict(
+        "records"
+    )
     assert records[0]["local_batch"] == "run1"
     assert records[0]["local_run_number"] == "run1.1"
     assert records[0]["local_sample_name"] == "COVID_locost_2_barcode10"

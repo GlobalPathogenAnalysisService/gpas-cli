@@ -22,13 +22,12 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from gpas import __version__, misc
 from gpas.misc import (
     DEFAULT_ENVIRONMENT,
-    ENDPOINTS,
     ENVIRONMENTS,
+    ENVIRONMENTS_URLS,
     FILE_TYPES,
     GOOD_STATUSES,
 )
 from gpas.validation import build_validation_message, validate
-
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +53,7 @@ def parse_mapping_csv(mapping_csv: Path) -> dict:
 
 def fetch_user_details(access_token, environment: ENVIRONMENTS) -> dict:
     """Test API authentication and fetch response from userOrgDtls endpoint"""
-    endpoint = (
-        ENDPOINTS[environment.value]["HOST"]
-        + ENDPOINTS[environment.value]["ORDS_PATH"]
-        + "userOrgDtls"
-    )
+    endpoint = f"{ENVIRONMENTS_URLS[environment.value]['ORDS']}/userOrgDtls"
     try:
         logging.debug(f"Fetching user details {endpoint=}")
         r = httpx.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
@@ -125,12 +120,7 @@ async def fetch_status_async(
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    endpoint = (
-        ENDPOINTS[environment.value]["HOST"]
-        + ENDPOINTS[environment.value]["API_PATH"]
-        + "get_sample_detail"
-    )
-
+    endpoint = f"{ENVIRONMENTS_URLS[environment.value]['API']}/get_sample_detail"
     limits = httpx.Limits(
         max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
     )
@@ -199,11 +189,7 @@ async def download_async(
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    endpoint = (
-        ENDPOINTS[environment.value]["HOST"]
-        + ENDPOINTS[environment.value]["API_PATH"]
-        + "get_output"
-    )
+    endpoint = f"{ENVIRONMENTS_URLS[environment.value]['API']}/get_output"
 
     unrecognised_file_types = set(file_types) - {t.name for t in FILE_TYPES}
     if unrecognised_file_types:
@@ -292,14 +278,10 @@ def fetch_status(
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    endpoint = (
-        ENDPOINTS[environment.value]["HOST"]
-        + ENDPOINTS[environment.value]["API_PATH"]
-        + "get_sample_detail/"
-    )
+    endpoint = f"{ENVIRONMENTS_URLS[environment.value]['API']}/get_sample_detail"
     records = []
     for guid in tqdm.tqdm(guids):
-        r = httpx.get(url=endpoint + guid, headers=headers)
+        r = httpx.get(url=f"{endpoint}/{guid}", headers=headers)
         if r.is_success:
             if raw:
                 records.append(r.json())
@@ -400,7 +382,7 @@ class Sample:
         )
         return command
 
-    def _get_convert_bam_cmd(self, paired=False) -> str:
+    def _get_convert_bam_cmd(self, paired=False) -> misc.LoggedShellCommand:
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
             cmd = f'"{self.samtools_path}" fastq -0 "{prefix.with_suffix(".fastq.gz")}" "{self.bam}"'
@@ -622,9 +604,7 @@ class Batch:
         }
         logging.debug(f"_fetch_guids(): {payload=}")
         endpoint = (
-            ENDPOINTS[self.environment.value]["HOST"]
-            + ENDPOINTS[self.environment.value]["ORDS_PATH"]
-            + "createSampleGuids"
+            f"{ENVIRONMENTS_URLS[self.environment.value]['ORDS']}/createSampleGuids"
         )
         logging.debug(f"Fetching guids; {endpoint=}")
         r = httpx.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
@@ -697,11 +677,7 @@ class Batch:
         -------
         par: str
         """
-        endpoint = (
-            ENDPOINTS[self.environment.value]["HOST"]
-            + ENDPOINTS[self.environment.value]["ORDS_PATH"]
-            + "pars"
-        )
+        endpoint = f"{ENVIRONMENTS_URLS[self.environment.value]['ORDS']}/pars"
         logging.debug(f"Fetching PAR; {endpoint=} {self.headers=}")
         r = httpx.get(url=endpoint, headers=self.headers)
         if not r.is_success:
@@ -767,11 +743,7 @@ class Batch:
     def _finalise_submission(self):
         if not self.uploaded:
             raise RuntimeError("Reads not uploaded")
-        endpoint = (
-            ENDPOINTS[self.environment.value]["HOST"]
-            + ENDPOINTS[self.environment.value]["ORDS_PATH"]
-            + "batches"
-        )
+        endpoint = f"{ENVIRONMENTS_URLS[self.environment.value]['ORDS']}/batches"
 
         self.submission["batch"]["uploader"]["upload_finish"] = misc.oracle_timestamp()
         logging.debug(json.dumps(self.submission, indent=4))
