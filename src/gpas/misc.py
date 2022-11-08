@@ -89,10 +89,20 @@ class SampleUpload:
 
 
 def get_value_traceback(e: Exception) -> tuple[str, str, list]:
+    """Return 3-tuple of exception, message, and traceback"""
     e_type, e_value, e_traceback = sys.exc_info()
     e_t = str(e_type)
     e_v = repr(e_value)
     e_tb = traceback.format_tb(e_traceback)
+    return e_t, e_v, e_tb
+
+
+def get_value_traceback_fmt(e: Exception) -> tuple[str, str, str]:
+    """Return 3-tuple of exception, message, and traceback as strings"""
+    e_type, e_value, e_traceback = sys.exc_info()
+    e_t = str(e_type)
+    e_v = repr(e_value)
+    e_tb = "\n".join(traceback.format_tb(e_traceback))
     return e_t, e_v, e_tb
 
 

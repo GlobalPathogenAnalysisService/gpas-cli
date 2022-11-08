@@ -4,6 +4,7 @@ import gzip
 import json
 import logging
 import multiprocessing
+import os
 import platform
 import shutil
 import sys
@@ -488,6 +489,17 @@ class Batch:
         self.save_reads = save_reads
         self.user_agent_name = user_agent_name
         self.user_agent_version = user_agent_version
+        self.client_info = {
+            "name": "gpas-cli",
+            "version": __version__,
+            "platform": platform.system(),
+            "python_version": platform.python_version(),
+        }
+        if self.user_agent_name or self.user_agent_version:
+            self.client_info["user_agent"] = {
+                "name": self.user_agent_name,
+                "version": self.user_agent_version,
+            }
         if self.token:
             auth_result = fetch_user_details(
                 self.token["access_token"], self.environment
@@ -508,7 +520,7 @@ class Batch:
             self.user = None
             self.organisation = None
             self.permitted_tags = []
-            self.headers = None
+            self.headers = {}
             self.date_mask = None
         logging.debug(f"{self.upload_csv=}")
         self.df, self.schema_name = validate(self.upload_csv, self.permitted_tags)
@@ -837,39 +849,56 @@ class Batch:
                 "run_numbers": self.run_numbers,
                 "samples": samples,
                 "uploader": {
-                    "name": "gpas-cli",
-                    "version": __version__,
-                    "platform": platform.system(),
-                    "python_version": platform.python_version(),
+                    **self.client_info,
                     "upload_start": self.uploaded_on,
                     "upload_finish": None,  # Set in _finalise_submission()
                 },
             },
         }
-        if self.user_agent_name or self.user_agent_version:
-            self.submission["batch"]["uploader"]["user_agent"] = {
-                "name": self.user_agent_name,
-                "version": self.user_agent_version,
+
+    def post_exception(self, exception: Exception):
+        """Report exceptions occurring during Batch.upload()"""
+        try:
+            if "PYTEST_CURRENT_TEST" in os.environ:  # Disable reporting under pytest
+                return
+            e_t, e_v, e_tb = misc.get_value_traceback_fmt(exception)
+            endpoint = (
+                f"{ENVIRONMENTS_URLS[self.environment.value]['ORDS']}/logUploaderError"
+            )
+            payload = {
+                "exception": {
+                    "class": e_t,
+                    "message": e_v,
+                    "traceback": e_tb,
+                    "timestamp": misc.oracle_timestamp(),
+                },
+                "uploader": self.client_info,
             }
+            logging.debug(f"Exception payload {payload=}")
+            r = httpx.post(url=endpoint, json=payload, headers=self.headers)
+            logging.debug(f"Exception submission {r.is_success=}")
+        except Exception:
+            pass
 
     def upload(self, dry_run: bool = False, save_reads: bool = False) -> None:
-        if self.processes > 1:
-            logging.info(f"Using {self.processes} processes")
-        self._decontaminate()
-        if not self.headers:
-            logging.warning("No token provided, quitting")
-            sys.exit()
-        self._hash_fastqs()
-        self._fetch_guids()
-        self._build_mapping_csv()
-        self._rename_fastqs()
-        if dry_run:
-            logging.info("Skipped submission")
-        else:
-            self._submit()
-
-        for s in self.samples:
-            logging.debug(f" {s.clean_fastq=}; {s.clean_fastq1=}; {s.clean_fastq2=}")
+        try:
+            if self.processes > 1:
+                logging.info(f"Using {self.processes} processes")
+            self._decontaminate()
+            if not self.headers:
+                logging.warning("No token provided, quitting")
+                sys.exit()
+            self._hash_fastqs()
+            self._fetch_guids()
+            self._build_mapping_csv()
+            self._rename_fastqs()
+            if dry_run:
+                logging.info("Skipped submission")
+            else:
+                self._submit()
+        except Exception as e:
+            self.post_exception(e)
+            raise e
 
     def _number_runs(self) -> None:
         """Enumerate unique values of run_number for submission"""
@@ -878,10 +907,10 @@ class Batch:
         if runs:  # More than just an empty string
             runs_numbers = {r: i for i, r in enumerate(runs, start=1)}
         else:
-            runs_numbers = {"": None}
+            runs_numbers = {"": 0}
         for s in self.samples:
             s.gpas_run_number = runs_numbers[s.run_number]
-        self.run_numbers = list(filter(None, runs_numbers.values()))
+        self.run_numbers = list(filter(bool, runs_numbers.values()))
 
 
 def parse_decontamination_stats(stdout: str) -> dict:
