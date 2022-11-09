@@ -264,6 +264,20 @@ Kept reads 2	5006
     }
 
 
+def test_decontamination_stats_zero():
+    stdout = """Input reads file 1	0
+Input reads file 2	0
+Kept reads 1	0
+Kept reads 2	0
+
+"""
+    assert lib.parse_decontamination_stats(stdout) == {
+        "in": 0,
+        "out": 0,
+        "fraction": 0,
+    }
+
+
 def test_upload_no_token_save_reads():
     """When run without a token, upload should quit after decontamination"""
     run_cmd = run("gpas upload large-nanopore-fastq.csv --save-reads")

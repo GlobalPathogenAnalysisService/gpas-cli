@@ -640,6 +640,18 @@ class Batch:
     def _rename_fastqs(self):
         """Rename decontaminated fastqs using server-side guids"""
         for s in self.samples:
+            # Workaround for ReadItAndKeep making fastas when encountering empty fastqs
+            if s.clean_fastq and not s.clean_fastq.exists():
+                s.clean_fastq = s.working_dir / Path(s.sample_name + ".reads.fasta.gz")
+            if s.clean_fastq1 and not s.clean_fastq1.exists():
+                s.clean_fastq1 = s.working_dir / Path(
+                    s.sample_name + ".reads_1.fasta.gz"
+                )
+            if s.clean_fastq2 and not s.clean_fastq2.exists():
+                s.clean_fastq2 = s.working_dir / Path(
+                    s.sample_name + ".reads_2.fasta.gz"
+                )
+
             s.clean_fastq = (
                 s.clean_fastq.rename(s.working_dir / Path(s.guid + ".reads.fastq.gz"))
                 if s.clean_fastq
@@ -923,8 +935,12 @@ def parse_decontamination_stats(stdout: str) -> dict:
     count_out = counts[2] + counts[3]
     delta = count_in - count_out
     assert delta >= 0
+    try:
+        fraction = round(delta / count_in, 4)
+    except ArithmeticError:  # ZeroDivisionError
+        fraction = 0
     return {
         "in": count_in,
         "out": count_out,
-        "fraction": round(delta / count_in, 4),
+        "fraction": fraction,
     }
