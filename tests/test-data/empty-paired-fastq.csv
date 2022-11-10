@@ -1,0 +1,2 @@
+batch,run_number,sample_name,fastq1,fastq2,control,collection_date,tags,country,region,district,specimen_organism,host,primer_scheme,instrument_platform
+,,empty,reads/empty.r1.fastq.gz,reads/empty.r2.fastq.gz,,2022-05-06,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Illumina

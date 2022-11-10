@@ -1,23 +1,23 @@
 ![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
 
-The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Uses parallelisation for fast client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. Supports Ubuntu Linux, MacOS and Windows, and installs easily with Conda or Docker.
+The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Performs fast parallel client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. Installs with Conda or Docker and supports Ubuntu Linux, MacOS and Windows.
 
 ![Upload CLI demo](banner-upload.gif)
 
-| Command line interface | Python API (work in progress) |
+| Command line interface | Python API (unstable) |
 | ----------------- | ------- |
-| ✅ `gpas upload` | ✅ `lib.Batch(upload_csv, token).upload()` |
+| ✅ `gpas upload` | ✅ `lib.Batch().upload()` |
 | ✅ `gpas download` | ✅ `lib.download_async()` |
 | ✅ `gpas validate` | ✅ `validation.validate()` |
-| ✅ `gpas status` | ✅ `lib.fetch_status()`, `lib.fetch_status_async()` |
+| ✅ `gpas status` | ✅ `lib.fetch_status_async()` |
 
 
 
 ## Install
 
-####  With `conda` (recommended)
+####  With `conda`
 
-Installation using (Mini)conda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a recent Mac with `arm64` architecture, you'll need to [install Miniconda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon).
+Miniconda is recommended ([Miniconda installation guide](https://conda.io/projects/conda/en/latest/user-guide/install/index.html)). If using a recent Mac with ARM architecture, you'll need to [install Miniconda and gpas-cli inside a Rosetta Terminal](https://github.com/GlobalPathogenAnalysisService/gpas-cli/wiki/Installation-for-Macs-with-Apple-silicon).
 
 
 ```shell
@@ -33,9 +33,9 @@ gpas --version
 conda remove -n gpas-cli --all
 ```
 
-#### With `docker` (recommended)
+#### With `docker`
 
-gpas-cli releases are pushed to [Docker Hub](hub.docker.com) for easy installation on most platforms and architectures (including `arm64` Macs).
+gpas-cli releases are pushed to [Docker Hub](hub.docker.com) for easy installation on most platforms and architectures.
 
 ```shell
 # Fetch image, show gpas-cli version
