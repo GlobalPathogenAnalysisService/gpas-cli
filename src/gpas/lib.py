@@ -765,25 +765,45 @@ class Batch:
             logging.info(f"Finished uploading {len(uploads)} sample(s)")
 
     def _finalise_submission(self):
+        @retry(
+            retry=retry_if_exception_type(httpx.HTTPError),
+            wait=wait_exponential(multiplier=1, min=60, max=120),
+            before_sleep=before_sleep.before_sleep_log(logger, 10),
+        )
+        def post_submission(submission: dict, headers: dict):
+            """Submit sample metadata to batches endpoint"""
+            endpoint = f"{ENVIRONMENTS_URLS[self.environment.value]['ORDS']}/batches"
+            logging.debug(f"post_submission(): {json.dumps(self.submission, indent=4)}")
+            r = httpx.post(
+                url=endpoint,
+                data=json.dumps(submission, ensure_ascii=False).encode("utf-8"),
+                headers=headers,
+                timeout=60,
+            )
+            logging.debug(f"post_submission(): {r.text=}")
+            r.raise_for_status()
+            if r.json().get("status") != "success":
+                raise misc.SubmissionError(r.json().get("errorMsg"))
+
+        @retry(
+            retry=retry_if_exception_type(httpx.HTTPError),
+            wait=wait_exponential(multiplier=1, min=10, max=40),
+            before_sleep=before_sleep.before_sleep_log(logger, 10),
+        )
+        def put_done_mark(batch_guid: str, headers: dict):
+            """Put upload done marker"""
+            url = self.par + batch_guid + "/upload_done.txt"
+            logging.debug(f"put_done_mark(): {url=}")
+            r = httpx.put(url=url, headers=self.headers)
+            logging.debug(f"put_done_mark(): {r.text=}")
+            r.raise_for_status()
+
         if not self.uploaded:
             raise RuntimeError("Reads not uploaded")
-        endpoint = f"{ENVIRONMENTS_URLS[self.environment.value]['ORDS']}/batches"
 
         self.submission["batch"]["uploader"]["upload_finish"] = misc.oracle_timestamp()
-        logging.debug(json.dumps(self.submission, indent=4))
-        r = httpx.post(
-            url=endpoint,
-            data=json.dumps(self.submission, ensure_ascii=False).encode("utf-8"),
-            headers=self.headers,
-        )
-
-        r.raise_for_status()
-        logging.debug(f"POSTing JSON {r.text=}")
-        if r.json().get("status") != "success":
-            raise misc.SubmissionError(r.json().get("errorMsg"))
-        url = self.par + self.batch_guid + "/upload_done.txt"  # Finalisation mark
-        r = httpx.put(url=url, headers=self.headers)
-        r.raise_for_status()
+        post_submission(self.submission, self.headers)
+        put_done_mark(self.batch_guid, self.headers)
         logging.info(
             f"Submitted batch {self.batch_guid}, mapping CSV saved to {self.mapping_path}"
         )
