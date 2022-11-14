@@ -313,6 +313,7 @@ def remove_nones_duplicates_empties_from_ld(ld: list[dict]) -> list[dict]:
     """Remove None-valued keys, duplicated, and empty dicts from a list of dicts"""
     ld = (
         pd.DataFrame(ld)
+        .fillna(value="")
         .sort_values(["sample_name", "error"])
         .drop_duplicates()
         .to_dict("records")
@@ -341,7 +342,7 @@ def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
-    # print(str(row), "\n")
+    print(str(row), "\n")
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":
@@ -377,7 +378,12 @@ def parse_validation_error(row):
     elif "str_matches" in row.check:
         allowed_chars = row.check.split("[")[1].split("]")[0]
         if row.schema_context == "Column":
-            return row.column + " can only contain characters (" + allowed_chars + ")"
+            if row.column == "district" and row.failure_case == False:
+                return None  # empty-name.csv causes problems for controls
+            else:
+                return (
+                    row.column + " can only contain characters (" + allowed_chars + ")"
+                )
         elif row.schema_context == "Index":
             return "sample_name can only contain characters (" + allowed_chars + ")"
     elif row.column == "country" and row.check[:4] == "isin":

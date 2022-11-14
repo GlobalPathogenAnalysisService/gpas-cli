@@ -349,12 +349,10 @@ def test_validate_fail_invalid_date():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("invalid-date.csv")
         )
-    assert e.value.errors[0] == {
-        "sample_name": "COVID_locost_2_barcode10",
-        "error": "fastq file does not exist",
-    }
-    assert e.value.errors[1]["error"].startswith(
+    assert len(e.value.errors) == 1
+    assert (
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
+        in e.value.errors[0]["error"]
     )
 
 
@@ -363,6 +361,7 @@ def test_validate_fail_non_iso_date():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("non-iso-date.csv")
         )
+    assert len(e.value.errors) == 1
     assert (
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
         in e.value.errors[0]["error"]
@@ -375,14 +374,11 @@ def test_validate_fail_empty_date():
             Path(data_dir) / Path("broken") / Path("empty-date.csv")
         )
 
-    assert e.value.errors[0]["error"] == "collection_date cannot be empty"
-    assert e.value.errors[1] == {
-        "sample_name": "COVID_locost_2_barcode10",
-        "error": "fastq file does not exist",
-    }
+    assert len(e.value.errors) == 2
+    assert e.value.errors[1]["error"] == "collection_date cannot be empty"
     assert (
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
-        in e.value.errors[2]["error"]
+        in e.value.errors[0]["error"]
     )
 
 
@@ -391,13 +387,10 @@ def test_validate_fail_insane_date():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("insane-date.csv")
         )
-    assert e.value.errors[0] == {
-        "sample_name": "COVID_locost_2_barcode10",
-        "error": "fastq file does not exist",
-    }
+    assert len(e.value.errors) == 1
     assert (
         "collection_date must be in format YYYY-MM-DD between 2019-01-01"
-        in e.value.errors[1]["error"]
+        in e.value.errors[0]["error"]
     )
 
 
@@ -406,6 +399,7 @@ def test_validate_fail_dupe_fastqs():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("dupe-fastqs.csv")
         )
+    assert len(e.value.errors) == 1
     assert e.value.errors[0] == {
         "sample_name": "COVID_locost_2_barcode10_x",
         "error": "fastq must be unique",
@@ -417,6 +411,7 @@ def test_validate_fail_dupe_names():
         _, message = validation.validate(
             Path(data_dir) / Path("broken") / Path("dupe-names.csv")
         )
+    assert len(e.value.errors) == 1
     assert e.value.errors[0] == {
         "sample_name": 1,
         "error": "sample_name must be unique",
@@ -650,3 +645,12 @@ def test_run_number_generation():
 def test_populated_unpopulated_run_numbers():
     """Pandera type coercion should mean that integer names are cast into strings"""
     run_cmd = run("gpas upload populated-unpopulated-run-numbers.csv")
+
+
+def test_empty_sample_name_is_not_nan():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("empty-name.csv")
+        )
+    assert len(e.value.report["validation"]["errors"]) == 1
+    assert "sample_name" not in e.value.report["validation"]["errors"][0]
