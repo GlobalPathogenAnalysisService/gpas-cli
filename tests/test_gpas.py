@@ -374,12 +374,13 @@ def test_validate_fail_empty_date():
             Path(data_dir) / Path("broken") / Path("empty-date.csv")
         )
 
-    assert len(e.value.errors) == 2
-    assert e.value.errors[1]["error"] == "collection_date cannot be empty"
-    assert (
-        "collection_date must be in format YYYY-MM-DD between 2019-01-01"
-        in e.value.errors[0]["error"]
-    )
+    assert len(e.value.errors) == 1
+    assert e.value.errors == [
+        {
+            "sample_name": "COVID_locost_2_barcode10",
+            "error": "collection_date cannot be empty",
+        }
+    ]
 
 
 def test_validate_fail_insane_date():

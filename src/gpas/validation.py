@@ -156,16 +156,18 @@ class BaseSchema(pa.SchemaModel):
     def check_collection_date(cls, value: str) -> bool:
         """Check the date is parseable and within allowed range"""
         valid = True
-        date = pd.to_datetime(value, format="%Y-%m-%d")
-        is_parseable = date.strftime("%Y-%m-%d") == value
-        allowed_range_start = datetime.datetime.strptime("2019-01-01", "%Y-%m-%d")
-        allowed_range_end = datetime.datetime.today()
-        is_within_range = allowed_range_start < date < allowed_range_end
-        if not is_parseable:
-            valid = False
-        if not is_within_range:
-            valid = False
-        return valid
+        try:
+            date = pd.to_datetime(value, format="%Y-%m-%d")
+            is_parseable = date.strftime("%Y-%m-%d") == value
+        except Exception:
+            is_parseable = False
+        try:
+            allowed_range_start = datetime.datetime.strptime("2019-01-01", "%Y-%m-%d")
+            allowed_range_end = datetime.datetime.today()
+            is_within_range = allowed_range_start < date < allowed_range_end
+        except Exception:
+            is_within_range = False
+        return valid if is_parseable and is_within_range else False
 
     @pa.check(instrument_platform)
     def check_unique_instrument_platform(cls, field):
@@ -379,7 +381,7 @@ def parse_validation_error(row):
         allowed_chars = row.check.split("[")[1].split("]")[0]
         if row.schema_context == "Column":
             if row.column == "district" and row.failure_case == False:
-                return None  # empty-name.csv causes problems for controls
+                return None  # empty-name.csv causes problems for district
             else:
                 return (
                     row.column + " can only contain characters (" + allowed_chars + ")"
