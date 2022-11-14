@@ -123,7 +123,7 @@ async def fetch_status_async(
     }
     endpoint = f"{ENVIRONMENTS_URLS[environment.value]['API']}/get_sample_detail"
     limits = httpx.Limits(
-        max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
+        max_keepalive_connections=5, max_connections=10, keepalive_expiry=10
     )
     transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
     async with httpx.AsyncClient(transport=transport, timeout=30) as client:
@@ -199,10 +199,7 @@ async def download_async(
         logging.info(f"Fetching file types {file_types}")
 
     limits = httpx.Limits(
-        max_keepalive_connections=8,
-        max_connections=16,
-        keepalive_expiry=100
-        # max_keepalive_connections=50, max_connections=100, keepalive_expiry=100
+        max_keepalive_connections=5, max_connections=10, keepalive_expiry=10
     )
     transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
     async with httpx.AsyncClient(transport=transport, timeout=120) as client:

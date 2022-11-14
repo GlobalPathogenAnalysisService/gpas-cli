@@ -344,7 +344,7 @@ def parse_validation_error(row):
     """
     Generate palatable errors from pandera output
     """
-    print(str(row), "\n")
+    # print(str(row), "\n")
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":
