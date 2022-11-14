@@ -324,10 +324,8 @@ def oracle_timestamp() -> str:
     return current_time[:tz_start_index] + "Z" + current_time[tz_start_index:]
 
 
-def number_runs(samples_run_names) -> tuple[dict[str, str], list[str]]:
-    run_names = list(
-        sorted(set(filter(None, samples_run_names.values())))
-    )  # Exclude empty
+def number_runs(samples_run_names: dict[str, str]) -> dict[str, str]:
+    run_names = list(sorted(set(filter(None, samples_run_names.values()))))
     run_names_numbers = {r: str(i) for i, r in enumerate(run_names, start=1)}
     samples_run_numbers = {
         run_name: run_names_numbers.get(run_number, "")
