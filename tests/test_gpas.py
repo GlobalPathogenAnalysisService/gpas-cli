@@ -607,6 +607,46 @@ def test_numeric_sample_name():
     )
 
 
+def test_run_number_generation():
+    samples_runs_empty_single = {
+        "sample1": "",
+    }
+    samples_runs_empty_multiple = {
+        "sample1": "",
+        "sample2": "",
+    }
+    samples_runs_full = {
+        "sample1": "a",
+        "sample2": "b",
+    }
+    samples_runs_mixed_single_run = {
+        "sample1": "a",
+        "sample2": "",
+        "sample3": "a",
+    }
+    samples_runs_mixed_multiple_runs = {
+        "sample1": "a",
+        "sample2": "",
+        "sample3": "b",
+    }
+    assert misc.number_runs(samples_runs_empty_single) == {"sample1": ""}
+    assert misc.number_runs(samples_runs_empty_multiple) == {
+        "sample1": "",
+        "sample2": "",
+    }
+    assert misc.number_runs(samples_runs_full) == {"sample1": "1", "sample2": "2"}
+    assert misc.number_runs(samples_runs_mixed_single_run) == {
+        "sample1": "1",
+        "sample2": "",
+        "sample3": "1",
+    }
+    assert misc.number_runs(samples_runs_mixed_multiple_runs) == {
+        "sample1": "1",
+        "sample2": "",
+        "sample3": "2",
+    }
+
+
 def test_populated_unpopulated_run_numbers():
     """Pandera type coercion should mean that integer names are cast into strings"""
     run_cmd = run("gpas upload populated-unpopulated-run-numbers.csv")
