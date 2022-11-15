@@ -162,6 +162,7 @@ def status(
     :arg guids: Comma-separated list of GPAS sample guids
     :arg format: Output format
     :arg rename: Use local sample names (requires --mapping-csv)
+    :arg debug: Emit verbose debug messages
     :arg environment: GPAS environment to use
     """
     if debug:
