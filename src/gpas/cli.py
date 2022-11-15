@@ -151,7 +151,7 @@ def status(
     guids: str = "",
     format: FORMATS = DEFAULT_FORMAT,
     rename: bool = False,
-    raw: bool = False,
+    debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
 ):
     """
@@ -162,9 +162,10 @@ def status(
     :arg guids: Comma-separated list of GPAS sample guids
     :arg format: Output format
     :arg rename: Use local sample names (requires --mapping-csv)
-    :arg raw: Emit raw response
     :arg environment: GPAS environment to use
     """
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
     auth = lib.parse_token(token)
     if mapping_csv:
         guids_ = lib.parse_mapping_csv(mapping_csv)  # dict
@@ -181,12 +182,11 @@ def status(
         lib.fetch_status_async(
             access_token=auth["access_token"],
             guids=guids_,
-            raw=raw,
             environment=environment,
         )
     )
 
-    if raw or format.value == "json":
+    if format.value == "json":
         records_fmt = json.dumps(records, indent=4)
     elif format.value == "table":
         records_fmt = pd.DataFrame(records).to_string(index=False)
@@ -240,8 +240,6 @@ def download(
             access_token=auth["access_token"],
             guids=guids_.keys() if type(guids_) is dict else guids_,
             environment=environment,
-            warn=True,
-            raw=False,
         )
     )
     downloadable_guids = [

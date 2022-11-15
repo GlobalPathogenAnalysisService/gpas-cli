@@ -16,7 +16,14 @@ from typing import Any
 import httpx
 import pandas as pd
 import tqdm
-from tenacity import before_sleep, retry, retry_if_exception_type, wait_exponential
+from tenacity import (
+    before_sleep,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_fixed,
+    wait_exponential,
+)
 from tqdm.contrib.concurrent import process_map
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -112,8 +119,6 @@ async def fetch_status_async(
     access_token: str,
     guids: list | dict,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    warn: bool = False,
-    raw: bool = False,
 ) -> list[dict]:
     """Returns a list of dicts of containing status records"""
     fetch_user_details(access_token, environment)
@@ -123,13 +128,13 @@ async def fetch_status_async(
     }
     endpoint = f"{ENVIRONMENTS_URLS[environment.value]['API']}/get_sample_detail"
     limits = httpx.Limits(
-        max_keepalive_connections=5, max_connections=10, keepalive_expiry=10
+        max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
     )
-    transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
+    transport = httpx.AsyncHTTPTransport(limits=limits, retries=0)
     async with httpx.AsyncClient(transport=transport, timeout=30) as client:
         guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
         tasks = [
-            fetch_status_single_async(client, guid, url, headers, warn)
+            fetch_status_single_async(client, guid, url, headers)
             for guid, url in guids_urls.items()
         ]
         records = [
@@ -137,7 +142,7 @@ async def fetch_status_async(
             # for f in asyncio.as_completed(tasks)
             for f in tqdm.tqdm(
                 asyncio.as_completed(tasks),
-                desc=f"Querying status for {len(guids)} samples",
+                desc=f"Querying status for {len(guids)} sample(s)",
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
                 total=len(tasks),
             )
@@ -153,27 +158,36 @@ async def fetch_status_async(
 @retry(
     retry=retry_if_exception_type(httpx.HTTPError),
     wait=wait_exponential(multiplier=1, min=1, max=8),
+    stop=stop_after_attempt(4),
     before_sleep=before_sleep.before_sleep_log(logger, 10),
 )
-async def fetch_status_single_async(
-    client, guid, url, headers, warn=False, n_retries=5
-):
+async def fetch_status_single_async(client, guid, url, headers):
+    logging.debug(f"fetch_status_single_async(): {url=}")
     r = await client.get(url=url, headers=headers)
+    logging.debug(f"fetch_status_single_async(): {r.status_code=} {r.json()=}")
     if r.status_code == httpx.codes.OK:
         r_json = r.json()[0]
         status = r_json.get("status")
         result = dict(sample=guid, status=status)
-        if warn and status not in GOOD_STATUSES:
+        if status not in GOOD_STATUSES:
             with logging_redirect_tqdm():
-                logging.info(f"Skipping {guid} with status {status}")
+                logging.info(f"{guid} has status {status}")
+    elif r.status_code == 401:
+        raise RuntimeError(
+            f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
+        )
+    elif r.json().get("message") == "Sample not found.":
+        status = "UNKNOWN"
+        with logging_redirect_tqdm():
+            logging.info(f"{guid} has status {status}")
+        result = dict(sample=guid, status=status)
+    elif r.json().get("message") == "You do not have access to this sample.":
+        status = "UNAUTHORISED"
+        with logging_redirect_tqdm():
+            logging.info(f"{guid} has status {status}")
+        result = dict(sample=guid, status=status)
     else:
-        result = dict(sample=guid, status="Unknown")
-        if r.status_code == 401:
-            raise RuntimeError(
-                f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
-            )
-        else:
-            r.raise_for_status()  # Raises retryable httpx.HTTPError
+        r.raise_for_status()  # Raises retryable httpx.HTTPError
 
     return result
 
@@ -184,7 +198,6 @@ async def download_async(
     file_types: list[str] = ["fasta"],
     out_dir: Path = Path.cwd(),
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    raw: bool = False,
 ):
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -201,7 +214,7 @@ async def download_async(
     limits = httpx.Limits(
         max_keepalive_connections=5, max_connections=10, keepalive_expiry=10
     )
-    transport = httpx.AsyncHTTPTransport(limits=limits, retries=5)
+    transport = httpx.AsyncHTTPTransport(limits=limits, retries=0)
     async with httpx.AsyncClient(transport=transport, timeout=120) as client:
         guids_types_urls = {}
         for guid in guids:
@@ -223,7 +236,7 @@ async def download_async(
             await f
             for f in tqdm.tqdm(
                 asyncio.as_completed(tasks),
-                desc=f"Downloading {len(tasks)} files for {len(guids)} samples",
+                desc=f"Downloading {len(tasks)} files for {len(guids)} sample(s)",
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
                 total=len(tasks),
             )
@@ -233,10 +246,11 @@ async def download_async(
 @retry(
     retry=retry_if_exception_type(httpx.HTTPError),
     wait=wait_exponential(multiplier=1, min=1, max=8),
+    stop=stop_after_attempt(4),
     before_sleep=before_sleep.before_sleep_log(logger, 10),
 )
 async def download_single_async(
-    client, guid, file_type, url, headers, out_dir, name=None, retries=5
+    client, guid, file_type, url, headers, out_dir, name=None
 ):
     file_types_extensions = {
         "json": "json",
@@ -267,7 +281,6 @@ def fetch_status(
     access_token: str,
     guids: list | dict,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
-    raw: bool = False,
 ) -> list[dict]:
     """
     Return a list of dictionaries given a list of guids
@@ -281,14 +294,11 @@ def fetch_status(
     for guid in tqdm.tqdm(guids):
         r = httpx.get(url=f"{endpoint}/{guid}", headers=headers)
         if r.is_success:
-            if raw:
-                records.append(r.json())
-            else:
-                if type(guids) == "dict":
-                    sample = guids[sample]
-                else:  # list
-                    sample = r.json()[0].get("name")
-                records.append({"sample": sample, "status": r.json()[0].get("status")})
+            if type(guids) == "dict":
+                sample = guids[sample]
+            else:  # list
+                sample = r.json()[0].get("name")
+            records.append({"sample": sample, "status": r.json()[0].get("status")})
         else:
             if type(guids) == "dict":
                 sample = guids[sample]
@@ -764,7 +774,8 @@ class Batch:
     def _finalise_submission(self):
         @retry(
             retry=retry_if_exception_type(httpx.HTTPError),
-            wait=wait_exponential(multiplier=1, min=60, max=120),
+            wait=wait_fixed(60),
+            stop=stop_after_attempt(2),
             before_sleep=before_sleep.before_sleep_log(logger, 10),
         )
         def post_submission(submission: dict, headers: dict):
@@ -784,7 +795,8 @@ class Batch:
 
         @retry(
             retry=retry_if_exception_type(httpx.HTTPError),
-            wait=wait_exponential(multiplier=1, min=10, max=40),
+            wait=wait_fixed(10),
+            stop=stop_after_attempt(2),
             before_sleep=before_sleep.before_sleep_log(logger, 10),
         )
         def put_done_mark(batch_guid: str, headers: dict):
