@@ -1,2 +1,3 @@
 batch,run_number,sample_name,fastq,control,collection_date,tags,country,region,district,specimen_organism,host,primer_scheme,instrument_platform
 ,,0,reads/large-nanopore-fastq.fastq.gz,,2022-05-06,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore
+,,1,reads/large-nanopore-fastq space.fastq.gz,,2022-05-06,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore

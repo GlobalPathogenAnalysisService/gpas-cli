@@ -413,7 +413,6 @@ def test_validate_fail_dupe_names():
         )
     assert len(e.value.errors) == 1
     assert e.value.errors[0] == {
-        "sample_name": 1,
         "error": "sample_name must be unique",
     }
 
