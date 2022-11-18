@@ -657,3 +657,22 @@ def test_empty_sample_name_is_not_nan():
 
 def test_decontamination_extra_field():
     lib.Batch(Path(data_dir) / Path("extra-fields.csv"))._decontaminate()
+
+
+def test_validate_json_messages_entire_output():
+    """Will fail if, totally hypothetically, a stray print() is left in"""
+    run_cmd = run("gpas validate broken/insane-date.csv --json-messages")
+    assert run_cmd.stdout == (
+        """{
+    "validation": {
+        "status": "failure",
+        "errors": [
+            {
+                "sample_name": "COVID_locost_2_barcode10",
+                "error": "collection_date must be in format YYYY-MM-DD between 2019-01-01 and 2022-11-18"
+            }
+        ]
+    }
+}
+"""
+    )

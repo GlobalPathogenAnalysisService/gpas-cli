@@ -341,7 +341,6 @@ def parse_validation_errors(errors):
     failure_cases = errors.failure_cases.rename(columns={"index": "sample_name"})
     failure_cases["error"] = failure_cases.apply(parse_validation_error, axis=1)
     failures = failure_cases[["sample_name", "error"]].to_dict("records")
-    print(failures)
     return remove_nones_duplicates_empties_ints_from_ld(remove_ints(failures))
 
 
