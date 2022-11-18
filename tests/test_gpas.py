@@ -24,9 +24,8 @@ def test_static_assets_exist():
 
 
 def test_validate_ok():
-    df, schema_name = validation.validate(
-        Path(data_dir) / Path("large-illumina-fastq.csv")
-    )
+    df, schema = validation.validate(Path(data_dir) / Path("large-illumina-fastq.csv"))
+    schema_name = schema.__schema__.name
     message = validation.build_validation_message(df, schema_name)
     # assert message == {
     #     "validation": {
@@ -655,3 +654,7 @@ def test_empty_sample_name_is_not_nan():
         )
     assert len(e.value.report["validation"]["errors"]) == 1
     assert "sample_name" not in e.value.report["validation"]["errors"][0]
+
+
+def test_decontamination_extra_field():
+    lib.Batch(Path(data_dir) / Path("extra-fields.csv"))._decontaminate()

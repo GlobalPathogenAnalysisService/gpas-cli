@@ -530,7 +530,11 @@ class Batch:
             self.headers = {}
             self.date_mask = None
         logging.debug(f"{self.upload_csv=}")
-        self.df, self.schema_name = validate(self.upload_csv, self.permitted_tags)
+        self.df, self.schema = validate(self.upload_csv, self.permitted_tags)
+        self.schema_name = self.schema.__schema__.name
+        self.schema_fields = set(self.schema.to_schema().columns.keys()) | {
+            "sample_name"
+        }
         self.validation_json = build_validation_message(self.df, self.schema_name)
         batch_attrs = {
             "schema_name": self.schema_name,
@@ -538,8 +542,10 @@ class Batch:
             "samtools_path": self.samtools_path,
             "decontaminator_path": self.decontaminator_path,
         }
-        self.samples = [
-            Sample(**r, **batch_attrs)
+        self.samples = [  # Pass only schematised fields to the Sample constructor
+            Sample(
+                **dict((k, r[k]) for k in self.schema_fields if k in r), **batch_attrs
+            )
             for r in self.df.fillna("").reset_index().to_dict("records")
         ]
         self.paired = self.samples[0].paired
@@ -757,7 +763,7 @@ class Batch:
             partial(
                 misc.upload_sample,
                 headers=self.headers,
-                json_messages=self.json_messages,
+                json_messages=selfpy.json_messages,
             ),
             uploads,
             max_workers=10,

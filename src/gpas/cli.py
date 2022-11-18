@@ -36,7 +36,8 @@ def validate(
         _, _, allowed_tags, _ = lib.parse_user_details(auth_result)
     else:
         allowed_tags = []
-    df, schema_name = validation.validate(upload_csv, allowed_tags)
+    df, schema = validation.validate(upload_csv, allowed_tags)
+    schema_name = schema.__schema__.name
     message = validation.build_validation_message(df, schema_name)
     if json_messages:
         print(json.dumps(message, indent=4))

@@ -210,7 +210,6 @@ class BaseSchema(pa.SchemaModel):
         return df.apply(validate_region, axis=1)
 
     class Config:
-        strict = True
         coerce = True
 
 
@@ -499,7 +498,7 @@ def validate_upload_csv_path(upload_csv) -> bool:
 
 def validate(
     upload_csv: Path, permitted_tags: list[str] = []
-) -> tuple[pd.DataFrame, str]:
+) -> tuple[pd.DataFrame, pa.SchemaModel]:
     """
     Validate a dataframe. Returns success message or throws ValidationError
     """
@@ -528,7 +527,10 @@ def validate(
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         raise ValidationError(parse_validation_errors(e)) from None
     logging.info("Validation successful")
-    return df, df.pandera.schema.name
+    # print(dir(schema))
+    # print(dir(schema.__schema__))
+    # print(schema.__schema__.name)
+    return df, schema
 
 
 def build_validation_message(df: pd.DataFrame, schema_name: str) -> dict:
