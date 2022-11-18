@@ -120,7 +120,6 @@ def jsonify_exceptions(function, **kwargs):
         try:
             return function(**kwargs)
         except validation.ValidationError as e:
-            # print(e.report)
             jsonify(e.report)
         except Exception as e:
             e_t, e_v, e_tb = get_value_traceback(e)

@@ -676,3 +676,9 @@ def test_validate_json_messages_entire_output():
 }
 """
     )
+
+
+def test_validate_colliding_mandatory_and_arbitrary_fields():
+    df, schema = validation.validate(
+        Path(data_dir) / Path("colliding-mandatory-arbitrary-fields.csv")
+    )
