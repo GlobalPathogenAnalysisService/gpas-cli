@@ -527,9 +527,6 @@ def validate(
     except pa.errors.SchemaErrors as e:  # Validation errorS, because lazy=True
         raise ValidationError(parse_validation_errors(e)) from None
     logging.info("Validation successful")
-    # print(dir(schema))
-    # print(dir(schema.__schema__))
-    # print(schema.__schema__.name)
     return df, schema
 
 

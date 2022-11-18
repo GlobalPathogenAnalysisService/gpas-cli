@@ -701,8 +701,15 @@ class Batch:
                 "gpas_sample_name",
             ],
         )
+        arbitrary_fields = [c for c in self.df.columns if c not in self.schema_fields]
+        combined_df = pd.merge(
+            df,
+            self.df[[*arbitrary_fields]],
+            left_on="local_sample_name",
+            right_index=True,
+        )
         target_path = self.out_dir / Path(self.batch_guid + ".mapping.csv")
-        df.to_csv(target_path, index=False)
+        combined_df.to_csv(target_path, index=False)
         self.mapping_path = target_path
 
     def _fetch_par(self):
@@ -763,7 +770,7 @@ class Batch:
             partial(
                 misc.upload_sample,
                 headers=self.headers,
-                json_messages=selfpy.json_messages,
+                json_messages=self.json_messages,
             ),
             uploads,
             max_workers=10,
