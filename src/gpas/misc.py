@@ -55,19 +55,19 @@ class SubprocessError(Exception):
 
 ENVIRONMENTS_URLS = {
     "dev": {
-        "HOST": "https://portal.dev.gpas.ox.ac.uk/",
-        "API": "https://portal.dev.gpas.ox.ac.uk/ords/gpas_pub/gpasapi/",
-        "ORDS": "https://portal.dev.gpas.ox.ac.uk/ords/grep/electron/",
+        "HOST": "https://portal.dev.gpas.ox.ac.uk",
+        "API": "https://portal.dev.gpas.ox.ac.uk/ords/gpas_pub/gpasapi",
+        "ORDS": "https://portal.dev.gpas.ox.ac.uk/ords/grep/electron",
     },
     "staging": {
-        "HOST": "https://portal.staging.gpas.ox.ac.uk/",
-        "API": "https://portal.staging.gpas.ox.ac.uk/ords/gpas_pub/gpasapi/",
-        "ORDS": "https://portal.staging.gpas.ox.ac.uk/ords/grep/electron/",
+        "HOST": "https://portal.staging.gpas.ox.ac.uk",
+        "API": "https://portal.staging.gpas.ox.ac.uk/ords/gpas_pub/gpasapi",
+        "ORDS": "https://portal.staging.gpas.ox.ac.uk/ords/grep/electron",
     },
     "prod": {
-        "HOST": "https://portal.gpas.ox.ac.uk/",
-        "API": "https://portal.gpas.ox.ac.uk/ords/gpas_pub/gpasapi/",
-        "ORDS": "https://portal.gpas.ox.ac.uk/ords/grep/electron/",
+        "HOST": "https://portal.gpas.ox.ac.uk",
+        "API": "https://portal.gpas.ox.ac.uk/ords/gpas_pub/gpasapi",
+        "ORDS": "https://portal.gpas.ox.ac.uk/ords/grep/electron",
     },
 }
 
