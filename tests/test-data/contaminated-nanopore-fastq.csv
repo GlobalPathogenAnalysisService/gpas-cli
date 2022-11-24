@@ -1,0 +1,2 @@
+batch,run_number,sample_name,fastq,control,collection_date,tags,country,region,district,specimen_organism,host,primer_scheme,instrument_platform
+,,sample,reads/contaminated-nanopore-fastq.fastq.gz,,2022-11-24,GPAS_OxUni,GBR,Oxfordshire,,SARS-CoV-2,human,auto,Nanopore

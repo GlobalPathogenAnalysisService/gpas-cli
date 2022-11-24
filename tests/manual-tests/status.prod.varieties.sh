@@ -1,0 +1,1 @@
+gpas status --guids fcb4eb11-8089-ad2f-9556-3929a11c5fe7,610af08e-ef4f-efff-8102-25bb41ce7918,074f8759-b01f-4677-148e-0738d2f7ae01,000000000000000000000000000000000000 /Users/bede/Research/Git/gpas-cli/tests/test-data/token-prod.json
