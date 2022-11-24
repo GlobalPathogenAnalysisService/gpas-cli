@@ -402,7 +402,7 @@ def parse_validation_error(row):
         else:
             return (
                 row.failure_case
-                + f" in the control field is not valid; field must be either empty or contain the one of the keywords {', '.join(CONTROLS)}"
+                + f" in the control field is not valid; field must be either empty or contain one of the keywords {', '.join(sorted(CONTROLS))}"
             )
     elif row.column == "host" and row.check[:4] == "isin":
         return row.column + " can only contain the keyword human"

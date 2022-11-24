@@ -249,6 +249,13 @@ def test_decontamination():
     lib.Batch(Path(data_dir) / Path("large-illumina-bam.csv"))._decontaminate()
 
 
+def test_decontamination_effectiveness():
+    batch = lib.Batch(Path(data_dir) / Path("contaminated-nanopore-fastq.csv"))
+    batch._decontaminate()
+    for sample in batch.samples:
+        assert sample.decontamination_stats == {"fraction": 0.5, "in": 2, "out": 1}
+
+
 def test_decontamination_stats():
     stdout = """Input reads file 1	5034
 Input reads file 2	5034
@@ -661,7 +668,9 @@ def test_decontamination_extra_field():
 
 def test_validate_json_messages_entire_output():
     """Will fail if, totally hypothetically, a stray print() is left in"""
-    run_cmd = run("gpas validate broken/insane-date.csv --json-messages")
+    import datetime
+
+    run_cmd = run("gpas validate broken/empty-date.csv --json-messages")
     assert run_cmd.stdout == (
         """{
     "validation": {
@@ -669,7 +678,7 @@ def test_validate_json_messages_entire_output():
         "errors": [
             {
                 "sample_name": "COVID_locost_2_barcode10",
-                "error": "collection_date must be in format YYYY-MM-DD between 2019-01-01 and 2022-11-18"
+                "error": "collection_date cannot be empty"
             }
         ]
     }
@@ -682,3 +691,16 @@ def test_validate_colliding_mandatory_and_arbitrary_fields():
     df, schema = validation.validate(
         Path(data_dir) / Path("colliding-mandatory-arbitrary-fields.csv")
     )
+
+
+def test_invalid_control():
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("wrong-control.csv")
+        )
+    assert e.value.errors == [
+        {
+            "sample_name": "sample",
+            "error": "heffalump in the control field is not valid; field must be either empty or contain one of the keywords negative, positive",
+        },
+    ]
