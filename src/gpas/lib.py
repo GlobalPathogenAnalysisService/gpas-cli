@@ -157,8 +157,8 @@ async def fetch_status_async(
 
 @retry(
     retry=retry_if_exception_type(httpx.HTTPError),
-    wait=wait_exponential(multiplier=1, min=1, max=8),
-    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=1, min=1, max=16),
+    stop=stop_after_attempt(5),
     before_sleep=before_sleep.before_sleep_log(logger, 10),
 )
 async def fetch_status_single_async(client, guid, url, headers):
