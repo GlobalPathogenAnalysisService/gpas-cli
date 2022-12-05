@@ -30,7 +30,7 @@ def parse_countries_subdivisions():
 CONTROLS = {"positive", "negative"}
 HOSTS = {"human"}
 INSTRUMENTS = {"Illumina", "Nanopore"}
-ORGANISMS = {"SARS-CoV-2"}
+ORGANISMS = {"SARS-CoV-2", "Mycobacteria"}
 PRIMER_SCHEMES = {"auto"}
 COUNTRIES_SUBDIVISIONS = parse_countries_subdivisions()
 COUNTRIES_ALPHA_3 = COUNTRIES_SUBDIVISIONS.keys()

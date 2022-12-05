@@ -373,12 +373,12 @@ class Sample:
         self.decontamination_stats = None
 
     def get_decontamination_ref_path(self):
-        organisms_decontamination_references = {"SARS-CoV-2": "MN908947_no_polyA.fasta"}
+        organisms_decontamination_references = {"SARS-CoV-2": "MN908947_no_polyA.fasta", "Mycobacteria": "NC_000962.3.fasta"}
         ref = organisms_decontamination_references[self.specimen_organism]
         return misc.get_data_path() / Path("refs") / Path(ref)
 
     def _get_decontaminate_cmd(self):
-        if self.specimen_organism == "SARS-CoV-2":
+        if self.specimen_organism in ["SARS-CoV-2", "Mycobacteria"]:
             cmd = self._get_riak_cmd()
         else:
             raise misc.DecontaminationError("Invalid organism")
