@@ -662,8 +662,12 @@ def test_empty_sample_name_is_not_nan():
     assert "sample_name" not in e.value.report["validation"]["errors"][0]
 
 
-def test_decontamination_extra_field():
+def test_decontamination_extra_fields():
     lib.Batch(Path(data_dir) / Path("extra-fields.csv"))._decontaminate()
+
+
+def test_decontamination_extra_fields():
+    lib.Batch(Path(data_dir) / Path("extra-fields-interleaved.csv"))._decontaminate()
 
 
 def test_validate_json_messages_entire_output():
