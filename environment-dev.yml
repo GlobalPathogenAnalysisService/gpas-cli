@@ -14,6 +14,7 @@ dependencies:
   - pre-commit
   - mypy
   - python-build
+  - boto3
   - pip:
     - pyinstaller
     - git+https://github.com/GlobalPathogenAnalysisService/gpas-cli.git#egg=gpas
