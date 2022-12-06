@@ -39,12 +39,12 @@ gpas-cli releases are pushed to [Docker Hub](hub.docker.com) for easy installati
 
 ```shell
 # Fetch image, show gpas-cli version
-docker run oxfordmmm/gpas-cli:0.5.1 gpas --version
+docker run oxfordmmm/gpas-cli:latest gpas --version
 
 # Fetch image, upload example data using a bound volume
 docker run \
 -v /Users/bede/Research/Git/gpas-cli/tests/test-data:/test-data \
-oxfordmmm/gpas-cli:0.5.1 \
+oxfordmmm/gpas-cli:latest \
 gpas upload \
 --environment dev \
 --token /test-data/token.json \
