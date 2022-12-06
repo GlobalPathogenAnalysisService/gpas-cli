@@ -14,6 +14,7 @@ from functools import partial
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
+import boto3
 import httpx
 import pandas as pd
 import tqdm
@@ -332,3 +333,11 @@ def number_runs(samples_run_names: dict[str, str]) -> dict[str, str]:
         for run_name, run_number in samples_run_names.items()
     }
     return samples_run_numbers
+
+
+def upload_mapping_csv_to_s3(mapping_csv: Path, bucket="ukhsa-mapping-test"):
+    s3 = boto3.resource("s3")
+    with open(mapping_csv, "rb") as fh:
+        data = fh.read()
+    s3.Bucket(bucket).put_object(Key=mapping_csv.name, Body=data)
+    logging.info(f"Uploaded {mapping_csv.name} to S3 bucket {bucket}")

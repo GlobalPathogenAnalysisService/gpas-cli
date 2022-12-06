@@ -1,4 +1,4 @@
-name: gpas-cli
+name: gpas-cli-ukhsa
 channels:
   - conda-forge
   - bioconda
@@ -8,5 +8,6 @@ dependencies:
   - pip
   - read-it-and-keep=0.3.0
   - samtools=1.15.1
+  - boto3
   - pip:
     - gpas

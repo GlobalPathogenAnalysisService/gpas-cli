@@ -836,6 +836,9 @@ class Batch:
                 "samples": [s.sample_name for s in self.samples],
             }
         }
+
+        misc.upload_mapping_csv_to_s3(self.mapping_path)
+
         if self.json_messages:
             misc.print_json(success_message)
 
