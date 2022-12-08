@@ -810,7 +810,7 @@ class Batch:
                 url=endpoint,
                 data=json.dumps(submission, ensure_ascii=False).encode("utf-8"),
                 headers=headers,
-                timeout=60,
+                timeout=80,
             )
             logging.debug(f"post_submission(): {r.text=}")
             r.raise_for_status()
