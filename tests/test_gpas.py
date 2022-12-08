@@ -666,7 +666,7 @@ def test_decontamination_extra_fields():
     lib.Batch(Path(data_dir) / Path("extra-fields.csv"))._decontaminate()
 
 
-def test_decontamination_extra_fields():
+def test_decontamination_extra_fields_interleaved():
     lib.Batch(Path(data_dir) / Path("extra-fields-interleaved.csv"))._decontaminate()
 
 

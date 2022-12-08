@@ -476,6 +476,7 @@ class Batch:
         working_dir: Path = Path("/tmp"),
         out_dir: Path = Path(),
         processes: int = 0,
+        upload_processes: int = 10,
         environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
         json_messages: bool = False,
         save_reads: bool = False,
@@ -489,6 +490,7 @@ class Batch:
         self.out_dir = out_dir
         out_dir.mkdir(parents=False, exist_ok=True)
         self.processes = processes if processes else int(multiprocessing.cpu_count())
+        self.upload_processes = upload_processes
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.json_messages = json_messages
         self.samtools_path = misc.get_binary_path("samtools")
@@ -766,18 +768,27 @@ class Batch:
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="started")
         uploads = self._get_uploads()
-        process_map(
-            partial(
-                misc.upload_sample,
-                headers=self.headers,
-                json_messages=self.json_messages,
-            ),
-            uploads,
-            max_workers=10,
-            desc=f"Uploading {len(uploads)} sample(s) (10 connections)",
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-            leave=False,
-        )
+        if self.upload_processes == 1:
+            logging.debug("Single upload process")
+            for upload in uploads:
+                misc.upload_sample(
+                    upload=upload,
+                    headers=self.headers,
+                    json_messages=self.json_messages,
+                )
+        else:
+            process_map(
+                partial(
+                    misc.upload_sample,
+                    headers=self.headers,
+                    json_messages=self.json_messages,
+                ),
+                uploads,
+                max_workers=upload_processes,
+                desc=f"Uploading {len(uploads)} sample(s) (10 connections)",
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                leave=False,
+            )
         self.uploaded = True
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="finished")
