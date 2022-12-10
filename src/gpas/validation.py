@@ -73,25 +73,6 @@ class set_directory(object):
         os.chdir(self.origin)
 
 
-def region_is_valid(df):
-    """
-    Validate the region field using ISO 3166-2
-    """
-
-    def validate_region(row):
-        if (
-            row["region"]
-            and not pd.isna(row["region"])
-            and row["region"] not in COUNTRIES_SUBDIVISIONS.get(row["country"], {})
-        ):
-            valid = False
-        else:
-            valid = True
-        return valid
-
-    return df.apply(validate_region, axis=1).all()
-
-
 class BaseSchema(pa.SchemaModel):
     """
     Validate generic GPAS upload CSVs
@@ -197,14 +178,18 @@ class BaseSchema(pa.SchemaModel):
         """
 
         def validate_region(row):
-            if (
-                row["region"]
-                and not pd.isna(row["region"])
-                and row["region"] not in COUNTRIES_SUBDIVISIONS.get(row["country"], {})
-            ):
+            try:
+                region = row["region"] if "region" in row else ""
+                if (
+                    region
+                    and not pd.isna(region)
+                    and region not in COUNTRIES_SUBDIVISIONS.get(row["country"], {})
+                ):
+                    valid = False
+                else:
+                    valid = True
+            except KeyError:
                 valid = False
-            else:
-                valid = True
             return valid
 
         return df.apply(validate_region, axis=1)
@@ -352,7 +337,7 @@ def parse_validation_error(row):
     if row.check == "column_in_schema":
         return "unexpected column " + row.failure_case
     if row.check == "column_in_dataframe":
-        return "column " + row.failure_case
+        return "missing column " + row.failure_case
     elif row.check == "region_is_valid":
         return "invalid region (ISO 3166-2 subdivision) for specified country"
     elif row.check == "instrument_is_valid" or (
@@ -429,24 +414,27 @@ def parse_validation_error(row):
 def select_schema(df: pd.DataFrame) -> pa.SchemaModel:
     """Choose appropriate validation schema and the presence of required columns"""
     columns = set(df.columns)
-    if "bam" in columns and not {"fastq", "fastq1", "fastq2"} & columns:
-        if "Illumina" in df["instrument_platform"].tolist():
-            schema = PairedBamSchema
+    try:
+        if "bam" in columns and not {"fastq", "fastq1", "fastq2"} & columns:
+            if "Illumina" in df["instrument_platform"].tolist():
+                schema = PairedBamSchema
+            else:
+                schema = BamSchema
+        elif (
+            "fastq" in columns
+            and not {"fastq1", "fastq2", "bam"} & columns
+            and "Nanopore" in df["instrument_platform"].tolist()
+        ):
+            schema = FastqSchema
+        elif (
+            {"fastq1", "fastq2"} < columns
+            and not {"fastq", "bam"} & columns
+            and "Illumina" in df["instrument_platform"].tolist()
+        ):
+            schema = PairedFastqSchema
         else:
-            schema = BamSchema
-    elif (
-        "fastq" in columns
-        and not {"fastq1", "fastq2", "bam"} & columns
-        and "Nanopore" in df["instrument_platform"].tolist()
-    ):
-        schema = FastqSchema
-    elif (
-        {"fastq1", "fastq2"} < columns
-        and not {"fastq", "bam"} & columns
-        and "Illumina" in df["instrument_platform"].tolist()
-    ):
-        schema = PairedFastqSchema
-    else:
+            raise RuntimeError()
+    except:
         raise ValidationError(
             [
                 {

@@ -30,7 +30,7 @@ def test_status_guids_csv():
 
 def test_status_mapping_csv_json():
     run_cmd = run(
-        f"gpas status --mapping-csv example_mapping.csv --format json --environment dev token.json"
+        f"gpas status --mapping-csv example-mapping-csv.csv --format json --environment dev token.json"
     )
     assert {
         "sample": "6e024eb1-432c-4b1b-8f57-3911fe87555f",
@@ -40,28 +40,28 @@ def test_status_mapping_csv_json():
 
 def test_status_mapping_csv_csv():
     run_cmd = run(
-        f"gpas status --mapping-csv example_mapping.csv --format csv --environment dev token.json"
+        f"gpas status --mapping-csv example-mapping-csv.csv --format csv --environment dev token.json"
     )
     assert "6e024eb1-432c-4b1b-8f57-3911fe87555f,Unreleased" in run_cmd.stdout
 
 
 def test_status_mapping_csv_table():
     run_cmd = run(
-        f"gpas status --mapping-csv example_mapping.csv --format table --environment dev token.json"
+        f"gpas status --mapping-csv example-mapping-csv.csv --format table --environment dev token.json"
     )
     assert "6e024eb1-432c-4b1b-8f57-3911fe87555f Unreleased" in run_cmd.stdout
 
 
 def test_status_mapping_csv_rename():
     run_cmd = run(
-        f"gpas status --mapping-csv example_mapping.csv --environment dev token.json --format csv --rename"
+        f"gpas status --mapping-csv example-mapping-csv.csv --environment dev token.json --format csv --rename"
     )
     assert "test4_uploaded,Uploaded" in run_cmd.stdout
 
 
 def test_gpas_uploader_download_mapping_csv():
     run_cmd = run(
-        f"gpas download --mapping-csv example_mapping.csv --environment dev token.json"
+        f"gpas download --mapping-csv example-mapping-csv.csv --environment dev token.json"
     )
     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
     run("rm -f *.fasta.gz")
@@ -69,7 +69,7 @@ def test_gpas_uploader_download_mapping_csv():
 
 def test_download_mapping_csv():
     run_cmd = run(
-        f"gpas download --mapping-csv example_mapping.csv --environment dev token.json"
+        f"gpas download --mapping-csv example-mapping-csv.csv --environment dev token.json"
     )
     assert Path(f"{data_dir}/6e024eb1-432c-4b1b-8f57-3911fe87555f.fasta.gz").is_file()
     run("rm -f *.fasta.gz")
@@ -77,7 +77,7 @@ def test_download_mapping_csv():
 
 def test_download_mapping_csv_rename():
     run_cmd = run(
-        f"gpas download --rename --mapping-csv example_mapping.csv --file-types vcf --environment dev token.json"
+        f"gpas download --rename --mapping-csv example-mapping-csv.csv --file-types vcf --environment dev token.json"
     )
     assert Path(f"{data_dir}/test1.vcf").is_file()
     run("rm -f test*.vcf")
@@ -109,7 +109,9 @@ def test_download_guid_api():
 
 def test_status_mapping_api():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
-    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example_mapping.csv"))
+    guids_names = lib.parse_mapping_csv(
+        Path(data_dir) / Path("example-mapping-csv.csv")
+    )
     records = asyncio.run(
         lib.fetch_status_async(
             access_token=access_token,
@@ -131,7 +133,9 @@ def test_status_mapping_api():
 
 def test_status_sync_mapping():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
-    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example_mapping.csv"))
+    guids_names = lib.parse_mapping_csv(
+        Path(data_dir) / Path("example-mapping-csv.csv")
+    )
     records = lib.fetch_status(
         access_token=access_token,
         guids=guids_names.keys(),
@@ -153,7 +157,9 @@ def test_status_sync_mapping():
 # pytest -s --online tests/test_gpas_online.py::test_status_sync_mapping_rename
 def test_status_sync_mapping_rename():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
-    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example_mapping.csv"))
+    guids_names = lib.parse_mapping_csv(
+        Path(data_dir) / Path("example-mapping-csv.csv")
+    )
     records = lib.fetch_status(
         access_token=access_token,
         guids=guids_names,
@@ -171,7 +177,9 @@ def test_status_sync_mapping_rename():
 
 def test_status_mapping_rename_api():
     access_token = lib.parse_token(Path(data_dir) / Path("token.json"))["access_token"]
-    guids_names = lib.parse_mapping_csv(Path(data_dir) / Path("example_mapping.csv"))
+    guids_names = lib.parse_mapping_csv(
+        Path(data_dir) / Path("example-mapping-csv.csv")
+    )
     records = asyncio.run(
         lib.fetch_status_async(
             access_token=access_token,
@@ -190,7 +198,7 @@ def test_status_mapping_rename_api():
 
 def test_gpas_uploader_download_mapping_rename_fasta():
     run_cmd = run(
-        f"gpas download --mapping-csv example_mapping.csv --rename --environment dev token.json"
+        f"gpas download --mapping-csv example-mapping-csv.csv --rename --environment dev token.json"
     )
     with gzip.open(Path(f"{data_dir}/test1.fasta.gz"), "rt") as fh:
         assert "cdbc4af8-a75c-42ce-8fe2-8dba2ab5e839|test1" in fh.read()

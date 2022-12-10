@@ -1,0 +1,2 @@
+batch,sample_name,bam
+run1,COVID_locost_2_barcode10,../reads/large-nanopore-bam.bam

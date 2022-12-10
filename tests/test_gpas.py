@@ -671,7 +671,7 @@ def test_decontamination_extra_fields_interleaved():
 
 
 def test_validate_json_messages_entire_output():
-    """Will fail if, totally hypothetically, a stray print() is left in"""
+    """Will fail if …hypothetically… a stray print() is left in"""
     import datetime
 
     run_cmd = run("gpas validate broken/empty-date.csv --json-messages")
@@ -708,3 +708,43 @@ def test_invalid_control():
             "error": "heffalump in the control field is not valid; field must be either empty or contain one of the keywords negative, positive",
         },
     ]
+
+
+def test_validate_fail_missing_platform():
+    """Tests fix to KeyError in 0.8.0 due to calls to df["instrument_platform"] not being wrapped in try-except"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("missing-platform.csv")
+        )
+
+
+def test_validate_fail_missing_country():
+    """Tests fix to KeyError in 0.8.0 due to calls to row["country"] not being wrapped in try-except"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("missing-country.csv")
+        )
+
+
+def test_validate_fail_missing_collection_date():
+    """Purely prophylactic"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("missing-collection-date.csv")
+        )
+
+
+def test_validate_fail_missing_tags():
+    """Purely prophylactic"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("missing-tags.csv")
+        )
+
+
+def test_validate_fail_missing_region():
+    """Purely prophylactic"""
+    with pytest.raises(validation.ValidationError) as e:
+        _, message = validation.validate(
+            Path(data_dir) / Path("broken") / Path("missing-region.csv")
+        )
