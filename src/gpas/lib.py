@@ -70,9 +70,15 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS) -> dict:
         result = r.json()
         logging.debug(f"{result=}")
     except httpx.HTTPStatusError as e:
-        if e.response.status_code == 401:
+        if e.response.status_code == 400 and "API access" in e.response.json().get(
+            "message"
+        ):
             raise misc.AuthenticationError(
-                f"Authentication failed, check access token and environment"
+                f"Authentication failed. User lacks API permissions"
+            ) from None
+        elif e.response.status_code == 401:
+            raise misc.AuthenticationError(
+                f"Authentication failed. Check access token and environment"
             ) from None
         else:
             raise e from None
@@ -172,9 +178,13 @@ async def fetch_status_single_async(client, guid, url, headers):
         if status not in GOOD_STATUSES:
             with logging_redirect_tqdm():
                 logging.info(f"{guid} has status {status}")
+    elif r.status_code == 400 and "API access" in r.json().get("message"):
+        raise misc.AuthenticationError(
+            f"Authentication failed (HTTP {r.status_code}). User lacks API permissions"
+        )
     elif r.status_code == 401:
-        raise RuntimeError(
-            f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
+        raise misc.AuthenticationError(
+            f"Authentication failed (HTTP {r.status_code}). Invalid token?"
         )
     elif r.json().get("message") == "Sample not found.":
         status = "UNKNOWN"
@@ -273,6 +283,14 @@ async def download_single_async(
             update_fasta_header(
                 Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
             )
+    elif r.status_code == 400 and "API access" in r.json().get("message"):
+        raise misc.AuthenticationError(
+            f"Bad request (HTTP {r.status_code}). User lacks API permissions"
+        )
+    elif r.status_code == 401:
+        raise misc.AuthenticationError(
+            f"Authorisation failed (HTTP {r.status_code}). Invalid token?"
+        )
     else:
         r.raise_for_status()  # Raises retryable httpx.HTTPError
 
