@@ -494,7 +494,7 @@ class Batch:
         working_dir: Path = Path("/tmp"),
         out_dir: Path = Path(),
         processes: int = 0,
-        upload_processes: int = 10,
+        connections: int = 10,
         environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
         json_messages: bool = False,
         save_reads: bool = False,
@@ -508,7 +508,7 @@ class Batch:
         self.out_dir = out_dir
         out_dir.mkdir(parents=False, exist_ok=True)
         self.processes = processes if processes else int(multiprocessing.cpu_count())
-        self.upload_processes = upload_processes
+        self.connections = connections
         self.json = {"validation": "", "decontamination": "", "submission": ""}
         self.json_messages = json_messages
         self.samtools_path = misc.get_binary_path("samtools")
@@ -731,6 +731,7 @@ class Batch:
         target_path = self.out_dir / Path(self.batch_guid + ".mapping.csv")
         combined_df.to_csv(target_path, index=False)
         self.mapping_path = target_path
+        logging.info(f"Saved mapping CSV to {self.mapping_path}")
 
     def _fetch_par(self):
         """Private method that calls ORDS to get a Pre-Authenticated Request.
@@ -786,7 +787,7 @@ class Batch:
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="started")
         uploads = self._get_uploads()
-        if self.upload_processes == 1:
+        if self.connections == 1:
             logging.debug("Single upload process")
             for upload in uploads:
                 misc.upload_sample(
@@ -802,8 +803,8 @@ class Batch:
                     json_messages=self.json_messages,
                 ),
                 uploads,
-                max_workers=upload_processes,
-                desc=f"Uploading {len(uploads)} sample(s) (10 connections)",
+                max_workers=self.connections,
+                desc=f"Uploading {len(uploads)} sample(s)",
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
                 leave=False,
             )
@@ -855,9 +856,7 @@ class Batch:
         self.submission["batch"]["uploader"]["upload_finish"] = misc.oracle_timestamp()
         post_submission(self.submission, self.headers)
         put_done_mark(self.batch_guid, self.headers)
-        logging.info(
-            f"Submitted batch {self.batch_guid}, mapping CSV saved to {self.mapping_path}"
-        )
+        logging.info(f"Submitted batch {self.batch_guid}")
         success_message = {
             "submission": {
                 "status": "success",
@@ -965,8 +964,9 @@ class Batch:
 
     def upload(self, dry_run: bool = False, save_reads: bool = False) -> None:
         try:
-            if self.processes > 1:
-                logging.info(f"Using {self.processes} processes")
+            logging.info(
+                f"Using {self.processes} process(es), {self.connections} connection(s)"
+            )
             self._decontaminate()
             if not self.headers:
                 logging.warning("No token provided, quitting")

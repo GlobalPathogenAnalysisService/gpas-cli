@@ -74,7 +74,7 @@ def upload(
     working_dir: Path | None = None,
     out_dir: Path = Path(),
     processes: int = 0,
-    upload_processes: int = 10,
+    connections: int = 10,
     dry_run: bool = False,
     debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
@@ -92,7 +92,7 @@ def upload(
             working_dir=working_dir if working_dir else Path(tmp_dir),
             out_dir=out_dir,
             processes=processes,
-            upload_processes=upload_processes,
+            connections=connections,
             environment=environment,
             json_messages=json_messages,
             save_reads=save_reads,
@@ -108,7 +108,7 @@ def upload_wrapper(
     working_dir: Path | None = None,
     out_dir: Path = Path(),
     processes: int = 0,
-    upload_processes: int = 10,
+    connections: int = 10,
     dry_run: bool = False,
     debug: bool = False,
     environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
@@ -125,7 +125,7 @@ def upload_wrapper(
     :arg working_dir: Path of directory in which to make intermediate files
     :arg out_dir: Path of directory in which to save mapping CSV
     :arg processes: Number of tasks to execute in parallel. 0 = auto
-    :arg upload_processes: Number of uploads to perform in parallel
+    :arg connections: Number of uploads performed in parallel
     :arg dry_run: Exit before submitting files
     :arg debug: Emit verbose debug messages
     :arg environment: GPAS environment to use
@@ -139,7 +139,7 @@ def upload_wrapper(
         working_dir=working_dir,
         out_dir=out_dir,
         processes=processes,
-        upload_processes=upload_processes,
+        connections=connections,
         dry_run=dry_run,
         debug=debug,
         environment=environment,

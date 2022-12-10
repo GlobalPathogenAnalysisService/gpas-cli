@@ -141,7 +141,7 @@ def test_upload_empty_paired():
 
 def test_upload_empty_after_decontamination():
     run_cmd = run(
-        f"gpas upload --environment dev --token token.json empty-after-decontamination-fastq.csv --dry-run"
+        f"gpas upload --environment dev --token token.json empty-after-decontamination-fastq.csv --dry-run --connections 1"
     )
     assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
     batch_guid = run_cmd.stderr.partition("saved to ")[2].partition(".mapping.csv")[0]
@@ -150,7 +150,7 @@ def test_upload_empty_after_decontamination():
 
 def test_upload_empty_after_decontamination_paired():
     run_cmd = run(
-        f"gpas upload --environment dev --token token.json empty-after-decontamination-paired-fastq.csv --dry-run"
+        f"gpas upload --environment dev --token token.json empty-after-decontamination-paired-fastq.csv --dry-run --connections 2"
     )
     assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
     batch_guid = run_cmd.stderr.partition("saved to ")[2].partition(".mapping.csv")[0]
