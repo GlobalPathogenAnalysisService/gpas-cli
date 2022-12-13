@@ -8,6 +8,7 @@ from pathlib import Path
 import defopt
 import pandas as pd
 
+from gpas import __version__
 from gpas.misc import jsonify_exceptions
 
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
@@ -21,6 +22,8 @@ from gpas.misc import (
     FORMATS,
     GOOD_STATUSES,
 )
+
+# print(gpas.__version__)
 
 
 def validate(
