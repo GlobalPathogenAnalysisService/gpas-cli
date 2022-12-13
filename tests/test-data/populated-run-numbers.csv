@@ -1,0 +1,3 @@
+batch,run_number,sample_name,bam,control,collection_date,tags,country,region,district,specimen_organism,host,instrument_platform,primer_scheme
+,run1,sample1,reads/large-illumina-bam.bam,,2022-03-08,GPAS_OxUni,GBR,Oxfordshire,,SARS-CoV-2,human,Illumina,auto
+,run2,sample2,reads/large-illumina-bam-2.bam,,2022-03-08,GPAS_OxUni,GBR,Oxfordshire,,SARS-CoV-2,human,Illumina,auto

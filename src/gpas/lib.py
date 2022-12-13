@@ -986,10 +986,13 @@ class Batch:
     def _number_runs(self) -> None:
         """Enumerate unique values of run_number for submission"""
         samples_runs = self._get_sample_attrs("run_number")
+        logging.debug(f"{samples_runs=}")
         samples_run_numbers = misc.number_runs(samples_runs)
+        logging.debug(f"{samples_run_numbers=}")
         for s in self.samples:
             s.gpas_run_number = samples_run_numbers[s.sample_name]
         self.run_numbers = list(filter(None, samples_run_numbers.values()))
+        logging.debug(f"{self.run_numbers=}")
 
 
 def parse_decontamination_stats(stdout: str) -> dict:

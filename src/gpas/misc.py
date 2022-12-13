@@ -325,10 +325,13 @@ def oracle_timestamp() -> str:
 
 
 def number_runs(samples_run_names: dict[str, str]) -> dict[str, str]:
-    run_names = list(sorted(set(filter(None, samples_run_names.values()))))
-    run_names_numbers = {r: str(i) for i, r in enumerate(run_names, start=1)}
-    samples_run_numbers = {
-        run_name: run_names_numbers.get(run_number, "")
-        for run_name, run_number in samples_run_names.items()
-    }
-    return samples_run_numbers
+    if not any(samples_run_names.values()):  # No run numbers whatsoever
+        return samples_run_names
+    else:  # At least one run number provided, need to populate empty values
+        run_names = list(sorted(set(samples_run_names.values())))
+        run_names_numbers = {r: str(i) for i, r in enumerate(run_names, start=1)}
+        samples_run_numbers = {
+            run_name: run_names_numbers.get(run_number, "")
+            for run_name, run_number in samples_run_names.items()
+        }
+        return samples_run_numbers

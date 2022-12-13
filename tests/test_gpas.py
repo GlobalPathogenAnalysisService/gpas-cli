@@ -609,6 +609,10 @@ def test_numeric_sample_name():
 
 
 def test_run_number_generation():
+    """
+    Batches without any run numbers should return `sample: ""` for all samples
+    Batches with one or more run numbers should provide run numbers for every sample
+    """
     samples_runs_empty_single = {
         "sample1": "",
     }
@@ -637,20 +641,27 @@ def test_run_number_generation():
     }
     assert misc.number_runs(samples_runs_full) == {"sample1": "1", "sample2": "2"}
     assert misc.number_runs(samples_runs_mixed_single_run) == {
-        "sample1": "1",
-        "sample2": "",
-        "sample3": "1",
+        "sample1": "2",
+        "sample2": "1",
+        "sample3": "2",
     }
     assert misc.number_runs(samples_runs_mixed_multiple_runs) == {
-        "sample1": "1",
-        "sample2": "",
-        "sample3": "2",
+        "sample1": "2",
+        "sample2": "1",
+        "sample3": "3",
     }
 
 
 def test_populated_unpopulated_run_numbers():
-    """Pandera type coercion should mean that integer names are cast into strings"""
     run_cmd = run("gpas upload populated-unpopulated-run-numbers.csv")
+
+
+def test_populated_run_numbers():
+    run_cmd = run("gpas upload populated-run-numbers.csv")
+
+
+def test_unpopulated_run_numbers():
+    run_cmd = run("gpas upload populated-run-numbers.csv")
 
 
 def test_empty_sample_name_is_not_nan():
