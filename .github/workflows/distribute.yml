@@ -20,7 +20,7 @@ jobs:
         python-version: '${{ matrix.python-version }}'
     - name: Install Python dependencies
       run: |
-        pip install pytest pytest-cov pyinstaller
+        pip install pytest pytest-cov pyinstaller==5.6.2
         pip install ./
     - name: Install Samtools
       run: |
