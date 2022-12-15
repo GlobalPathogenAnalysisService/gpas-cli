@@ -1,0 +1,2 @@
+batch,run_number,sample_name,bam,control,collection_date,tags,country,region,district,specimen_organism,host,primer_scheme,instrument_platform
+run1,run1.1,contains.several.dots,reads/large-nanopore-bam.bam,,2022-05-06,GPAS_OxUni,USA,Texas,1124,SARS-CoV-2,human,auto,Nanopore

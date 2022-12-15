@@ -411,7 +411,7 @@ class Sample:
     def _get_convert_bam_cmd(self, paired=False) -> misc.LoggedShellCommand:
         prefix = Path(self.working_dir) / Path(self.sample_name)
         if not self.paired:
-            cmd = f'"{self.samtools_path}" fastq -0 "{prefix.with_suffix(".fastq.gz")}" "{self.bam}"'
+            cmd = f'"{self.samtools_path}" fastq -0 "{prefix}.fastq.gz" "{self.bam}"'
             self.fastq = self.working_dir / Path(self.sample_name + ".fastq.gz")
         else:
             cmd = (

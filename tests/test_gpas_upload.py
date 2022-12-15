@@ -155,3 +155,7 @@ def test_upload_empty_after_decontamination_paired():
     assert "INFO: Finished decontaminating 1 sample(s)" in run_cmd.stderr
     batch_guid = run_cmd.stderr.partition("saved to ")[2].partition(".mapping.csv")[0]
     run(f"rm -f {batch_guid}.mapping.csv")
+
+
+def test_upload_dots_in_sample_name():
+    run_cmd = run(f"gpas upload dots-in-sample-name.csv")

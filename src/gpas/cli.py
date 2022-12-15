@@ -23,8 +23,6 @@ from gpas.misc import (
     GOOD_STATUSES,
 )
 
-# print(gpas.__version__)
-
 
 def validate(
     upload_csv: Path,
