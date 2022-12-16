@@ -267,13 +267,73 @@ def download(
     )
 
 
+def related(
+    token: Path,
+    *,
+    mapping_csv: Path | None = None,
+    guids: str = "",
+    restrict: bool = False,
+    format: FORMATS = FORMATS.json,
+    rename: bool = False,
+    debug: bool = False,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+):
+    """
+    Return related samples given a mapping CSV or list of guids
+
+    :arg token: Path of auth token available from GPAS Portal
+    :arg mapping_csv: Path of mapping CSV generated at upload time
+    :arg guids: Comma-separated list of GPAS sample guids
+    :arg restrict: Only return samples included in the queried set
+    :arg format: Output format
+    :arg rename: Use local sample names (requires --mapping-csv)
+    :arg debug: Emit verbose debug messages
+    :arg environment: GPAS environment to use
+    """
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    auth = lib.parse_token(token)
+    if mapping_csv:
+        guids_ = lib.parse_mapping_csv(mapping_csv)  # dict
+        if not rename:
+            guids_ = guids_.keys()  # list
+    elif guids:
+        if rename:
+            logging.warning("Cannot rename outputs without mapping CSV")
+        guids_ = guids.strip(",").split(",")  # list
+    else:
+        raise RuntimeError("Provide either a mapping CSV or a list of guids")
+
+    records = asyncio.run(
+        lib.fetch_related_async(
+            access_token=auth["access_token"],
+            guids=guids_,
+            environment=environment,
+            restrict=restrict,
+        )
+    )
+
+    if format.value == "json":
+        records_fmt = json.dumps(records, indent=4)
+    elif format.value == "table":
+        records_fmt = pd.DataFrame(records).to_string(index=False)
+    elif format.value == "csv":
+        records_fmt = pd.DataFrame(records).to_csv(index=False).strip()
+    else:
+        raise RuntimeError("Unknown output format")
+
+    print(records_fmt)
+
+
 def main():
     defopt.run(
         {
             "validate": validate_wrapper,
             "upload": upload_wrapper,
             "status": status,
+            "check": status,
             "download": download,
+            "related": related,
         },
         no_negated_flags=True,
         strict_kwonly=False,

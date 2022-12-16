@@ -202,6 +202,103 @@ async def fetch_status_single_async(client, guid, url, headers):
     return result
 
 
+async def fetch_related_async(
+    access_token: str,
+    guids: list | dict,
+    environment: ENVIRONMENTS = DEFAULT_ENVIRONMENT,
+    restrict: bool = False,
+) -> list[dict]:
+    """Returns a list of dicts of containing status records"""
+    fetch_user_details(access_token, environment)
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    endpoint = (
+        f"{ENVIRONMENTS_URLS[environment.value]['API']}/get_sample_relatedness_detail"
+    )
+    limits = httpx.Limits(
+        max_keepalive_connections=10, max_connections=20, keepalive_expiry=10
+    )
+    transport = httpx.AsyncHTTPTransport(limits=limits, retries=0)
+    async with httpx.AsyncClient(transport=transport, timeout=30) as client:
+        guids_urls = {guid: f"{endpoint}/{guid}" for guid in guids}
+        tasks = [
+            fetch_related_single_async(client, guid, url, headers)
+            for guid, url in guids_urls.items()
+        ]
+        records = [
+            await f
+            for f in tqdm.tqdm(
+                asyncio.as_completed(tasks),
+                desc=f"Fetching relatedness for {len(guids)} sample(s)",
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                total=len(tasks),
+            )
+        ]
+
+    if type(guids) is dict:
+        logging.debug("Renaming")
+        records = pd.DataFrame(records).replace(guids).to_dict("records")
+
+    records_dict = {i[0]: i[1] for i in records}
+    filtered_records_dict = {}
+    if restrict:
+        guids = set(guids)
+        for guid, result in records_dict.items():
+            filtered_records_dict[guid] = defaultdict(defaultdict(list).copy)
+            for threshold, countries in result.items():
+                for country, guids_ in countries.items():
+                    for guid_ in guids_:
+                        if guid_ in guids:
+                            filtered_records_dict[guid][threshold][country].append(
+                                guid_
+                            )
+        records_dict = filtered_records_dict
+
+    return records_dict
+
+
+@retry(
+    retry=retry_if_exception_type(httpx.HTTPError),
+    wait=wait_exponential(multiplier=1, min=1, max=16),
+    stop=stop_after_attempt(5),
+    before_sleep=before_sleep.before_sleep_log(logger, 10),
+)
+async def fetch_related_single_async(client, guid, url, headers) -> tuple[str, dict]:
+    # logging.debug(f"fetch_related_single_async(): {url=}")
+    r = await client.get(url=url, headers=headers)
+    # logging.debug(f"fetch_related_single_async(): {r.status_code=} {r.json()=}")
+    if r.status_code == httpx.codes.OK:
+        try:
+            r_json = r.json()
+            result = (guid, next(iter(r_json.values())))
+        except json.decoder.JSONDecodeError:
+            result = (guid, {})
+    elif r.status_code == 400 and "API access" in r.json().get("message"):
+        raise misc.AuthenticationError(
+            f"Authentication failed (HTTP {r.status_code}). User lacks API permissions"
+        )
+    elif r.status_code == 401:
+        raise misc.AuthenticationError(
+            f"Authentication failed (HTTP {r.status_code}). Invalid token?"
+        )
+    elif r.json().get("message") == "Sample not found.":
+        status = "UNKNOWN"
+        with logging_redirect_tqdm():
+            logging.info(f"{guid} has status {status}")
+        result = dict(sample=guid, status=status)
+    elif r.json().get("message") == "You do not have access to this sample.":
+        status = "UNAUTHORISED"
+        with logging_redirect_tqdm():
+            logging.info(f"{guid} has status {status}")
+        result = dict(sample=guid, status=status)
+    else:
+        r.raise_for_status()  # Raises retryable httpx.HTTPError
+
+    return result
+
+
 async def download_async(
     access_token: str,
     guids: list | dict,
