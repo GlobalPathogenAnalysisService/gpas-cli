@@ -652,7 +652,9 @@ class Batch:
             f"{ENVIRONMENTS_URLS[self.environment.value]['ORDS']}/createSampleGuids"
         )
         logging.debug(f"Fetching guids; {endpoint=}")
-        r = httpx.post(url=endpoint, data=json.dumps(payload), headers=self.headers)
+        r = httpx.post(
+            url=endpoint, data=json.dumps(payload), headers=self.headers, timeout=120
+        )
         if not r.is_success:
             r.raise_for_status()
         result = r.json()
@@ -817,7 +819,7 @@ class Batch:
     def _finalise_submission(self):
         @retry(
             retry=retry_if_exception_type(httpx.HTTPError),
-            wait=wait_fixed(60),
+            wait=wait_fixed(30),
             stop=stop_after_attempt(2),
             before_sleep=before_sleep.before_sleep_log(logger, 10),
         )
@@ -829,7 +831,7 @@ class Batch:
                 url=endpoint,
                 data=json.dumps(submission, ensure_ascii=False).encode("utf-8"),
                 headers=headers,
-                timeout=80,
+                timeout=180,
             )
             logging.debug(f"post_submission(): {r.text=}")
             r.raise_for_status()
