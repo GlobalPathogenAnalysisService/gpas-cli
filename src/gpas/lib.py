@@ -8,6 +8,7 @@ import os
 import platform
 import shutil
 import sys
+import warnings
 from collections import defaultdict
 from functools import partial
 from pathlib import Path
@@ -798,18 +799,20 @@ class Batch:
                     json_messages=self.json_messages,
                 )
         else:
-            process_map(
-                partial(
-                    misc.upload_sample,
-                    headers=self.headers,
-                    json_messages=self.json_messages,
-                ),
-                uploads,
-                max_workers=self.connections,
-                desc=f"Uploading {len(uploads)} sample(s)",
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
-                leave=False,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")  # Suppress TqdmWarning about chunksize
+                process_map(
+                    partial(
+                        misc.upload_sample,
+                        headers=self.headers,
+                        json_messages=self.json_messages,
+                    ),
+                    uploads,
+                    max_workers=self.connections,
+                    desc=f"Uploading {len(uploads)} sample(s)",
+                    bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}",
+                    leave=False,
+                )
         self.uploaded = True
         if self.json_messages:
             misc.print_progress_message_json(action="upload", status="finished")
