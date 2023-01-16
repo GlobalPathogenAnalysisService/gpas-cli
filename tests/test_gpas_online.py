@@ -83,6 +83,15 @@ def test_download_mapping_csv_rename():
     run("rm -f test*.vcf")
 
 
+def test_download_mapping_csv_rename_out_dir():
+    run
+    run_cmd = run(
+        f"mkdir -p outdir && gpas download --rename --mapping-csv example-mapping-csv.csv --file-types fasta,vcf,json --environment dev token.json --out-dir outdir"
+    )
+    assert Path(f"{data_dir}/outdir/test1.fasta.gz").is_file()
+    run("rm -rf outdir")
+
+
 def test_download_guid_rename_without_mapping():
     run_cmd = run(
         f"gpas download --guids 6e024eb1-432c-4b1b-8f57-3911fe87555f --file-types vcf --rename --environment dev token.json"

@@ -65,7 +65,9 @@ def fetch_user_details(access_token, environment: ENVIRONMENTS) -> dict:
     endpoint = f"{ENVIRONMENTS_URLS[environment.value]['ORDS']}/userOrgDtls"
     try:
         logging.debug(f"Fetching user details {endpoint=}")
-        r = httpx.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
+        r = httpx.get(
+            endpoint, headers={"Authorization": f"Bearer {access_token}"}, timeout=10
+        )
         if not r.is_success:
             r.raise_for_status()
         result = r.json()
@@ -282,7 +284,9 @@ async def download_single_async(
             fh.write(r.content)
         if name and file_type == "fasta":
             update_fasta_header(
-                Path(f"{prefix}.{file_types_extensions[file_type]}"), guid, name
+                Path(out_dir) / Path(f"{prefix}.{file_types_extensions[file_type]}"),
+                guid,
+                name,
             )
     elif r.status_code == 400 and "API access" in r.json().get("message"):
         raise misc.AuthenticationError(
