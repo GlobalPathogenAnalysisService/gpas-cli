@@ -1,4 +1,4 @@
-name: gpas-cli
+name: gpas-cli-sars2
 channels:
   - conda-forge
   - bioconda

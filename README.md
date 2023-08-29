@@ -24,13 +24,13 @@ Miniconda is recommended ([Miniconda installation guide](https://conda.io/projec
 # Create and activate the conda environment
 curl -OJ https://raw.githubusercontent.com/GlobalPathogenAnalysisService/gpas-cli/main/environment.yml
 conda env create -f environment.yml
-conda activate gpas-cli
+conda activate gpas-cli-sars2
 
 # Show gpas-cli version
 gpas --version
 
 # Updating? Run this before creating the conda environment
-conda remove -n gpas-cli --all
+conda remove -n gpas-cli-sars2 --all
 ```
 
 #### With `docker`
@@ -72,12 +72,11 @@ One can alternatively `pip install` the PyPI package in a Python 3.10+ environme
 
 ```shell
 # Install inside a new Python environment
-python3 -m venv gpas-cli
-source gpas-cli/bin/activate
+python3 -m venv gpas-cli-sars2
+source gpas-cli-sars2/bin/activate
 pip install gpas
 
-# Activate and use
-source gpas-cli/bin/activate
+# Show gpas-cli version
 gpas --version
 
 # If samtools and read-it-and-keep are not in $PATH, tell gpas-cli where to find them
@@ -275,7 +274,7 @@ Use pre-commit to apply black style at commit time (should happen automatically)
 git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
 cd gpas-cli
 conda env create -f environment-dev.yml
-conda activate gpas-cli-dev
+conda activate gpas-cli-sars2-dev
 pip install --upgrade --force-reinstall --editable ./
 
 # Offline unit tests
