@@ -1,17 +1,8 @@
-[![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg)](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml) [![PyPI version](https://badge.fury.io/py/gpas.svg)](https://badge.fury.io/py/gpas)
+[![Tests](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml/badge.svg)](https://github.com/GlobalPathogenAnalysisService/gpas-cli/actions/workflows/test.yml)
 
-The command line client for interacting with the [Global Pathogen Analysis Service](https://www.gpas.cloud/). Performs fast parallel client-side decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. Installs with Conda or Docker and supports Ubuntu Linux, MacOS and Windows.
+The command line client for interacting with the [GPAS SARS-CoV-2 platform](https://www.gpas.cloud/). Performs client-side host decontamination and upload, and automatically renames downloaded output files with original sample identifiers for convenience while preserving privacy. Installs with Conda or Docker and supports Ubuntu Linux, MacOS and Windows (under WSL).
 
 ![Upload CLI demo](banner-upload.gif)
-
-| Command line interface | Python API (unstable) |
-| ----------------- | ------- |
-| ✅ `gpas upload` | ✅ `lib.Batch().upload()` |
-| ✅ `gpas download` | ✅ `lib.download_async()` |
-| ✅ `gpas validate` | ✅ `validation.validate()` |
-| ✅ `gpas status` | ✅ `lib.fetch_status_async()` |
-
-
 
 ## Install
 
@@ -266,9 +257,7 @@ options:
 
 
 
-## Development and testing
-
-Use pre-commit to apply black style at commit time (should happen automatically)
+## Development install
 
 ```shell
 git clone https://github.com/GlobalPathogenAnalysisService/gpas-cli
